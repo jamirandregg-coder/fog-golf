@@ -927,28 +927,21 @@ function toast(msg) {
 function getRSVPDeadline() {
   const tw = state.thisWeek;
   if (!tw.date) return null;
-  // Tee time is always 2:00 PM MDT (hardcoded per league rules)
-  // Deadline is 24 hours before = Sunday 2:00 PM MDT
+  // RSVP deadline = Monday 2:00 PM MDT (tee time)
   const teeTimeLocal = new Date(tw.date + 'T14:00:00');
-  // Convert to proper Denver time
-  const denverNow = new Date().toLocaleString('en-US', { timeZone: 'America/Denver' });
-  const nowDenver = new Date(denverNow);
-  // Build tee time as Denver time
   const year = teeTimeLocal.getFullYear();
   const month = String(teeTimeLocal.getMonth() + 1).padStart(2, '0');
   const day = String(teeTimeLocal.getDate()).padStart(2, '0');
   const teeStr = `${year}-${month}-${day}T14:00:00`;
-  // Get the UTC offset for Denver on that date
+  // Get the UTC offset for Denver on that date (handles MDT/MST)
   const testDate = new Date(teeStr);
   const utcStr = testDate.toLocaleString('en-US', { timeZone: 'UTC' });
   const denStr = testDate.toLocaleString('en-US', { timeZone: 'America/Denver' });
   const utcDate = new Date(utcStr);
   const denDate = new Date(denStr);
   const offsetMs = utcDate.getTime() - denDate.getTime();
-  // Tee time in UTC
-  const teeUTC = new Date(testDate.getTime() + offsetMs);
-  // Deadline is 24 hours before tee time
-  return new Date(teeUTC.getTime() - 24 * 60 * 60 * 1000);
+  // Deadline = tee time (Monday 2 PM Denver time) in UTC
+  return new Date(testDate.getTime() + offsetMs);
 }
 
 function isRSVPLocked() {
@@ -1384,7 +1377,7 @@ function checkAutoEmailTriggers() {
   if (!deadline || !state.thisWeek.date) return;
   const now = new Date();
 
-  // Trigger 1: At deadline (Sunday 2 PM MDT)
+  // Trigger 1: At deadline (Monday 2 PM MDT = tee time)
   const deadlineKey = 'deadline-' + wn;
   if (!emailSentFlags[deadlineKey]) {
     const diffMs = now.getTime() - deadline.getTime();
@@ -1395,8 +1388,8 @@ function checkAutoEmailTriggers() {
     }
   }
 
-  // Trigger 2: Monday 8 AM MDT (18 hours after Sunday 2 PM)
-  const mondayMorning = new Date(deadline.getTime() + 18 * 60 * 60 * 1000);
+  // Trigger 2: Monday 8 AM MDT (6 hours before tee time)
+  const mondayMorning = new Date(deadline.getTime() - 6 * 60 * 60 * 1000);
   const morningKey = 'morning-' + wn;
   if (!emailSentFlags[morningKey]) {
     const diffMs2 = now.getTime() - mondayMorning.getTime();
