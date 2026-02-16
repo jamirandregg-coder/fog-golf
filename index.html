@@ -748,6 +748,40 @@
     color: var(--gold);
   }
 
+  /* TEE TIMES & PAIRINGS */
+  .tee-times-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end; }
+  .tee-time-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .tee-time-slot .slot-label { font-size: 0.6rem; color: var(--pink-hot); font-weight: 700; }
+  .tee-time-slot input { width: 90px; padding: 6px 8px; font-size: 0.85rem; text-align: center; }
+  .tee-time-slot .remove-slot { font-size: 0.6rem; color: var(--red-bad); cursor: pointer; background: none; border: none; font-family: 'Space Grotesk', sans-serif; }
+  .add-tee-time-btn {
+    font-size: 0.72rem; padding: 6px 12px; border: 1px dashed rgba(255,61,167,0.4);
+    background: transparent; color: var(--pink-light); border-radius: 8px; cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; align-self: center;
+  }
+  .add-tee-time-btn:hover { border-color: var(--pink-hot); color: var(--pink-hot); }
+
+  .pairings-card { margin-top: 16px; }
+  .pairing-group {
+    background: rgba(255,61,167,0.04); border: 1px solid rgba(255,61,167,0.15);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+  }
+  .pairing-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  }
+  .pairing-tee-time {
+    font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 700; color: var(--pink-hot);
+  }
+  .pairing-group-label { font-size: 0.68rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+  .pairing-players { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pairing-player {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,61,167,0.2); border-radius: 20px;
+    font-size: 0.85rem; font-weight: 600;
+  }
+  .pairing-player .pairing-num { font-size: 0.65rem; color: var(--pink-hot); font-weight: 800; }
+
   /* SCHEDULE RSVP */
   .sched-rsvp-toggle {
     display: flex; align-items: center; gap: 6px; margin-top: 8px; cursor: pointer;
@@ -892,6 +926,17 @@
       </div>
       <div id="admin-summary-content"></div>
     </div>
+
+    <!-- Pairings Display (visible to everyone when pairings exist) -->
+    <div class="card" id="pairings-card" style="display:none">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>Tee Time Pairings</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline editor-only-card" style="font-size:0.7rem;padding:6px 14px" onclick="generatePairings()">Regenerate</button>
+        </div>
+      </div>
+      <div id="pairings-content"></div>
+    </div>
   </div>
 
   <!-- LIVE SCORING PANEL -->
@@ -982,15 +1027,21 @@
           <input type="date" id="sched-date-input">
         </div>
         <div class="form-group">
-          <label>Tee Time</label>
-          <input type="time" id="sched-time-input" value="14:00">
-        </div>
-        <div class="form-group">
           <label>Par</label>
           <input type="number" id="sched-par-input" value="36" min="27" max="80" style="width:80px">
         </div>
       </div>
       <div style="margin-top:10px">
+        <label style="margin-bottom:6px;display:block">Tee Times (up to 6)</label>
+        <div class="tee-times-row" id="sched-tee-times-row">
+          <div class="tee-time-slot">
+            <span class="slot-label">T1</span>
+            <input type="time" class="sched-tee-input" value="14:00">
+          </div>
+        </div>
+        <button class="add-tee-time-btn" onclick="addSchedTeeTime()" style="margin-top:6px">+ Add Tee Time</button>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-pink" onclick="saveScheduleWeek()">Save Week</button>
       </div>
     </div>
@@ -1086,13 +1137,19 @@
           <input type="date" id="tw-date-input">
         </div>
         <div class="form-group">
-          <label>Tee Time</label>
-          <input type="time" id="tw-time-input">
-        </div>
-        <div class="form-group">
           <label>Par</label>
           <input type="number" id="tw-par-input" value="72" min="60" max="80" style="width:90px">
         </div>
+      </div>
+      <div style="margin-top:10px">
+        <label style="margin-bottom:6px;display:block">Tee Times (up to 6)</label>
+        <div class="tee-times-row" id="tw-tee-times-row">
+          <div class="tee-time-slot">
+            <span class="slot-label">T1</span>
+            <input type="time" class="tw-tee-input" value="14:00">
+          </div>
+        </div>
+        <button class="add-tee-time-btn" onclick="addManageWeekTeeTime()" style="margin-top:6px">+ Add Tee Time</button>
       </div>
       <div class="form-row">
         <div class="form-group wide">
@@ -1114,6 +1171,7 @@
 
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-pink" onclick="saveThisWeek()">Save This Week</button>
+        <button class="btn btn-outline" onclick="generatePairings()">Generate Pairings</button>
         <button class="btn btn-outline" onclick="markAllPaid()">Mark All In as Paid</button>
         <button class="btn btn-outline" onclick="resetPayments()">Reset Payments</button>
       </div>
@@ -1178,11 +1236,13 @@ let courseSetupData = {};     // { pars: [...], ctpHoles: [...], longDriveHole: 
 let courseSetupListener = null;
 let contestsData = {};       // { ctp: { holeIdx: playerId }, longDrive: playerId }
 let contestsListener = null;
-let scheduleData = {};       // { weekNum: { course, date, time, par } }
+let scheduleData = {};       // { weekNum: { course, date, teeTimes, par } }
 let scheduleListener = null;
 let scheduleRsvpData = {};   // { weekNum: { playerId: status } }
 let scheduleRsvpListeners = {};
 let expandedScheduleWeeks = {};  // track which weeks have RSVP expanded
+let pairingsData = {};       // { weekNum: [ { teeTime, players: [id,...] }, ... ] }
+let pairingsListener = null;
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
@@ -1337,8 +1397,10 @@ function applyMode() {
     document.body.classList.remove('editor-mode');
   }
   ['player-name-input','player-handicap-input','week-select','par-input','course-input','save-scores-btn',
-   'tw-course-input','tw-date-input','tw-time-input','tw-par-input','tw-notes-input','current-week-select']
+   'tw-course-input','tw-date-input','tw-par-input','tw-notes-input','current-week-select']
     .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !isEditor; });
+  // Also disable/enable tee time inputs in manage week
+  document.querySelectorAll('.tw-tee-input').forEach(el => el.disabled = !isEditor);
   renderScoreEntry();
   updateRoundStatusUI();
   renderCourseSetup();
@@ -1405,10 +1467,15 @@ function renderThisWeek() {
       const d = new Date(tw.date + 'T00:00:00');
       details.push(d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }));
     }
-    if (tw.time) {
-      const [h, m] = tw.time.split(':');
-      const hr = parseInt(h);
-      details.push((hr > 12 ? hr - 12 : hr) + ':' + m + (hr >= 12 ? ' PM' : ' AM'));
+    // Show multiple tee times if available, otherwise single time
+    const teeTimes = tw.teeTimes && tw.teeTimes.length > 0 ? tw.teeTimes : (tw.time ? [tw.time] : []);
+    if (teeTimes.length > 0) {
+      const formatted = teeTimes.map(t => formatTeeTime(t)).filter(Boolean);
+      if (formatted.length === 1) {
+        details.push(formatted[0]);
+      } else if (formatted.length > 1) {
+        details.push(formatted[0] + '–' + formatted[formatted.length - 1] + ' (' + formatted.length + ' tee times)');
+      }
     }
     if (tw.par) details.push('Par ' + tw.par);
     detailsEl.innerHTML = details.map(d => '<span>' + escHtml(d) + '</span>').join(' &middot; ');
@@ -1428,6 +1495,7 @@ function renderThisWeek() {
 
   updateDeadlineDisplay();
   renderRSVP();
+  renderPairingsDisplay();
 }
 
 function renderRSVP() {
@@ -1702,20 +1770,24 @@ function renderManageWeek() {
   sel.value = state.thisWeek.weekNum || 1;
   document.getElementById('tw-course-input').value = state.thisWeek.course || '';
   document.getElementById('tw-date-input').value = state.thisWeek.date || '';
-  document.getElementById('tw-time-input').value = state.thisWeek.time || '';
   document.getElementById('tw-par-input').value = state.thisWeek.par || 72;
   document.getElementById('tw-notes-input').value = state.thisWeek.notes || '';
+  // Populate tee times
+  const teeTimes = state.thisWeek.teeTimes || (state.thisWeek.time ? [state.thisWeek.time] : ['14:00']);
+  setTeeTimes('tw-tee-times-row', 'tw-tee-input', teeTimes);
   renderCourseSetup();
   updateRoundStatusUI();
 }
 
 async function saveThisWeek() {
   if (!isEditor) return;
+  const teeTimes = getTeeTimes('tw-tee-input');
   state.thisWeek = {
     weekNum: parseInt(document.getElementById('current-week-select').value),
     course: document.getElementById('tw-course-input').value.trim(),
     date: document.getElementById('tw-date-input').value,
-    time: document.getElementById('tw-time-input').value,
+    time: teeTimes[0] || '',  // keep backward compat
+    teeTimes: teeTimes,
     par: parseInt(document.getElementById('tw-par-input').value) || 72,
     notes: document.getElementById('tw-notes-input').value.trim()
   };
@@ -1730,6 +1802,7 @@ async function saveThisWeek() {
   listenToRoundStatus();
   listenToCourseSetup();
   listenToContests();
+  listenToPairings();
   toast('This week updated!');
   renderThisWeek();
 }
@@ -1775,7 +1848,7 @@ function renderSchedule() {
   // Current week (state.thisWeek)
   if (state.thisWeek.course) {
     if (!allWeeks[currentWn]) allWeeks[currentWn] = {};
-    allWeeks[currentWn] = { ...allWeeks[currentWn], course: state.thisWeek.course, date: allWeeks[currentWn].date || state.thisWeek.date, time: allWeeks[currentWn].time || state.thisWeek.time, par: state.thisWeek.par, isCurrent: true };
+    allWeeks[currentWn] = { ...allWeeks[currentWn], course: state.thisWeek.course, date: allWeeks[currentWn].date || state.thisWeek.date, teeTimes: allWeeks[currentWn].teeTimes || state.thisWeek.teeTimes || (state.thisWeek.time ? [state.thisWeek.time] : []), par: state.thisWeek.par, isCurrent: true };
   }
 
   const sortedWeeks = Object.keys(allWeeks).sort((a, b) => +a - +b);
@@ -1800,16 +1873,21 @@ function renderSchedule() {
     else if (isPast) { badgeClass = 'badge-completed'; badgeText = 'Completed'; }
     else { badgeClass = 'badge-upcoming'; badgeText = 'Upcoming'; }
 
-    // Format date/time
+    // Format date/tee times
     let details = [];
     if (wd.date) {
       const d = new Date(wd.date + 'T00:00:00');
       details.push(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
     }
-    if (wd.time) {
-      const [h, m] = wd.time.split(':');
-      const hr = parseInt(h);
-      details.push((hr > 12 ? hr - 12 : hr) + ':' + m + (hr >= 12 ? ' PM' : ' AM'));
+    // Show tee times (multiple or single fallback)
+    const wdTeeTimes = wd.teeTimes && wd.teeTimes.length > 0 ? wd.teeTimes : (wd.time ? [wd.time] : []);
+    if (wdTeeTimes.length > 0) {
+      const fmtTimes = wdTeeTimes.map(t => formatTeeTime(t)).filter(Boolean);
+      if (fmtTimes.length === 1) {
+        details.push(fmtTimes[0]);
+      } else if (fmtTimes.length > 1) {
+        details.push(fmtTimes[0] + '–' + fmtTimes[fmtTimes.length - 1]);
+      }
     }
     if (wd.par) details.push('Par ' + wd.par);
     if (hasScores) details.push(wd.scoreCount + ' players');
@@ -1896,18 +1974,25 @@ function loadScheduleWeekToForm(weekNum) {
   const sd = scheduleData[weekNum] || {};
   document.getElementById('sched-course-input').value = sd.course || '';
   document.getElementById('sched-date-input').value = sd.date || '';
-  document.getElementById('sched-time-input').value = sd.time || '14:00';
   document.getElementById('sched-par-input').value = sd.par || 36;
+  // Load tee times into slots
+  if (sd.teeTimes && sd.teeTimes.length > 0) {
+    setTeeTimes('sched-tee-times-row', 'sched-tee-input', sd.teeTimes);
+  } else {
+    // Reset to single default slot
+    setTeeTimes('sched-tee-times-row', 'sched-tee-input', [sd.time || '14:00']);
+  }
 }
 
 async function saveScheduleWeek() {
   if (!isEditor) return;
   const weekNum = document.getElementById('sched-week-select')?.value;
   if (!weekNum) return toast('Select a week first.');
+  const teeTimes = getTeeTimes('sched-tee-input');
   const data = {
     course: document.getElementById('sched-course-input').value.trim(),
     date: document.getElementById('sched-date-input').value,
-    time: document.getElementById('sched-time-input').value || '14:00',
+    teeTimes: teeTimes.length > 0 ? teeTimes : ['14:00'],
     par: parseInt(document.getElementById('sched-par-input').value) || 36
   };
   if (!data.course && !data.date) return toast('Enter at least a course or date.');
@@ -1917,6 +2002,8 @@ async function saveScheduleWeek() {
     // Clear form for next entry
     document.getElementById('sched-course-input').value = '';
     document.getElementById('sched-date-input').value = '';
+    // Reset tee time slots
+    setTeeTimes('sched-tee-times-row', 'sched-tee-input', ['14:00']);
   } catch (e) {
     toast('Failed to save schedule');
     console.warn(e);
@@ -2248,6 +2335,187 @@ function listenToScheduleRSVP(weekNum) {
     scheduleRsvpData[weekNum] = snap.val() || {};
     renderSchedule();
   });
+}
+
+function listenToPairings() {
+  const wn = state.thisWeek.weekNum || 1;
+  const ref = db.ref('pairings/' + wn);
+  if (pairingsListener) pairingsListener.off();
+  pairingsListener = ref;
+  ref.on('value', (snap) => {
+    pairingsData[wn] = snap.val() || [];
+    renderPairingsDisplay();
+  });
+}
+
+/* ─── Tee Time Helpers ─── */
+function addSchedTeeTime() {
+  const row = document.getElementById('sched-tee-times-row');
+  const count = row.querySelectorAll('.tee-time-slot').length;
+  if (count >= 6) return toast('Maximum 6 tee times.');
+  const slot = document.createElement('div');
+  slot.className = 'tee-time-slot';
+  // Auto-increment by 8 minutes from last tee time
+  const lastInput = row.querySelector('.tee-time-slot:last-child .sched-tee-input');
+  let nextTime = '14:00';
+  if (lastInput && lastInput.value) {
+    const [h, m] = lastInput.value.split(':').map(Number);
+    const totalMin = h * 60 + m + 8;
+    nextTime = String(Math.floor(totalMin / 60)).padStart(2, '0') + ':' + String(totalMin % 60).padStart(2, '0');
+  }
+  slot.innerHTML = `<span class="slot-label">T${count + 1}</span><input type="time" class="sched-tee-input" value="${nextTime}"><button class="remove-slot" onclick="this.parentElement.remove();renumberTeeSlots('sched-tee-times-row','sched-tee-input')">✕</button>`;
+  row.appendChild(slot);
+}
+
+function addManageWeekTeeTime() {
+  const row = document.getElementById('tw-tee-times-row');
+  const count = row.querySelectorAll('.tee-time-slot').length;
+  if (count >= 6) return toast('Maximum 6 tee times.');
+  const slot = document.createElement('div');
+  slot.className = 'tee-time-slot';
+  const lastInput = row.querySelector('.tee-time-slot:last-child .tw-tee-input');
+  let nextTime = '14:00';
+  if (lastInput && lastInput.value) {
+    const [h, m] = lastInput.value.split(':').map(Number);
+    const totalMin = h * 60 + m + 8;
+    nextTime = String(Math.floor(totalMin / 60)).padStart(2, '0') + ':' + String(totalMin % 60).padStart(2, '0');
+  }
+  slot.innerHTML = `<span class="slot-label">T${count + 1}</span><input type="time" class="tw-tee-input" value="${nextTime}"><button class="remove-slot" onclick="this.parentElement.remove();renumberTeeSlots('tw-tee-times-row','tw-tee-input')">✕</button>`;
+  row.appendChild(slot);
+}
+
+function renumberTeeSlots(rowId, inputClass) {
+  const slots = document.getElementById(rowId)?.querySelectorAll('.tee-time-slot');
+  if (slots) slots.forEach((s, i) => { const lbl = s.querySelector('.slot-label'); if (lbl) lbl.textContent = 'T' + (i + 1); });
+}
+
+function getTeeTimes(inputClass) {
+  const inputs = document.querySelectorAll('.' + inputClass);
+  const times = [];
+  inputs.forEach(input => { if (input.value) times.push(input.value); });
+  return times;
+}
+
+function setTeeTimes(rowId, inputClass, teeTimes) {
+  const row = document.getElementById(rowId);
+  if (!row || !teeTimes || !teeTimes.length) return;
+  row.innerHTML = '';
+  teeTimes.forEach((t, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'tee-time-slot';
+    const removeBtn = i > 0 ? `<button class="remove-slot" onclick="this.parentElement.remove();renumberTeeSlots('${rowId}','${inputClass}')">✕</button>` : '';
+    slot.innerHTML = `<span class="slot-label">T${i + 1}</span><input type="time" class="${inputClass}" value="${t}">${removeBtn}`;
+    row.appendChild(slot);
+  });
+}
+
+function formatTeeTime(timeStr) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':');
+  const hr = parseInt(h);
+  return (hr > 12 ? hr - 12 : hr) + ':' + m + (hr >= 12 ? ' PM' : ' AM');
+}
+
+/* ─── Auto-Pairings ─── */
+async function generatePairings() {
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvps = rsvpData[wn] || {};
+
+  // Get confirmed players
+  const confirmedPlayers = state.players.filter(p => rsvps[p.id] === 'yes');
+  if (confirmedPlayers.length === 0) return toast('No confirmed players to pair.');
+
+  // Get tee times from schedule or thisWeek
+  let teeTimes = [];
+  const sd = scheduleData[wn];
+  if (sd && sd.teeTimes && sd.teeTimes.length > 0) {
+    teeTimes = sd.teeTimes;
+  } else if (state.thisWeek.teeTimes && state.thisWeek.teeTimes.length > 0) {
+    teeTimes = state.thisWeek.teeTimes;
+  } else if (state.thisWeek.time) {
+    teeTimes = [state.thisWeek.time];
+  } else {
+    teeTimes = ['14:00'];
+  }
+
+  // Shuffle players for random pairings
+  const shuffled = [...confirmedPlayers];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  // Create groups of 4
+  const groups = [];
+  for (let i = 0; i < shuffled.length; i += 4) {
+    groups.push(shuffled.slice(i, i + 4).map(p => p.id));
+  }
+
+  // If last group has fewer than 4 and there are multiple groups,
+  // distribute remainder: if 1-2 leftover, add to previous groups to make 5s
+  if (groups.length > 1) {
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup.length < 3) {
+      // Distribute leftover players to earlier groups
+      groups.pop();
+      lastGroup.forEach((pid, idx) => {
+        groups[idx % groups.length].push(pid);
+      });
+    }
+  }
+
+  // Assign tee times to groups
+  const pairings = groups.map((playerIds, i) => ({
+    teeTime: teeTimes[i % teeTimes.length] || teeTimes[0],
+    players: playerIds
+  }));
+
+  try {
+    await db.ref('pairings/' + wn).set(pairings);
+    toast('Pairings generated! ' + groups.length + ' groups created.');
+  } catch (e) {
+    toast('Failed to save pairings');
+    console.warn(e);
+  }
+}
+
+/* ─── Pairings Display ─── */
+function renderPairingsDisplay() {
+  const card = document.getElementById('pairings-card');
+  const content = document.getElementById('pairings-content');
+  if (!card || !content) return;
+
+  const wn = state.thisWeek.weekNum || 1;
+  const pairings = pairingsData[wn];
+
+  if (!pairings || !pairings.length) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'block';
+
+  let html = '';
+  pairings.forEach((group, gi) => {
+    const teeTimeStr = formatTeeTime(group.teeTime);
+    html += `<div class="pairing-group">
+      <div class="pairing-header">
+        <span class="pairing-tee-time">${teeTimeStr || 'TBD'}</span>
+        <span class="pairing-group-label">Group ${gi + 1}</span>
+      </div>
+      <div class="pairing-players">`;
+
+    (group.players || []).forEach((pid, pi) => {
+      const player = state.players.find(p => p.id === pid);
+      if (player) {
+        html += `<span class="pairing-player"><span class="pairing-num">${pi + 1}</span>${escHtml(player.name)}</span>`;
+      }
+    });
+
+    html += `</div></div>`;
+  });
+
+  content.innerHTML = html;
 }
 
 /* ─── Course Setup in Manage Week ─── */
@@ -3247,6 +3515,7 @@ async function preloadDataIfEmpty() {
   listenToCourseSetup();
   listenToContests();
   listenToSchedule();
+  listenToPairings();
   loadEmailSentFlags();
 
   // Start countdown timer and auto-email checks
@@ -3259,8 +3528,26 @@ async function preloadDataIfEmpty() {
   }, 1000);
   updateDeadlineDisplay();
 
-  // Check payment cutoff after data loads (give listeners time)
-  setTimeout(enforcePaymentCutoff, 3000);
+  // Check payment cutoff and auto-pairings after data loads (give listeners time)
+  setTimeout(() => {
+    enforcePaymentCutoff();
+    autoGeneratePairingsIfNeeded();
+  }, 3000);
+}
+
+/* ─── Auto-generate pairings after RSVP deadline ─── */
+async function autoGeneratePairingsIfNeeded() {
+  if (!isRSVPLocked()) return; // deadline hasn't passed yet
+  const wn = state.thisWeek.weekNum || 1;
+  // Check if pairings already exist
+  const existing = pairingsData[wn];
+  if (existing && existing.length > 0) return; // already generated
+  // Check if we have confirmed players
+  const rsvps = rsvpData[wn] || {};
+  const confirmedCount = Object.values(rsvps).filter(v => v === 'yes').length;
+  if (confirmedCount === 0) return;
+  // Auto-generate
+  await generatePairings();
 }
 
 // Override the original load
