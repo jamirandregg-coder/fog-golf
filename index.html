@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FOG - Friends of Golf</title>
+<meta name="theme-color" content="#ff3da7">
+<meta name="description" content="FOG Golf League - weekly scores, RSVP, live scoring, and standings">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FOG Golf">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f0a10'/%3E%3Ctext x='16' y='22' font-family='Arial Black,sans-serif' font-weight='900' font-size='12' fill='%23ff3da7' text-anchor='middle'%3EFOG%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -211,6 +218,55 @@
     font-size: 0.75rem;
     color: var(--pink-light);
   }
+
+  /* PWA INSTALL BANNER */
+  .pwa-install-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, rgba(255,61,167,0.18), rgba(230,0,126,0.12));
+    border: 1px solid rgba(255,61,167,0.4);
+    border-radius: 50px;
+    margin: 0 auto 10px;
+    max-width: 500px;
+    position: relative;
+    animation: installGlow 3s ease-in-out infinite;
+  }
+  @keyframes installGlow {
+    0%, 100% { box-shadow: 0 0 15px rgba(255,61,167,0.15); }
+    50% { box-shadow: 0 0 30px rgba(255,61,167,0.35), 0 0 60px rgba(255,61,167,0.1); }
+  }
+  .pwa-install-banner .install-text {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--white);
+    letter-spacing: 0.05em;
+  }
+  .pwa-install-banner .install-sub {
+    font-size: 0.72rem;
+    color: var(--pink-light);
+    letter-spacing: 0.03em;
+  }
+  .pwa-dismiss {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,61,167,0.4);
+    background: var(--dark-card);
+    color: var(--gray);
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .pwa-dismiss:hover { color: var(--white); border-color: var(--pink-hot); }
 
   /* THIS WEEK HERO */
   .this-week-hero {
@@ -957,6 +1013,19 @@
   </a>
 </div>
 
+<!-- PWA Install Banner -->
+<div style="padding: 0 20px 4px;">
+  <div class="pwa-install-banner" id="pwa-install-banner" style="display:none">
+    <button class="pwa-dismiss" onclick="dismissInstallBanner()" aria-label="Dismiss">&times;</button>
+    <span style="font-size:1.4rem">&#9971;</span>
+    <div>
+      <div class="install-text"><span class="install-btn-text">Install FOG App</span></div>
+      <div class="install-sub">Add to home screen for full-screen access</div>
+    </div>
+    <button class="btn btn-pink" style="padding:8px 18px;font-size:0.75rem" onclick="handleInstallClick()">Install</button>
+  </div>
+</div>
+
 <div class="mode-bar">
   <div class="mode-badge mode-viewer" id="mode-badge">
     <span class="mode-dot"></span>
@@ -1312,6 +1381,114 @@
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
 <script>
+/* ─── PWA: Service Worker + Install Prompt ─── */
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js')
+    .then(reg => console.log('SW registered:', reg.scope))
+    .catch(err => console.warn('SW registration failed:', err));
+}
+
+// Generate apple-touch-icon via canvas (for iOS home screen icon)
+(function generateAppleTouchIcon() {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 180;
+    canvas.height = 180;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0f0a10';
+    ctx.fillRect(0, 0, 180, 180);
+    ctx.fillStyle = '#ff3da7';
+    ctx.font = '900 72px Arial Black, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('FOG', 90, 78);
+    ctx.fillStyle = '#ff77c4';
+    ctx.font = '700 24px Arial, sans-serif';
+    ctx.fillText('GOLF', 90, 130);
+    const link = document.createElement('link');
+    link.rel = 'apple-touch-icon';
+    link.href = canvas.toDataURL('image/png');
+    document.head.appendChild(link);
+  } catch (e) { /* canvas not supported */ }
+})();
+
+// Capture beforeinstallprompt for Android/Chrome install button
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+
+window.addEventListener('appinstalled', () => {
+  hideInstallBanner();
+  deferredInstallPrompt = null;
+  localStorage.setItem('fog-pwa-installed', 'true');
+});
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+}
+
+function showInstallBanner() {
+  const banner = document.getElementById('pwa-install-banner');
+  if (!banner) return;
+  if (isStandalone()) return;
+  if (localStorage.getItem('fog-pwa-installed') === 'true') return;
+  if (localStorage.getItem('fog-pwa-dismissed')) {
+    const dismissed = parseInt(localStorage.getItem('fog-pwa-dismissed'), 10);
+    if (Date.now() - dismissed < 7 * 24 * 60 * 60 * 1000) return;
+  }
+  banner.style.display = 'flex';
+}
+
+function hideInstallBanner() {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+function dismissInstallBanner() {
+  hideInstallBanner();
+  localStorage.setItem('fog-pwa-dismissed', Date.now().toString());
+}
+
+async function handleInstallClick() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    const result = await deferredInstallPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      localStorage.setItem('fog-pwa-installed', 'true');
+    }
+    deferredInstallPrompt = null;
+    hideInstallBanner();
+  } else {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      alert('To install: Tap the Share button (box with arrow) at the bottom of Safari, then tap "Add to Home Screen"');
+    } else {
+      alert('Use your browser menu (three dots) and tap "Add to Home Screen" or "Install App"');
+    }
+  }
+}
+
+// Show install banner for iOS Safari (doesn't fire beforeinstallprompt)
+setTimeout(() => {
+  if (!isStandalone() && !deferredInstallPrompt) {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    if (isIOS && isSafari) {
+      showInstallBanner();
+      const btnText = document.querySelector('#pwa-install-banner .install-btn-text');
+      if (btnText) btnText.textContent = 'Add to Home Screen';
+    }
+  }
+}, 3000);
+
+/* ─── App Constants ─── */
 const ADMIN_PASSWORD = 'golf2025';
 const TOTAL_WEEKS    = 20;
 const STORAGE_KEY    = 'fog-league-v2';
