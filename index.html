@@ -984,26 +984,6 @@
     font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem;
   }
 
-  /* GROUP SCORING - PLAYER TABS */
-  .group-player-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 14px; }
-  .group-tab {
-    padding: 8px 16px;
-    border: 1px solid rgba(255,61,167,0.3);
-    background: transparent; color: var(--pink-light);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.8rem; font-weight: 600;
-    cursor: pointer; border-radius: 50px;
-    transition: all 0.2s;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .group-tab.active { background: var(--pink-hot); color: var(--white); border-color: var(--pink-hot); }
-  .group-tab:hover:not(.active) { background: rgba(255,61,167,0.1); border-color: var(--pink-hot); }
-  .group-tab-dot { width: 6px; height: 6px; border-radius: 50%; }
-  .group-tab-dot.empty { background: rgba(255,255,255,0.2); }
-  .group-tab-dot.partial { background: var(--gold); }
-  .group-tab-dot.complete { background: var(--green-good); }
-  .group-tab-you { font-size: 0.65rem; opacity: 0.7; }
-
   /* GROUP SCORING HEADER */
   .group-scoring-header { font-size: 0.85rem; color: var(--gray); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
   .group-scoring-badge {
@@ -1012,6 +992,60 @@
     background: rgba(255,61,167,0.2); color: var(--pink-hot);
     border: 1px solid rgba(255,61,167,0.4);
   }
+
+  /* GROUP SCORECARD - GOLF SCORECARD STYLE */
+  .group-scorecard-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 12px; }
+  .group-scorecard {
+    width: 100%; border-collapse: collapse; min-width: 520px;
+  }
+  .group-scorecard th, .group-scorecard td {
+    padding: 6px 4px; text-align: center;
+    border: 1px solid rgba(255,61,167,0.15); white-space: nowrap;
+  }
+  .group-scorecard th {
+    background: rgba(255,61,167,0.12); color: var(--pink-hot);
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; font-family: 'Outfit', sans-serif;
+  }
+  .group-scorecard th.gs-par-header {
+    font-weight: 400; font-size: 0.6rem; color: var(--gray);
+    text-transform: none; letter-spacing: 0; background: rgba(255,61,167,0.06);
+  }
+  .group-scorecard td.gs-player-name {
+    text-align: left; font-weight: 600; font-size: 0.78rem;
+    position: sticky; left: 0; background: var(--dark); z-index: 2;
+    min-width: 80px; max-width: 110px;
+    border-right: 2px solid rgba(255,61,167,0.2);
+    color: var(--pink-light); padding: 6px 8px;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .group-scorecard td.gs-player-name.gs-scorer { color: var(--pink-hot); }
+  .group-scorecard td.gs-total {
+    font-weight: 800; font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem; border-left: 2px solid rgba(255,61,167,0.2);
+    min-width: 44px;
+  }
+  .group-scorecard td.gs-vs-par { font-size: 0.75rem; font-weight: 600; min-width: 40px; }
+  .group-scorecard input.gs-score-input {
+    width: 36px; height: 32px; text-align: center; font-size: 0.88rem; font-weight: 700;
+    padding: 2px; border-radius: 6px; font-family: 'Outfit', sans-serif;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,61,167,0.2); color: var(--white);
+    -moz-appearance: textfield;
+  }
+  .group-scorecard input.gs-score-input::-webkit-outer-spin-button,
+  .group-scorecard input.gs-score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .group-scorecard input.gs-score-input:focus {
+    border-color: var(--pink-hot); background: rgba(255,61,167,0.1);
+    box-shadow: 0 0 8px rgba(255,61,167,0.2); outline: none;
+  }
+  .group-scorecard input.gs-score-input.gs-birdie { border-color: var(--pink-hot); background: rgba(255,61,167,0.15); color: var(--pink-hot); }
+  .group-scorecard input.gs-score-input.gs-bogey { border-color: rgba(255,82,82,0.4); background: rgba(255,82,82,0.08); }
+  .group-scorecard input.gs-score-input:disabled { opacity: 0.5; cursor: not-allowed; }
+  .group-scorecard .gs-score-display {
+    font-size: 0.88rem; font-weight: 700; min-width: 36px; display: inline-block;
+  }
+  .group-scorecard .gs-score-display.gs-birdie { color: var(--pink-hot); }
+  .group-scorecard .gs-score-display.gs-bogey { color: rgba(255,82,82,0.7); }
 
   /* GROUP LOCKED MESSAGE */
   .group-locked-message {
@@ -1022,6 +1056,18 @@
   .group-locked-icon { font-size: 1.8rem; }
   .group-locked-text { font-size: 0.88rem; color: var(--gray); line-height: 1.5; }
   .group-locked-text strong { color: var(--pink-hot); }
+
+  /* GROUP SCORECARD TOTALS ROW */
+  .group-scorecard-totals {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .gs-player-total {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px;
+    background: rgba(255,61,167,0.06); font-size: 0.8rem;
+  }
+  .gs-player-total .gs-pt-name { color: var(--pink-light); font-weight: 600; }
+  .gs-player-total .gs-pt-score { color: var(--white); font-weight: 800; font-family: 'Outfit', sans-serif; }
 
   /* RESPONSIVE */
   @media (max-width: 600px) {
@@ -1034,8 +1080,11 @@
     .hole-input-group input { width: 38px; height: 36px; font-size: 0.9rem; }
     .par-hole-group input { width: 38px; }
     .scorecard td.player-name { min-width: 80px; font-size: 0.75rem; }
-    .group-player-tabs { gap: 3px; }
-    .group-tab { padding: 6px 12px; font-size: 0.72rem; }
+    .group-scorecard input.gs-score-input { width: 32px; height: 28px; font-size: 0.8rem; }
+    .group-scorecard td.gs-player-name { min-width: 65px; max-width: 80px; font-size: 0.7rem; padding: 4px 6px; }
+    .group-scorecard th, .group-scorecard td { padding: 4px 2px; }
+    .group-scorecard th { font-size: 0.62rem; }
+    .group-scorecard { min-width: 440px; }
   }
 </style>
 </head>
@@ -1632,7 +1681,7 @@ let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
 let groupScorersData = {};         // { groupIndex: playerId }
 let groupScorersListener = null;
-let activeGroupPlayer = null;      // tracks active tab in group scoring
+let groupSaveTimers = {};           // debounce timers for auto-saving group scores
 let masterCourses = {};      // { courseId: { name, pars: [18 ints] } }
 let masterCoursesListener = null;
 let selectedNine = 'front';  // 'front' or 'back'
@@ -3391,24 +3440,10 @@ function renderLiveScoreInputs() {
       if (totalDiv) totalDiv.style.display = 'none';
       return;
     }
-    if (groupInfo.isScorer) {
-      renderGroupScorerInputs(container, groupInfo);
-      if (saveBtn) { saveBtn.style.display = 'inline-block'; saveBtn.onclick = saveGroupScores; }
-      if (totalDiv) totalDiv.style.display = 'none';
-    } else {
-      const scorerPlayer = state.players.find(p => p.id === groupInfo.scorerId);
-      const scorerName = scorerPlayer ? scorerPlayer.name : 'Unknown';
-      container.innerHTML = `
-        <div class="group-locked-message">
-          <div class="group-locked-icon">&#128274;</div>
-          <div class="group-locked-text">
-            <strong>${escHtml(scorerName)}</strong> is entering scores for your group.
-            <br>Watch scores update in real time on the scorecard below.
-          </div>
-        </div>`;
-      if (saveBtn) saveBtn.style.display = 'none';
-      if (totalDiv) totalDiv.style.display = 'none';
-    }
+    // Render scorecard grid — scorer can edit all players, non-scorer can edit only their own row
+    renderGroupScorecardGrid(container, groupInfo, playerId);
+    if (saveBtn) { saveBtn.style.display = 'inline-block'; saveBtn.onclick = saveGroupScores; }
+    if (totalDiv) totalDiv.style.display = 'none';
     return;
   }
 
@@ -3704,132 +3739,225 @@ function getPlayerGroupInfo(playerId) {
   return null;
 }
 
-function renderGroupScorerInputs(container, groupInfo) {
+function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
   const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
-  if (!activeGroupPlayer || !groupInfo.players.includes(activeGroupPlayer)) {
-    activeGroupPlayer = groupInfo.scorerId;
-  }
+  const isScorer = groupInfo.isScorer;
+  const isLocked = roundStatus === 'closed' && !isEditor;
+  const courseName = courseSetupData.name || state.thisWeek.course || 'Course';
+  const nine = courseSetupData.nine || 'front';
+  const totalPar = pars.reduce((s, p) => s + (p || 4), 0);
 
-  // Player tabs
-  let tabsHtml = '<div class="group-player-tabs">';
+  // Build header row: Player | H1 | H2 | ... | H9 | TOT | +/-
+  let headerRow = '<tr><th style="text-align:left;min-width:80px">Player</th>';
+  for (let i = 0; i < 9; i++) {
+    headerRow += `<th>H${i + 1}</th>`;
+  }
+  headerRow += '<th>TOT</th><th>+/−</th></tr>';
+
+  // Par row
+  let parRow = '<tr><td class="gs-player-name" style="font-size:0.68rem;color:var(--gray);font-weight:400">Par</td>';
+  for (let i = 0; i < 9; i++) {
+    parRow += `<td class="gs-par-header" style="font-size:0.7rem;color:var(--gray);background:rgba(255,61,167,0.04)">${pars[i] || 4}</td>`;
+  }
+  parRow += `<td style="font-size:0.75rem;font-weight:700;color:var(--gray);border-left:2px solid rgba(255,61,167,0.2)">${totalPar}</td>`;
+  parRow += '<td></td></tr>';
+
+  // Player rows
+  let playerRows = '';
   groupInfo.players.forEach(pid => {
     const player = state.players.find(p => p.id === pid);
     if (!player) return;
-    const isActive = pid === activeGroupPlayer;
     const scores = liveScoresData[pid] || [];
-    const holesEntered = scores.filter(s => s !== null && s !== undefined).length;
-    const statusDot = holesEntered === 9 ? 'complete' : holesEntered > 0 ? 'partial' : 'empty';
-    tabsHtml += `<button class="group-tab ${isActive ? 'active' : ''}" onclick="switchGroupPlayer('${pid}')">
-      ${escHtml(player.name.split(' ')[0])}
-      <span class="group-tab-dot ${statusDot}"></span>
-      ${pid === groupInfo.scorerId ? '<span class="group-tab-you">(You)</span>' : ''}
-    </button>`;
-  });
-  tabsHtml += '</div>';
+    const firstName = player.name.split(' ')[0];
+    const isGroupScorer = pid === groupInfo.scorerId;
+    // Scorer can edit all rows; non-scorers can edit only their own row
+    const canEdit = (isScorer || pid === selectedPlayerId) && !isLocked;
 
-  // Score inputs for active player
-  const scores = liveScoresData[activeGroupPlayer] || [];
-  let inputsHtml = '<div class="score-entry-row">';
-  for (let i = 0; i < 9; i++) {
-    const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : '';
-    const par = pars[i] || 4;
-    let inputClass = '';
-    if (val !== '' && val !== null) {
-      if (val < par) inputClass = 'input-birdie';
-      else if (val > par) inputClass = 'input-bogey';
+    let total = 0, holesPlayed = 0;
+    playerRows += `<tr>`;
+    playerRows += `<td class="gs-player-name ${isGroupScorer ? 'gs-scorer' : ''}" title="${escHtml(player.name)}">${escHtml(firstName)}${isGroupScorer ? ' ✎' : ''}</td>`;
+
+    for (let i = 0; i < 9; i++) {
+      const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : '';
+      const par = pars[i] || 4;
+      let cellClass = '';
+      if (val !== '' && val !== null) {
+        if (val < par) cellClass = 'gs-birdie';
+        else if (val > par) cellClass = 'gs-bogey';
+        total += Number(val);
+        holesPlayed++;
+      }
+
+      if (canEdit) {
+        playerRows += `<td><input type="number" class="gs-score-input ${cellClass}"
+          id="gs-${pid}-hole-${i}" value="${val}" min="1" max="15"
+          data-player="${pid}" data-hole="${i}"
+          oninput="updateGroupScoreCardStyle('${pid}',${i})"
+          onkeydown="groupScorecardKeyNav(event,'${pid}',${i})"
+          ></td>`;
+      } else {
+        playerRows += `<td><span class="gs-score-display ${cellClass}">${val !== '' ? val : '–'}</span></td>`;
+      }
     }
-    inputsHtml += `<div class="hole-input-group">
-      <span class="hole-label">H${i+1}</span>
-      <input type="number" id="group-hole-${i}" value="${val}" min="1" max="15"
-        class="${inputClass}" data-player="${activeGroupPlayer}"
-        oninput="updateGroupScoreStyle(${i})"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();focusNextGroupHole(${i})}">
-      <span class="par-label">Par ${par}</span>
-    </div>`;
-  }
-  inputsHtml += '</div>';
 
-  // Running total for active player
-  let total = 0, totalPar = 0, holes = 0;
-  for (let i = 0; i < 9; i++) {
-    const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : null;
-    if (val !== null) { total += val; totalPar += (pars[i] || 4); holes++; }
-  }
-  let totalHtml = '';
-  if (holes > 0) {
-    const diff = total - totalPar;
-    const diffStr = diff > 0 ? '+' + diff : diff === 0 ? 'E' : diff;
-    const diffClass = diff < 0 ? 'score-under' : diff === 0 ? 'score-even' : 'score-over';
-    const playerName = state.players.find(p => p.id === activeGroupPlayer)?.name || '';
-    totalHtml = `<div class="scoring-total" style="display:flex">
-      <div><span class="st-label">${escHtml(playerName)}</span></div>
-      <div><span class="st-label">Holes</span><br><span class="st-value">${holes}/9</span></div>
-      <div><span class="st-label">Total</span><br><span class="st-value">${total}</span></div>
-      <div><span class="st-label">vs Par</span><br><span class="score-pill ${diffClass}" style="font-size:1rem">${diffStr}</span></div>
-    </div>`;
-  }
+    // Total
+    const diff = holesPlayed > 0 ? total - pars.slice(0, 9).reduce((s, p, idx) => {
+      const sc = (scores[idx] !== null && scores[idx] !== undefined) ? 1 : 0;
+      return s + (sc ? (p || 4) : 0);
+    }, 0) : 0;
+    const diffStr = holesPlayed > 0 ? (diff > 0 ? '+' + diff : diff === 0 ? 'E' : String(diff)) : '';
+    const diffColor = diff < 0 ? 'color:var(--pink-hot)' : diff === 0 ? 'color:var(--white)' : 'color:var(--red-bad)';
+    playerRows += `<td class="gs-total">${holesPlayed > 0 ? total : '–'}</td>`;
+    playerRows += `<td class="gs-vs-par" style="${diffColor}">${diffStr}</td>`;
+    playerRows += '</tr>';
+  });
+
+  const roleLabel = isScorer
+    ? 'You are the group scorer — enter scores for all players'
+    : 'Enter your own scores below — your group scorer can also enter for you';
 
   container.innerHTML = `
     <div class="group-scoring-header">
       <span class="group-scoring-badge">GROUP SCORING</span>
-      Entering scores for Group ${groupInfo.groupIndex + 1}
+      Group ${groupInfo.groupIndex + 1} — ${escHtml(courseName)} (${nine === 'front' ? 'Front' : 'Back'} 9)
     </div>
-    ${tabsHtml}
-    ${inputsHtml}
-    ${totalHtml}
+    <div style="font-size:0.78rem;color:var(--gray);margin-bottom:10px">${roleLabel}</div>
+    <div class="group-scorecard-wrap">
+      <table class="group-scorecard">
+        <thead>${headerRow}</thead>
+        <tbody>
+          ${parRow}
+          ${playerRows}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
-function switchGroupPlayer(playerId) {
-  activeGroupPlayer = playerId;
-  const container = document.getElementById('live-hole-inputs');
-  const selectedPlayer = document.getElementById('live-player-select')?.value;
-  if (!container || !selectedPlayer) return;
-  const groupInfo = getPlayerGroupInfo(selectedPlayer);
-  if (groupInfo && groupInfo.isScorer) {
-    renderGroupScorerInputs(container, groupInfo);
-  }
-}
-
-function updateGroupScoreStyle(holeIdx) {
-  const input = document.getElementById('group-hole-' + holeIdx);
+function updateGroupScoreCardStyle(playerId, holeIdx) {
+  const input = document.getElementById('gs-' + playerId + '-hole-' + holeIdx);
   if (!input) return;
   const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
   const par = pars[holeIdx] || 4;
   const val = parseInt(input.value);
-  input.className = '';
+  input.classList.remove('gs-birdie', 'gs-bogey');
   if (!isNaN(val)) {
-    if (val < par) input.className = 'input-birdie';
-    else if (val > par) input.className = 'input-bogey';
+    if (val < par) input.classList.add('gs-birdie');
+    else if (val > par) input.classList.add('gs-bogey');
+  }
+  // Auto-save this player's scores after any change
+  autoSaveGroupPlayer(playerId);
+}
+
+function groupScorecardKeyNav(event, playerId, holeIdx) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    if (holeIdx < 8) {
+      const next = document.getElementById('gs-' + playerId + '-hole-' + (holeIdx + 1));
+      if (next) next.focus();
+    } else {
+      // Last hole — move to first hole of next player in the group
+      const selectedPlayer = document.getElementById('live-player-select')?.value;
+      if (!selectedPlayer) return;
+      const groupInfo = getPlayerGroupInfo(selectedPlayer);
+      if (!groupInfo) return;
+      const idx = groupInfo.players.indexOf(playerId);
+      if (idx < groupInfo.players.length - 1) {
+        const nextPlayer = groupInfo.players[idx + 1];
+        const nextInput = document.getElementById('gs-' + nextPlayer + '-hole-0');
+        if (nextInput) nextInput.focus();
+      } else {
+        // Last player, last hole — save all
+        saveGroupScores();
+      }
+    }
+  } else if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    const selectedPlayer = document.getElementById('live-player-select')?.value;
+    if (!selectedPlayer) return;
+    const groupInfo = getPlayerGroupInfo(selectedPlayer);
+    if (!groupInfo) return;
+    const idx = groupInfo.players.indexOf(playerId);
+    if (idx < groupInfo.players.length - 1) {
+      const nextInput = document.getElementById('gs-' + groupInfo.players[idx + 1] + '-hole-' + holeIdx);
+      if (nextInput) nextInput.focus();
+    }
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    const selectedPlayer = document.getElementById('live-player-select')?.value;
+    if (!selectedPlayer) return;
+    const groupInfo = getPlayerGroupInfo(selectedPlayer);
+    if (!groupInfo) return;
+    const idx = groupInfo.players.indexOf(playerId);
+    if (idx > 0) {
+      const prevInput = document.getElementById('gs-' + groupInfo.players[idx - 1] + '-hole-' + holeIdx);
+      if (prevInput) prevInput.focus();
+    }
   }
 }
 
-function focusNextGroupHole(holeIdx) {
-  if (holeIdx < 8) {
-    const next = document.getElementById('group-hole-' + (holeIdx + 1));
-    if (next) next.focus();
-  } else {
-    saveGroupScores();
+function autoSaveGroupPlayer(playerId) {
+  // Debounce auto-save per player (500ms)
+  if (groupSaveTimers[playerId]) clearTimeout(groupSaveTimers[playerId]);
+  groupSaveTimers[playerId] = setTimeout(() => {
+    saveGroupPlayerScores(playerId);
+  }, 500);
+}
+
+async function saveGroupPlayerScores(playerId) {
+  if (roundStatus !== 'open' && !isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const scores = [];
+  for (let i = 0; i < 9; i++) {
+    const input = document.getElementById('gs-' + playerId + '-hole-' + i);
+    if (input) {
+      const val = input.value;
+      scores.push(val !== '' && val !== undefined ? parseInt(val) : null);
+    } else {
+      // Use existing data for non-editable cells
+      const existing = liveScoresData[playerId] || [];
+      scores.push(existing[i] !== undefined ? existing[i] : null);
+    }
+  }
+  try {
+    await db.ref('liveScores/' + wn + '/' + playerId).set(scores);
+  } catch (e) {
+    console.warn('Auto-save failed for', playerId, e);
   }
 }
 
 async function saveGroupScores() {
-  if (!activeGroupPlayer) return toast('No player selected.');
   if (roundStatus !== 'open' && !isEditor) return toast('Scoring is not open.');
+  const selectedPlayer = document.getElementById('live-player-select')?.value;
+  if (!selectedPlayer) return toast('No player selected.');
+  const groupInfo = getPlayerGroupInfo(selectedPlayer);
+  if (!groupInfo) return toast('No group found.');
+
   const wn = state.thisWeek.weekNum || 1;
-  const scores = [];
-  for (let i = 0; i < 9; i++) {
-    const val = document.getElementById('group-hole-' + i)?.value;
-    scores.push(val !== '' && val !== undefined ? parseInt(val) : null);
+  let savedCount = 0;
+  for (const pid of groupInfo.players) {
+    // Only save players whose inputs exist (editable)
+    const firstInput = document.getElementById('gs-' + pid + '-hole-0');
+    if (!firstInput) continue;
+    const scores = [];
+    for (let i = 0; i < 9; i++) {
+      const input = document.getElementById('gs-' + pid + '-hole-' + i);
+      if (input) {
+        const val = input.value;
+        scores.push(val !== '' && val !== undefined ? parseInt(val) : null);
+      } else {
+        const existing = liveScoresData[pid] || [];
+        scores.push(existing[i] !== undefined ? existing[i] : null);
+      }
+    }
+    try {
+      await db.ref('liveScores/' + wn + '/' + pid).set(scores);
+      savedCount++;
+    } catch (e) {
+      console.warn('Failed to save scores for', pid, e);
+    }
   }
-  try {
-    await db.ref('liveScores/' + wn + '/' + activeGroupPlayer).set(scores);
-    const playerName = state.players.find(p => p.id === activeGroupPlayer)?.name || 'player';
-    toast('Scores saved for ' + playerName + '!');
-  } catch (e) {
-    toast('Failed to save scores.');
-    console.warn(e);
-  }
+  toast('Scores saved for ' + savedCount + ' player' + (savedCount !== 1 ? 's' : '') + '!');
 }
 
 /* ─── Skins Calculation ─── */
