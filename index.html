@@ -1960,6 +1960,7 @@ function listenToRSVPs() {
 
   rsvpRef.on('value', (snapshot) => {
     rsvpData[wn] = snapshot.val() || {};
+    syncPairingsWithRSVPs();
     renderThisWeek();
     if (isEditor) renderAdminSummary();
   });
@@ -3091,6 +3092,52 @@ function formatTeeTime(timeStr) {
   return (hr > 12 ? hr - 12 : hr) + ':' + m + (hr >= 12 ? ' PM' : ' AM');
 }
 
+/* ─── Sync Pairings with RSVPs ─── */
+async function syncPairingsWithRSVPs() {
+  const wn = state.thisWeek.weekNum || 1;
+  const pairings = pairingsData[wn];
+  if (!pairings || !pairings.length) return; // no pairings to sync
+
+  const rsvps = rsvpData[wn] || {};
+  const yesPlayerIds = new Set(Object.entries(rsvps).filter(([, s]) => s === 'yes').map(([id]) => id));
+
+  let changed = false;
+  const updated = [];
+
+  // Remove players who are no longer RSVP'd yes
+  pairings.forEach(group => {
+    const filteredPlayers = (group.players || []).filter(pid => {
+      if (!yesPlayerIds.has(pid)) { changed = true; return false; }
+      return true;
+    });
+    updated.push({ teeTime: group.teeTime, players: filteredPlayers });
+  });
+
+  // Check if any RSVP'd yes players are missing from pairings — add to smallest group
+  const pairedIds = new Set(updated.flatMap(g => g.players));
+  yesPlayerIds.forEach(pid => {
+    if (!pairedIds.has(pid)) {
+      changed = true;
+      // Find the smallest group and add them
+      let smallest = updated.reduce((min, g, i) => g.players.length < updated[min].players.length ? i : min, 0);
+      updated[smallest].players.push(pid);
+    }
+  });
+
+  // Remove empty groups
+  const cleaned = updated.filter(g => g.players.length > 0);
+  if (cleaned.length !== updated.length) changed = true;
+
+  if (!changed) return;
+
+  try {
+    pairingsData[wn] = cleaned;
+    await db.ref('pairings/' + wn).set(cleaned);
+  } catch (e) {
+    console.warn('Failed to sync pairings:', e);
+  }
+}
+
 /* ─── Auto-Pairings ─── */
 async function generatePairings() {
   const wn = state.thisWeek.weekNum || 1;
@@ -3712,7 +3759,9 @@ function renderLiveScorecardGrid() {
   const rsvps = rsvpData[wn] || {};
 
   // Get players who have scores or RSVP'd yes
-  const playersWithScores = Object.keys(liveScoresData);
+  const playersWithScores = Object.entries(liveScoresData)
+    .filter(([, scores]) => Array.isArray(scores) && scores.some(s => s !== null && s !== undefined))
+    .map(([id]) => id);
   const yesPlayers = state.players.filter(p => rsvps[p.id] === 'yes' || playersWithScores.includes(p.id));
 
   if (!yesPlayers.length) {
