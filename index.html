@@ -818,18 +818,36 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
 <script>
 const ADMIN_PASSWORD = 'golf2025';
 const TOTAL_WEEKS    = 20;
 const STORAGE_KEY    = 'fog-league-v2';
 
+/* ─── Firebase Init ─── */
+const firebaseConfig = {
+  apiKey: "AIzaSyD8swdfrbrzGsvP--QYL0fuWE_cp7zk7HE",
+  authDomain: "fog-golf.firebaseapp.com",
+  projectId: "fog-golf",
+  storageBucket: "fog-golf.firebasestorage.app",
+  messagingSenderId: "865532832027",
+  appId: "1:865532832027:web:389127ab5a9f01d2e28bbe",
+  databaseURL: "https://fog-golf-default-rtdb.firebaseio.com"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 let isEditor = false;
 let state = {
   players: [],
   weeks: {},
-  thisWeek: { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' },
-  rsvps: {}  // { weekNum: { playerId: 'yes'|'no'|'pending' } }
+  thisWeek: { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' }
 };
+let rsvpData = {};       // Populated by Firebase listener: { weekNum: { playerId: status } }
+let rsvpListener = null; // Track current Firebase listener
 let curHistoryWeek = null;
 
 /* ─── Helpers ─── */
@@ -872,7 +890,6 @@ async function loadState() {
       state.players = loaded.players || [];
       state.weeks = loaded.weeks || {};
       state.thisWeek = loaded.thisWeek || { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
-      state.rsvps = loaded.rsvps || {};
     }
   } catch(e) { console.warn('No saved data yet.'); }
   setLoading(false);
@@ -948,6 +965,23 @@ function showPanel(name, btn) {
   if (name === 'manage-week')    renderManageWeek();
 }
 
+/* ─── Firebase RSVP Listener ─── */
+function listenToRSVPs() {
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvpRef = db.ref('rsvps/' + wn);
+
+  // Detach previous listener if any
+  if (rsvpListener) {
+    rsvpListener.off();
+  }
+  rsvpListener = rsvpRef;
+
+  rsvpRef.on('value', (snapshot) => {
+    rsvpData[wn] = snapshot.val() || {};
+    renderThisWeek();
+  });
+}
+
 /* ─── This Week / RSVP ─── */
 function renderThisWeek() {
   const tw = state.thisWeek;
@@ -977,9 +1011,9 @@ function renderThisWeek() {
     detailsEl.innerHTML = '<span style="color:var(--gray)">Admin will post this week\'s details soon</span>';
   }
 
-  // RSVP count
+  // RSVP count (from Firebase data)
   const wn = tw.weekNum || 1;
-  const rsvps = state.rsvps[wn] || {};
+  const rsvps = rsvpData[wn] || {};
   const yesCount = Object.values(rsvps).filter(v => v === 'yes').length;
   rsvpCountEl.innerHTML = '<span class="count-num">' + yesCount + '</span> player' + (yesCount !== 1 ? 's' : '') + ' confirmed';
 
@@ -993,8 +1027,7 @@ function renderRSVP() {
     return;
   }
   const wn = state.thisWeek.weekNum || 1;
-  if (!state.rsvps[wn]) state.rsvps[wn] = {};
-  const rsvps = state.rsvps[wn];
+  const rsvps = rsvpData[wn] || {};
 
   list.innerHTML = state.players.map(p => {
     const status = rsvps[p.id] || 'pending';
@@ -1012,13 +1045,16 @@ function renderRSVP() {
 
 async function toggleRSVP(playerId) {
   const wn = state.thisWeek.weekNum || 1;
-  if (!state.rsvps[wn]) state.rsvps[wn] = {};
-  const cur = state.rsvps[wn][playerId] || 'pending';
-  // Cycle: pending -> yes -> no -> pending
+  const cur = (rsvpData[wn] && rsvpData[wn][playerId]) || 'pending';
   const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
-  state.rsvps[wn][playerId] = next;
-  await saveState();
-  renderThisWeek();
+
+  try {
+    await db.ref('rsvps/' + wn + '/' + playerId).set(next);
+    // Firebase onValue listener will auto-update the UI
+  } catch (e) {
+    toast('RSVP update failed - try again.');
+    console.warn(e);
+  }
 }
 
 /* ─── Manage Week (editor) ─── */
@@ -1051,6 +1087,7 @@ async function saveThisWeek() {
     notes: document.getElementById('tw-notes-input').value.trim()
   };
   await saveState();
+  listenToRSVPs(); // Re-attach listener for the new week number
   toast('This week updated!');
   renderThisWeek();
 }
@@ -1616,6 +1653,8 @@ async function preloadDataIfEmpty() {
     await saveState();
     renderAll();
   }
+  // Start listening to Firebase for real-time RSVPs
+  listenToRSVPs();
 }
 
 // Override the original load
