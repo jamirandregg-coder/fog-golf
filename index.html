@@ -3640,7 +3640,7 @@ function renderSeasonChampBanner() {
     });
   });
   const qualified = Object.entries(allPlayers)
-    .filter(([, s]) => s.rounds >= 5)
+    .filter(([, s]) => s.rounds >= 10)
     .map(([name, s]) => ({ name, avg: (s.total / s.rounds).toFixed(1), rounds: s.rounds }))
     .sort((a, b) => parseFloat(a.avg) - parseFloat(b.avg));
 
