@@ -693,6 +693,20 @@
   .par-hole-group label.ctp-label { font-size: 0.55rem; color: var(--gray); letter-spacing: 0; text-transform: none; margin: 0; display: flex; align-items: center; gap: 2px; cursor: pointer; }
   .par-hole-group label.ctp-label input[type="checkbox"] { width: auto; margin: 0; }
 
+  /* FRONT/BACK 9 TOGGLE */
+  .nine-toggle { display: inline-flex; border: 1px solid rgba(255,61,167,0.3); border-radius: 50px; overflow: hidden; margin-bottom: 10px; }
+  .nine-btn { padding: 7px 18px; background: transparent; border: none; color: var(--pink-light); font-family: 'Space Grotesk', sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
+  .nine-btn.active { background: var(--pink-hot); color: var(--white); }
+  .nine-btn:hover:not(.active) { background: rgba(255,61,167,0.15); }
+
+  /* SAVED COURSES LIST */
+  .saved-course-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,61,167,0.12); border-radius: 10px; margin-bottom: 6px; font-size: 0.88rem; gap: 8px; }
+  .saved-course-item .course-name { font-weight: 600; color: var(--white); }
+  .saved-course-item .course-pars-preview { font-size: 0.72rem; color: var(--gray); }
+  .saved-course-item .course-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .saved-course-item .course-actions button { font-size: 0.6rem; padding: 3px 8px; border-radius: 6px; cursor: pointer; font-family: 'Space Grotesk', sans-serif; border: 1px solid rgba(255,61,167,0.3); background: none; color: var(--pink-light); }
+  .saved-course-item .course-actions button:hover { border-color: var(--pink-hot); color: var(--pink-hot); }
+
   /* WINNER BANNER */
   .winner-banner {
     display: none;
@@ -1018,7 +1032,8 @@
         </div>
         <div class="form-group wide">
           <label>Course</label>
-          <input type="text" id="sched-course-input" placeholder="e.g. Kennedy...">
+          <input type="text" id="sched-course-input" list="sched-course-datalist" placeholder="e.g. Kennedy..." autocomplete="off">
+          <datalist id="sched-course-datalist"></datalist>
         </div>
       </div>
       <div class="form-row">
@@ -1128,7 +1143,8 @@
         </div>
         <div class="form-group wide">
           <label>Course Name</label>
-          <input type="text" id="tw-course-input" placeholder="e.g. Torrey Pines...">
+          <input type="text" id="tw-course-input" list="course-datalist" placeholder="e.g. Kennedy..." autocomplete="off">
+          <datalist id="course-datalist"></datalist>
         </div>
       </div>
       <div class="form-row">
@@ -1159,7 +1175,13 @@
       </div>
       <!-- Hole-by-Hole Par Setup -->
       <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,61,167,0.15)">
-        <label style="margin-bottom:10px;display:block">Hole-by-Hole Pars (9 Holes)</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <label style="margin-bottom:0">Hole-by-Hole Pars (9 Holes)</label>
+        </div>
+        <div class="nine-toggle" id="nine-toggle">
+          <button type="button" class="nine-btn active" data-nine="front" onclick="selectNine('front')">Front 9</button>
+          <button type="button" class="nine-btn" data-nine="back" onclick="selectNine('back')">Back 9</button>
+        </div>
         <div class="par-inputs-row" id="par-holes-row"></div>
         <div style="margin-top:8px">
           <label style="margin-bottom:6px;display:block">Long Drive Hole</label>
@@ -1181,6 +1203,34 @@
         <button class="btn btn-outline" id="btn-reopen-scoring" onclick="reopenScoring()" style="display:none">Reopen Scoring</button>
       </div>
       <p style="font-size:0.72rem;color:var(--gray);margin-top:10px">Auto-emails send if this page is open at Sunday 2 PM & Monday 8 AM. Use the manual button in the RSVP Summary as backup.</p>
+    </div>
+
+    <!-- Manage Courses Card (admin only) -->
+    <div class="card editor-only-card">
+      <div class="card-title" style="cursor:pointer" onclick="toggleCourseManager()">
+        Manage Courses <span id="course-mgr-arrow" style="font-size:0.8rem;transition:transform 0.2s;display:inline-block">&#9654;</span>
+      </div>
+      <div id="course-manager" style="display:none">
+        <p style="font-size:0.85rem;color:var(--gray);margin-bottom:12px">Save courses with 18-hole pars. When you select a course above and pick Front/Back 9, pars auto-fill.</p>
+        <div class="form-row">
+          <div class="form-group wide">
+            <label>Course Name</label>
+            <input type="text" id="cm-course-name" placeholder="e.g. Kennedy Golf Course">
+          </div>
+        </div>
+        <label style="margin-bottom:6px;display:block">Front 9 Pars (H1&ndash;H9)</label>
+        <div class="par-inputs-row" id="cm-front-pars"></div>
+        <label style="margin-bottom:6px;display:block">Back 9 Pars (H10&ndash;H18)</label>
+        <div class="par-inputs-row" id="cm-back-pars"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-pink" onclick="saveMasterCourse()">Save Course</button>
+          <button class="btn btn-outline" onclick="clearCourseForm()">Clear</button>
+        </div>
+        <div style="margin-top:18px;border-top:1px solid rgba(255,61,167,0.15);padding-top:14px">
+          <label>Saved Courses</label>
+          <div id="saved-courses-list" style="margin-top:8px"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1243,6 +1293,9 @@ let scheduleRsvpListeners = {};
 let expandedScheduleWeeks = {};  // track which weeks have RSVP expanded
 let pairingsData = {};       // { weekNum: [ { teeTime, players: [id,...] }, ... ] }
 let pairingsListener = null;
+let masterCourses = {};      // { courseId: { name, pars: [18 ints] } }
+let masterCoursesListener = null;
+let selectedNine = 'front';  // 'front' or 'back'
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
@@ -1782,6 +1835,18 @@ function renderManageWeek() {
   setTeeTimes('tw-tee-times-row', 'tw-tee-input', teeTimes);
   renderCourseSetup();
   updateRoundStatusUI();
+  // Wire up course input change to auto-fill pars
+  const courseInput = document.getElementById('tw-course-input');
+  if (courseInput) {
+    courseInput.removeEventListener('change', autoFillParsFromCourse);
+    courseInput.addEventListener('change', autoFillParsFromCourse);
+  }
+  // Wire up schedule course input to auto-fill par total
+  const schedCourseInput = document.getElementById('sched-course-input');
+  if (schedCourseInput) {
+    schedCourseInput.removeEventListener('change', autoFillSchedParFromCourse);
+    schedCourseInput.addEventListener('change', autoFillSchedParFromCourse);
+  }
 }
 
 async function saveThisWeek() {
@@ -2528,11 +2593,194 @@ function renderPairingsDisplay() {
   content.innerHTML = html;
 }
 
+/* ─── Master Course List ─── */
+function courseNameToId(name) {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function listenToMasterCourses() {
+  const ref = db.ref('courses');
+  if (masterCoursesListener) masterCoursesListener.off();
+  masterCoursesListener = ref;
+  ref.on('value', (snap) => {
+    masterCourses = snap.val() || {};
+    populateCourseDatalist();
+    renderSavedCoursesList();
+  });
+}
+
+function populateCourseDatalist() {
+  const dl = document.getElementById('course-datalist');
+  if (!dl) return;
+  const opts = Object.values(masterCourses).map(c => '<option value="' + escHtml(c.name) + '">').join('');
+  dl.innerHTML = opts;
+  const schedDl = document.getElementById('sched-course-datalist');
+  if (schedDl) schedDl.innerHTML = opts;
+}
+
+function selectNine(which) {
+  selectedNine = which;
+  document.querySelectorAll('#nine-toggle .nine-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.nine === which);
+  });
+  autoFillParsFromCourse();
+}
+
+function autoFillParsFromCourse() {
+  const courseName = document.getElementById('tw-course-input')?.value.trim();
+  if (!courseName) return;
+  const courseId = courseNameToId(courseName);
+  const course = masterCourses[courseId];
+  if (!course || !course.pars || course.pars.length !== 18) return;
+
+  const offset = selectedNine === 'back' ? 9 : 0;
+  const ninePars = course.pars.slice(offset, offset + 9);
+
+  for (let i = 0; i < 9; i++) {
+    const input = document.getElementById('par-hole-' + i);
+    if (input) input.value = ninePars[i] || 4;
+  }
+  const totalPar = ninePars.reduce((sum, p) => sum + p, 0);
+  const parInput = document.getElementById('tw-par-input');
+  if (parInput) parInput.value = totalPar;
+  toast(courseName + ' (' + (selectedNine === 'back' ? 'Back' : 'Front') + ' 9) pars loaded!');
+}
+
+function autoFillSchedParFromCourse() {
+  const name = document.getElementById('sched-course-input')?.value.trim();
+  if (!name) return;
+  const id = courseNameToId(name);
+  const course = masterCourses[id];
+  if (!course || !course.pars || course.pars.length !== 18) return;
+  const frontPar = course.pars.slice(0, 9).reduce((s, p) => s + p, 0);
+  const parInput = document.getElementById('sched-par-input');
+  if (parInput) parInput.value = frontPar;
+}
+
+function toggleCourseManager() {
+  const el = document.getElementById('course-manager');
+  const arrow = document.getElementById('course-mgr-arrow');
+  if (!el) return;
+  const isHidden = el.style.display === 'none';
+  el.style.display = isHidden ? 'block' : 'none';
+  if (arrow) arrow.style.transform = isHidden ? 'rotate(90deg)' : '';
+  if (isHidden) renderCourseManagerInputs();
+}
+
+function renderCourseManagerInputs() {
+  ['cm-front-pars', 'cm-back-pars'].forEach((rowId, half) => {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    // Only render if empty (to preserve user edits)
+    if (row.children.length > 0) return;
+    row.innerHTML = '';
+    for (let i = 0; i < 9; i++) {
+      const holeNum = half * 9 + i + 1;
+      row.innerHTML += '<div class="par-hole-group"><span class="hole-num">H' + holeNum + '</span><input type="number" id="cm-par-' + (half * 9 + i) + '" value="4" min="3" max="6"></div>';
+    }
+  });
+}
+
+async function saveMasterCourse() {
+  if (!isEditor) return;
+  const name = document.getElementById('cm-course-name')?.value.trim();
+  if (!name) return toast('Enter a course name.');
+  const pars = [];
+  for (let i = 0; i < 18; i++) {
+    pars.push(parseInt(document.getElementById('cm-par-' + i)?.value) || 4);
+  }
+  const id = courseNameToId(name);
+  try {
+    await db.ref('courses/' + id).set({ name, pars });
+    toast('"' + name + '" saved!');
+    clearCourseForm();
+  } catch (e) {
+    toast('Failed to save course');
+    console.warn(e);
+  }
+}
+
+function clearCourseForm() {
+  const nameEl = document.getElementById('cm-course-name');
+  if (nameEl) nameEl.value = '';
+  for (let i = 0; i < 18; i++) {
+    const el = document.getElementById('cm-par-' + i);
+    if (el) el.value = 4;
+  }
+}
+
+function renderSavedCoursesList() {
+  const el = document.getElementById('saved-courses-list');
+  if (!el) return;
+  const courses = Object.entries(masterCourses);
+  if (courses.length === 0) {
+    el.innerHTML = '<div class="empty-state">No courses saved yet.</div>';
+    return;
+  }
+  el.innerHTML = courses.map(([id, c]) => {
+    const p = c.pars || [];
+    const frontPar = p.slice(0, 9).reduce((s, v) => s + v, 0);
+    const backPar = p.slice(9, 18).reduce((s, v) => s + v, 0);
+    return '<div class="saved-course-item"><div><div class="course-name">' + escHtml(c.name) + '</div><div class="course-pars-preview">Front: ' + frontPar + ' | Back: ' + backPar + ' | Total: ' + (frontPar + backPar) + '</div></div><div class="course-actions"><button onclick="editMasterCourse(\'' + id + '\')">Edit</button><button onclick="deleteMasterCourse(\'' + id + '\')">Delete</button></div></div>';
+  }).join('');
+}
+
+function editMasterCourse(id) {
+  const c = masterCourses[id];
+  if (!c) return;
+  // Ensure inputs are rendered
+  renderCourseManagerForceRebuild();
+  const nameEl = document.getElementById('cm-course-name');
+  if (nameEl) nameEl.value = c.name;
+  const pars = c.pars || [];
+  for (let i = 0; i < 18; i++) {
+    const el = document.getElementById('cm-par-' + i);
+    if (el) el.value = pars[i] || 4;
+  }
+  // Make sure course manager is visible
+  const mgr = document.getElementById('course-manager');
+  if (mgr) mgr.style.display = 'block';
+  const arrow = document.getElementById('course-mgr-arrow');
+  if (arrow) arrow.style.transform = 'rotate(90deg)';
+  if (nameEl) nameEl.scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderCourseManagerForceRebuild() {
+  ['cm-front-pars', 'cm-back-pars'].forEach((rowId, half) => {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    row.innerHTML = '';
+    for (let i = 0; i < 9; i++) {
+      const holeNum = half * 9 + i + 1;
+      row.innerHTML += '<div class="par-hole-group"><span class="hole-num">H' + holeNum + '</span><input type="number" id="cm-par-' + (half * 9 + i) + '" value="4" min="3" max="6"></div>';
+    }
+  });
+}
+
+async function deleteMasterCourse(id) {
+  if (!isEditor) return;
+  const c = masterCourses[id];
+  if (!confirm('Delete course "' + (c?.name || id) + '"?')) return;
+  try {
+    await db.ref('courses/' + id).remove();
+    toast('Course deleted.');
+  } catch (e) {
+    toast('Failed to delete course');
+    console.warn(e);
+  }
+}
+
 /* ─── Course Setup in Manage Week ─── */
 function renderCourseSetup() {
   const row = document.getElementById('par-holes-row');
   const ldSel = document.getElementById('long-drive-select');
   if (!row || !ldSel) return;
+
+  // Restore nine selection from saved data
+  if (courseSetupData.nine) selectedNine = courseSetupData.nine;
+  document.querySelectorAll('#nine-toggle .nine-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.nine === selectedNine);
+  });
 
   const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
   const ctpHoles = courseSetupData.ctpHoles || [];
@@ -2567,7 +2815,7 @@ function getCourseSetupFromInputs() {
   }
   const ldVal = document.getElementById('long-drive-select')?.value;
   const longDriveHole = ldVal !== '' && ldVal !== undefined ? parseInt(ldVal) : null;
-  return { pars, ctpHoles, longDriveHole };
+  return { pars, ctpHoles, longDriveHole, nine: selectedNine };
 }
 
 /* ─── Round Status UI ─── */
@@ -3526,6 +3774,7 @@ async function preloadDataIfEmpty() {
   listenToContests();
   listenToSchedule();
   listenToPairings();
+  listenToMasterCourses();
   loadEmailSentFlags();
 
   // Start countdown timer and auto-email checks
