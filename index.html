@@ -2605,7 +2605,7 @@ function listenToMasterCourses() {
   let seeded = false;
   ref.on('value', (snap) => {
     masterCourses = snap.val() || {};
-    if (!seeded && Object.keys(masterCourses).length === 0) {
+    if (!seeded) {
       seeded = true;
       seedDefaultCourses();
     }
@@ -2615,18 +2615,29 @@ function listenToMasterCourses() {
 }
 
 async function seedDefaultCourses() {
-  const courses = {
+  const defaults = {
     'city-park':         { name: 'City Park',         pars: [4,3,4,4,3,4,4,3,5, 4,4,3,5,4,4,5,3,4] },
     'evergreen':         { name: 'Evergreen',         pars: [4,4,3,4,5,3,5,3,4, 3,5,3,4,4,4,3,4,4] },
     'kennedy-west':      { name: 'Kennedy West',      pars: [5,4,4,3,4,4,4,5,3, 5,4,4,3,4,4,4,5,3] },
     'kennedy-babe-lind': { name: 'Kennedy Babe Lind', pars: [5,4,3,4,3,4,5,4,4, 5,4,3,4,3,4,5,4,4] },
     'kennedy-creek':     { name: 'Kennedy Creek',     pars: [4,4,4,4,3,5,3,4,4, 4,4,4,4,3,5,3,4,4] },
     'overland-park':     { name: 'Overland Park',     pars: [4,3,5,4,4,4,4,3,5, 3,4,4,5,4,4,3,4,5] },
-    'wellshire':         { name: 'Wellshire',         pars: [5,3,4,4,4,4,4,4,3, 4,3,4,4,3,4,4,4,5] }
+    'wellshire':         { name: 'Wellshire',         pars: [5,3,4,4,4,4,4,4,3, 4,3,4,4,3,4,4,4,5] },
+    'aurora-hills':      { name: 'Aurora Hills',      pars: [4,5,3,4,4,4,3,5,4, 5,3,5,3,4,5,4,3,4] },
+    'meadow-hills':      { name: 'Meadow Hills',     pars: [4,3,4,3,4,5,4,4,4, 5,4,4,3,4,3,5,3,4] },
+    'murphy-creek':      { name: 'Murphy Creek',      pars: [4,4,5,4,3,5,4,3,4, 4,3,4,5,4,5,4,3,4] },
+    'saddle-rock':       { name: 'Saddle Rock',       pars: [5,4,4,4,3,5,4,3,4, 4,4,5,4,3,4,3,5,4] },
+    'springhill':        { name: 'Springhill',        pars: [4,3,3,5,4,3,4,3,3, 3,3,4,5,3,4,4,3,3] }
   };
+  // Only seed courses that don't already exist (merge, not overwrite)
+  const missing = {};
+  Object.entries(defaults).forEach(([id, data]) => {
+    if (!masterCourses[id]) missing[id] = data;
+  });
+  if (Object.keys(missing).length === 0) return;
   try {
-    await db.ref('courses').set(courses);
-    console.log('Default courses seeded.');
+    await db.ref('courses').update(missing);
+    console.log('Seeded ' + Object.keys(missing).length + ' new courses.');
   } catch (e) {
     console.warn('Could not seed courses:', e);
   }
