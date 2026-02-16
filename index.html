@@ -2602,11 +2602,34 @@ function listenToMasterCourses() {
   const ref = db.ref('courses');
   if (masterCoursesListener) masterCoursesListener.off();
   masterCoursesListener = ref;
+  let seeded = false;
   ref.on('value', (snap) => {
     masterCourses = snap.val() || {};
+    if (!seeded && Object.keys(masterCourses).length === 0) {
+      seeded = true;
+      seedDefaultCourses();
+    }
     populateCourseDatalist();
     renderSavedCoursesList();
   });
+}
+
+async function seedDefaultCourses() {
+  const courses = {
+    'city-park':         { name: 'City Park',         pars: [4,3,4,4,3,4,4,3,5, 4,4,3,5,4,4,5,3,4] },
+    'evergreen':         { name: 'Evergreen',         pars: [4,4,3,4,5,3,5,3,4, 3,5,3,4,4,4,3,4,4] },
+    'kennedy-west':      { name: 'Kennedy West',      pars: [5,4,4,3,4,4,4,5,3, 5,4,4,3,4,4,4,5,3] },
+    'kennedy-babe-lind': { name: 'Kennedy Babe Lind', pars: [5,4,3,4,3,4,5,4,4, 5,4,3,4,3,4,5,4,4] },
+    'kennedy-creek':     { name: 'Kennedy Creek',     pars: [4,4,4,4,3,5,3,4,4, 4,4,4,4,3,5,3,4,4] },
+    'overland-park':     { name: 'Overland Park',     pars: [4,3,5,4,4,4,4,3,5, 3,4,4,5,4,4,3,4,5] },
+    'wellshire':         { name: 'Wellshire',         pars: [5,3,4,4,4,4,4,4,3, 4,3,4,4,3,4,4,4,5] }
+  };
+  try {
+    await db.ref('courses').set(courses);
+    console.log('Default courses seeded.');
+  } catch (e) {
+    console.warn('Could not seed courses:', e);
+  }
 }
 
 function populateCourseDatalist() {
