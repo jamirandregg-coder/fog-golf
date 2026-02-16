@@ -303,6 +303,39 @@
   .rsvp-in { background: var(--green-good); color: var(--dark); }
   .rsvp-out { background: rgba(255,82,82,0.3); color: #ff8a8a; }
   .rsvp-pending { background: rgba(255,255,255,0.15); color: var(--gray); }
+  .rsvp-paid { background: var(--green-good); color: var(--dark); font-size: 0.62rem; }
+  .rsvp-unpaid { background: rgba(255,82,82,0.3); color: #ff8a8a; font-size: 0.62rem; }
+  .rsvp-chip .chip-actions { display: flex; align-items: center; gap: 4px; }
+  .rsvp-chip .paid-badge { font-size: 0.6rem; color: var(--green-good); font-weight: 700; letter-spacing: 0.08em; }
+
+  /* DEADLINE COUNTDOWN */
+  .deadline-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 10px; padding: 8px 20px;
+    background: rgba(255,61,167,0.1); border: 1px solid rgba(255,61,167,0.3);
+    border-radius: 50px;
+  }
+  .deadline-pill .dl-label {
+    font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--pink-light);
+  }
+  .deadline-pill .dl-time {
+    font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: var(--pink-hot); font-weight: 700;
+  }
+  .deadline-locked {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px; padding: 8px 20px;
+    background: rgba(255,82,82,0.12); border: 1px solid rgba(255,82,82,0.4);
+    border-radius: 50px; color: var(--red-bad); font-weight: 700; font-size: 0.85rem;
+  }
+
+  /* ADMIN SUMMARY */
+  .editor-only-card { display: none !important; }
+  body.editor-mode .editor-only-card { display: block !important; }
+  .summary-col-header { font-weight: 700; margin-bottom: 8px; font-size: 0.85rem; }
+  .summary-player { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 0.85rem; }
+  .summary-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 8px; }
+  .summary-badge-paid { background: rgba(0,230,118,0.15); color: var(--green-good); }
+  .summary-badge-unpaid { background: rgba(255,82,82,0.15); color: #ff8a8a; }
 
   /* FORMS */
   .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
@@ -666,6 +699,7 @@
       <div class="course-name" id="tw-course">No course set yet</div>
       <div class="course-details" id="tw-details"></div>
       <div class="rsvp-count-display" id="tw-rsvp-count"></div>
+      <div id="rsvp-deadline-display"></div>
     </div>
 
     <div class="card">
@@ -674,6 +708,17 @@
       <div class="rsvp-grid" id="rsvp-list">
         <div class="empty-state" style="grid-column:1/-1">No players yet. Admin must add players first.</div>
       </div>
+    </div>
+
+    <!-- Admin RSVP Summary (visible only in editor mode) -->
+    <div class="card editor-only-card" id="admin-rsvp-summary">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>RSVP Summary</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" style="font-size:0.7rem;padding:6px 14px" onclick="sendRSVPEmail()">Email Summary</button>
+        </div>
+      </div>
+      <div id="admin-summary-content"></div>
     </div>
   </div>
 
@@ -808,9 +853,12 @@
           <textarea id="tw-notes-input" rows="2" placeholder="e.g. Bring cash for skins..."></textarea>
         </div>
       </div>
-      <div style="margin-top:12px">
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-pink" onclick="saveThisWeek()">Save This Week</button>
+        <button class="btn btn-outline" onclick="markAllPaid()">Mark All In as Paid</button>
+        <button class="btn btn-outline" onclick="resetPayments()">Reset Payments</button>
       </div>
+      <p style="font-size:0.72rem;color:var(--gray);margin-top:10px">Auto-emails send if this page is open at Sunday 2 PM & Monday 8 AM. Use the manual button in the RSVP Summary as backup.</p>
     </div>
   </div>
 
@@ -821,6 +869,8 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
 <script>
 const ADMIN_PASSWORD = 'golf2025';
@@ -848,7 +898,18 @@ let state = {
 };
 let rsvpData = {};       // Populated by Firebase listener: { weekNum: { playerId: status } }
 let rsvpListener = null; // Track current Firebase listener
+let paymentData = {};       // Populated by Firebase: { weekNum: { playerId: true/false } }
+let paymentListener = null;
 let curHistoryWeek = null;
+let countdownInterval = null;
+let emailCheckCounter = 0;
+let emailSentFlags = {};
+
+/* ─── EmailJS Config (update after setting up emailjs.com) ─── */
+const EMAILJS_PUBLIC_KEY  = '';  // Fill after EmailJS setup
+const EMAILJS_SERVICE_ID  = '';  // Fill after EmailJS setup
+const EMAILJS_TEMPLATE_ID = '';  // Fill after EmailJS setup
+const ADMIN_EMAIL = 'jamirandregg@gmail.com';
 
 /* ─── Helpers ─── */
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -860,6 +921,61 @@ function toast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ─── RSVP Deadline ─── */
+function getRSVPDeadline() {
+  const tw = state.thisWeek;
+  if (!tw.date) return null;
+  // Tee time is always 2:00 PM MDT (hardcoded per league rules)
+  // Deadline is 24 hours before = Sunday 2:00 PM MDT
+  const teeTimeLocal = new Date(tw.date + 'T14:00:00');
+  // Convert to proper Denver time
+  const denverNow = new Date().toLocaleString('en-US', { timeZone: 'America/Denver' });
+  const nowDenver = new Date(denverNow);
+  // Build tee time as Denver time
+  const year = teeTimeLocal.getFullYear();
+  const month = String(teeTimeLocal.getMonth() + 1).padStart(2, '0');
+  const day = String(teeTimeLocal.getDate()).padStart(2, '0');
+  const teeStr = `${year}-${month}-${day}T14:00:00`;
+  // Get the UTC offset for Denver on that date
+  const testDate = new Date(teeStr);
+  const utcStr = testDate.toLocaleString('en-US', { timeZone: 'UTC' });
+  const denStr = testDate.toLocaleString('en-US', { timeZone: 'America/Denver' });
+  const utcDate = new Date(utcStr);
+  const denDate = new Date(denStr);
+  const offsetMs = utcDate.getTime() - denDate.getTime();
+  // Tee time in UTC
+  const teeUTC = new Date(testDate.getTime() + offsetMs);
+  // Deadline is 24 hours before tee time
+  return new Date(teeUTC.getTime() - 24 * 60 * 60 * 1000);
+}
+
+function isRSVPLocked() {
+  const deadline = getRSVPDeadline();
+  if (!deadline) return false;
+  return new Date() >= deadline;
+}
+
+function updateDeadlineDisplay() {
+  const el = document.getElementById('rsvp-deadline-display');
+  if (!el) return;
+  const deadline = getRSVPDeadline();
+  if (!deadline) { el.innerHTML = ''; return; }
+  const now = new Date();
+  const diff = deadline.getTime() - now.getTime();
+  if (diff <= 0) {
+    el.innerHTML = '<div class="deadline-locked">RSVPs ARE LOCKED</div>';
+    return;
+  }
+  const days = Math.floor(diff / (1000*60*60*24));
+  const hours = Math.floor((diff % (1000*60*60*24)) / (1000*60*60));
+  const minutes = Math.floor((diff % (1000*60*60)) / (1000*60));
+  const seconds = Math.floor((diff % (1000*60)) / 1000);
+  let timeStr = '';
+  if (days > 0) timeStr += days + 'd ';
+  timeStr += hours + 'h ' + minutes + 'm ' + seconds + 's';
+  el.innerHTML = `<div class="deadline-pill"><span class="dl-label">RSVP Closes In:</span><span class="dl-time">${timeStr}</span></div>`;
 }
 
 /* ─── Storage ─── */
@@ -970,15 +1086,28 @@ function listenToRSVPs() {
   const wn = state.thisWeek.weekNum || 1;
   const rsvpRef = db.ref('rsvps/' + wn);
 
-  // Detach previous listener if any
-  if (rsvpListener) {
-    rsvpListener.off();
-  }
+  if (rsvpListener) rsvpListener.off();
   rsvpListener = rsvpRef;
 
   rsvpRef.on('value', (snapshot) => {
     rsvpData[wn] = snapshot.val() || {};
     renderThisWeek();
+    if (isEditor) renderAdminSummary();
+  });
+}
+
+/* ─── Firebase Payment Listener ─── */
+function listenToPayments() {
+  const wn = state.thisWeek.weekNum || 1;
+  const payRef = db.ref('payments/' + wn);
+
+  if (paymentListener) paymentListener.off();
+  paymentListener = payRef;
+
+  payRef.on('value', (snapshot) => {
+    paymentData[wn] = snapshot.val() || {};
+    renderRSVP();
+    if (isEditor) renderAdminSummary();
   });
 }
 
@@ -1017,6 +1146,7 @@ function renderThisWeek() {
   const yesCount = Object.values(rsvps).filter(v => v === 'yes').length;
   rsvpCountEl.innerHTML = '<span class="count-num">' + yesCount + '</span> player' + (yesCount !== 1 ? 's' : '') + ' confirmed';
 
+  updateDeadlineDisplay();
   renderRSVP();
 }
 
@@ -1028,32 +1158,253 @@ function renderRSVP() {
   }
   const wn = state.thisWeek.weekNum || 1;
   const rsvps = rsvpData[wn] || {};
+  const payments = paymentData[wn] || {};
+  const locked = isRSVPLocked() && !isEditor;
 
   list.innerHTML = state.players.map(p => {
     const status = rsvps[p.id] || 'pending';
+    const paid = payments[p.id] === true;
     const chipClass = status === 'yes' ? 'rsvp-yes' : status === 'no' ? 'rsvp-no' : '';
     const btnClass = status === 'yes' ? 'rsvp-in' : status === 'no' ? 'rsvp-out' : 'rsvp-pending';
     const btnText = status === 'yes' ? 'I\'m In' : status === 'no' ? 'Out' : 'Pending';
+    const disabledAttr = locked ? 'disabled style="opacity:0.5;cursor:not-allowed"' : '';
+
+    // Payment indicator
+    let payHtml = '';
+    if (isEditor) {
+      payHtml = `<button class="rsvp-status ${paid ? 'rsvp-paid' : 'rsvp-unpaid'}" onclick="togglePayment('${p.id}')">${paid ? 'PAID' : 'UNPAID'}</button>`;
+    } else if (paid) {
+      payHtml = '<span class="paid-badge">PAID</span>';
+    }
+
     return `
       <div class="rsvp-chip ${chipClass}">
         <span style="font-weight:600">${escHtml(p.name)}</span>
-        <button class="rsvp-status ${btnClass}" onclick="toggleRSVP('${p.id}')">${btnText}</button>
+        <span class="chip-actions">
+          ${payHtml}
+          <button class="rsvp-status ${btnClass}" onclick="toggleRSVP('${p.id}')" ${disabledAttr}>${btnText}</button>
+        </span>
       </div>
     `;
   }).join('');
 }
 
 async function toggleRSVP(playerId) {
+  if (isRSVPLocked() && !isEditor) {
+    toast('RSVPs are locked! Deadline has passed.');
+    return;
+  }
   const wn = state.thisWeek.weekNum || 1;
   const cur = (rsvpData[wn] && rsvpData[wn][playerId]) || 'pending';
   const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
 
   try {
     await db.ref('rsvps/' + wn + '/' + playerId).set(next);
-    // Firebase onValue listener will auto-update the UI
   } catch (e) {
     toast('RSVP update failed - try again.');
     console.warn(e);
+  }
+}
+
+/* ─── Payment Tracking ─── */
+async function togglePayment(playerId) {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const cur = (paymentData[wn] && paymentData[wn][playerId]) === true;
+  try {
+    await db.ref('payments/' + wn + '/' + playerId).set(!cur);
+    toast(cur ? 'Marked as unpaid' : 'Marked as paid');
+  } catch (e) {
+    toast('Payment update failed');
+    console.warn(e);
+  }
+}
+
+async function markAllPaid() {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvps = rsvpData[wn] || {};
+  const updates = {};
+  Object.entries(rsvps).forEach(([pid, status]) => {
+    if (status === 'yes') updates[pid] = true;
+  });
+  if (Object.keys(updates).length === 0) { toast('No confirmed players to mark'); return; }
+  await db.ref('payments/' + wn).update(updates);
+  toast('All confirmed players marked as paid');
+}
+
+async function resetPayments() {
+  if (!isEditor) return;
+  if (!confirm('Reset all payment statuses for this week?')) return;
+  const wn = state.thisWeek.weekNum || 1;
+  await db.ref('payments/' + wn).remove();
+  await db.ref('paymentEnforced/' + wn).remove();
+  toast('Payments reset');
+}
+
+async function enforcePaymentCutoff() {
+  if (!isRSVPLocked() || !isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  try {
+    const enforcedSnap = await db.ref('paymentEnforced/' + wn).once('value');
+    if (enforcedSnap.val() === true) return;
+    const rsvps = rsvpData[wn] || {};
+    const payments = paymentData[wn] || {};
+    const updates = {};
+    let changed = false;
+    Object.entries(rsvps).forEach(([playerId, status]) => {
+      if (status === 'yes' && !payments[playerId]) {
+        updates['rsvps/' + wn + '/' + playerId] = 'no';
+        changed = true;
+      }
+    });
+    if (changed) {
+      updates['paymentEnforced/' + wn] = true;
+      await db.ref().update(updates);
+      toast('Unpaid players marked as Out (deadline passed)');
+    } else {
+      await db.ref('paymentEnforced/' + wn).set(true);
+    }
+  } catch (e) { console.warn('Payment enforcement error:', e); }
+}
+
+/* ─── Admin RSVP Summary ─── */
+function renderAdminSummary() {
+  const el = document.getElementById('admin-summary-content');
+  if (!el || !isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvps = rsvpData[wn] || {};
+  const payments = paymentData[wn] || {};
+  const inList = [], outList = [], pendingList = [];
+
+  state.players.forEach(p => {
+    const status = rsvps[p.id] || 'pending';
+    const paid = payments[p.id] === true;
+    const entry = { name: p.name, paid };
+    if (status === 'yes') inList.push(entry);
+    else if (status === 'no') outList.push(entry);
+    else pendingList.push(entry);
+  });
+
+  const renderList = (items, showPay) => {
+    if (!items.length) return '<div style="color:var(--gray);font-size:0.8rem;padding:4px 0">None</div>';
+    return items.map(item => `
+      <div class="summary-player">
+        <span>${escHtml(item.name)}</span>
+        ${showPay ? (item.paid
+          ? '<span class="summary-badge summary-badge-paid">PAID</span>'
+          : '<span class="summary-badge summary-badge-unpaid">UNPAID</span>') : ''}
+      </div>
+    `).join('');
+  };
+
+  const total = state.players.length;
+  const responded = inList.length + outList.length;
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:10px">
+      <div>
+        <div class="summary-col-header" style="color:var(--green-good)">IN (${inList.length})</div>
+        ${renderList(inList, true)}
+      </div>
+      <div>
+        <div class="summary-col-header" style="color:var(--red-bad)">OUT (${outList.length})</div>
+        ${renderList(outList, false)}
+      </div>
+      <div>
+        <div class="summary-col-header" style="color:var(--gray)">NO RESPONSE (${pendingList.length})</div>
+        ${renderList(pendingList, false)}
+      </div>
+    </div>
+    <div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,61,167,0.15);font-size:0.8rem;color:var(--gray)">
+      Total: ${total} players &middot; Response rate: ${total ? Math.round((responded / total) * 100) : 0}%
+    </div>
+  `;
+}
+
+/* ─── Email Notifications (EmailJS) ─── */
+function buildRSVPSummaryText() {
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvps = rsvpData[wn] || {};
+  const payments = paymentData[wn] || {};
+  const inPlayers = [], outPlayers = [], pendingPlayers = [];
+
+  state.players.forEach(p => {
+    const status = rsvps[p.id] || 'pending';
+    const paid = payments[p.id] === true;
+    if (status === 'yes') inPlayers.push(p.name + (paid ? ' (Paid)' : ' (UNPAID)'));
+    else if (status === 'no') outPlayers.push(p.name);
+    else pendingPlayers.push(p.name);
+  });
+
+  let text = 'FOG Golf League - Week ' + wn + ' RSVP Summary\n';
+  text += 'Course: ' + (state.thisWeek.course || 'TBD') + '\n';
+  text += 'Date: ' + (state.thisWeek.date || 'TBD') + '\n';
+  text += 'Tee Time: 2:00 PM MDT\n\n';
+  text += '--- IN (' + inPlayers.length + ') ---\n' + (inPlayers.join('\n') || 'None') + '\n\n';
+  text += '--- OUT (' + outPlayers.length + ') ---\n' + (outPlayers.join('\n') || 'None') + '\n\n';
+  text += '--- NO RESPONSE (' + pendingPlayers.length + ') ---\n' + (pendingPlayers.join('\n') || 'None') + '\n';
+  return text;
+}
+
+async function sendRSVPEmail(subject) {
+  if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID) {
+    toast('EmailJS not configured yet - check settings');
+    console.warn('EmailJS keys not set. Set EMAILJS_PUBLIC_KEY, EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID in the code.');
+    return false;
+  }
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email: ADMIN_EMAIL,
+      subject: subject || 'FOG RSVP Summary - Week ' + (state.thisWeek.weekNum || 1),
+      rsvp_summary: buildRSVPSummaryText()
+    }, EMAILJS_PUBLIC_KEY);
+    toast('RSVP summary email sent!');
+    return true;
+  } catch(e) {
+    toast('Email failed to send');
+    console.warn('EmailJS error:', e);
+    return false;
+  }
+}
+
+function loadEmailSentFlags() {
+  const wn = state.thisWeek.weekNum || 1;
+  ['deadline-', 'morning-'].forEach(prefix => {
+    const key = prefix + wn;
+    if (localStorage.getItem('emailSent_' + key) === 'true') {
+      emailSentFlags[key] = true;
+    }
+  });
+}
+
+function checkAutoEmailTriggers() {
+  if (!isEditor || !EMAILJS_PUBLIC_KEY) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const deadline = getRSVPDeadline();
+  if (!deadline || !state.thisWeek.date) return;
+  const now = new Date();
+
+  // Trigger 1: At deadline (Sunday 2 PM MDT)
+  const deadlineKey = 'deadline-' + wn;
+  if (!emailSentFlags[deadlineKey]) {
+    const diffMs = now.getTime() - deadline.getTime();
+    if (diffMs >= 0 && diffMs < 120000) {
+      emailSentFlags[deadlineKey] = true;
+      localStorage.setItem('emailSent_' + deadlineKey, 'true');
+      sendRSVPEmail('FOG RSVPs CLOSED - Week ' + wn);
+    }
+  }
+
+  // Trigger 2: Monday 8 AM MDT (18 hours after Sunday 2 PM)
+  const mondayMorning = new Date(deadline.getTime() + 18 * 60 * 60 * 1000);
+  const morningKey = 'morning-' + wn;
+  if (!emailSentFlags[morningKey]) {
+    const diffMs2 = now.getTime() - mondayMorning.getTime();
+    if (diffMs2 >= 0 && diffMs2 < 120000) {
+      emailSentFlags[morningKey] = true;
+      localStorage.setItem('emailSent_' + morningKey, 'true');
+      sendRSVPEmail('FOG Game Day Reminder - Week ' + wn);
+    }
   }
 }
 
@@ -1087,7 +1438,8 @@ async function saveThisWeek() {
     notes: document.getElementById('tw-notes-input').value.trim()
   };
   await saveState();
-  listenToRSVPs(); // Re-attach listener for the new week number
+  listenToRSVPs();
+  listenToPayments();
   toast('This week updated!');
   renderThisWeek();
 }
@@ -1653,8 +2005,23 @@ async function preloadDataIfEmpty() {
     await saveState();
     renderAll();
   }
-  // Start listening to Firebase for real-time RSVPs
+  // Start listening to Firebase for real-time RSVPs and payments
   listenToRSVPs();
+  listenToPayments();
+  loadEmailSentFlags();
+
+  // Start countdown timer and auto-email checks
+  countdownInterval = setInterval(() => {
+    updateDeadlineDisplay();
+    emailCheckCounter++;
+    if (emailCheckCounter % 30 === 0 && isEditor) {
+      checkAutoEmailTriggers();
+    }
+  }, 1000);
+  updateDeadlineDisplay();
+
+  // Check payment cutoff after data loads (give listeners time)
+  setTimeout(enforcePaymentCutoff, 3000);
 }
 
 // Override the original load
