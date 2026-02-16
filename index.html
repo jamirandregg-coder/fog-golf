@@ -950,6 +950,79 @@
   .contest-select-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
   .contest-select-row .form-group { min-width: 160px; }
 
+  /* SCORING MODE TOGGLE */
+  .scoring-mode-toggle {
+    display: inline-flex;
+    border: 1px solid rgba(255,61,167,0.3);
+    border-radius: 50px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .smode-btn {
+    padding: 7px 18px;
+    background: transparent;
+    border: none;
+    color: var(--pink-light);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .smode-btn.active { background: var(--pink-hot); color: var(--white); }
+  .smode-btn:hover:not(.active) { background: rgba(255,61,167,0.15); }
+
+  /* GROUP SCORER ASSIGNMENT (admin) */
+  .group-scorer-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .group-scorer-label { font-size: 0.82rem; font-weight: 600; color: var(--pink-light); min-width: 80px; }
+  .group-scorer-select {
+    padding: 6px 12px; border-radius: 8px;
+    border: 1px solid rgba(255,61,167,0.3);
+    background: var(--dark-card); color: var(--white);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.82rem;
+  }
+
+  /* GROUP SCORING - PLAYER TABS */
+  .group-player-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 14px; }
+  .group-tab {
+    padding: 8px 16px;
+    border: 1px solid rgba(255,61,167,0.3);
+    background: transparent; color: var(--pink-light);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem; font-weight: 600;
+    cursor: pointer; border-radius: 50px;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .group-tab.active { background: var(--pink-hot); color: var(--white); border-color: var(--pink-hot); }
+  .group-tab:hover:not(.active) { background: rgba(255,61,167,0.1); border-color: var(--pink-hot); }
+  .group-tab-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .group-tab-dot.empty { background: rgba(255,255,255,0.2); }
+  .group-tab-dot.partial { background: var(--gold); }
+  .group-tab-dot.complete { background: var(--green-good); }
+  .group-tab-you { font-size: 0.65rem; opacity: 0.7; }
+
+  /* GROUP SCORING HEADER */
+  .group-scoring-header { font-size: 0.85rem; color: var(--gray); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .group-scoring-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+    background: rgba(255,61,167,0.2); color: var(--pink-hot);
+    border: 1px solid rgba(255,61,167,0.4);
+  }
+
+  /* GROUP LOCKED MESSAGE */
+  .group-locked-message {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 22px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,61,167,0.15); border-radius: 12px;
+  }
+  .group-locked-icon { font-size: 1.8rem; }
+  .group-locked-text { font-size: 0.88rem; color: var(--gray); line-height: 1.5; }
+  .group-locked-text strong { color: var(--pink-hot); }
+
   /* RESPONSIVE */
   @media (max-width: 600px) {
     .card { padding: 18px; border-radius: 12px; }
@@ -961,6 +1034,8 @@
     .hole-input-group input { width: 38px; height: 36px; font-size: 0.9rem; }
     .par-hole-group input { width: 38px; }
     .scorecard td.player-name { min-width: 80px; font-size: 0.75rem; }
+    .group-player-tabs { gap: 3px; }
+    .group-tab { padding: 6px 12px; font-size: 0.72rem; }
   }
 </style>
 </head>
@@ -1338,6 +1413,21 @@
         <button class="btn btn-pink" id="btn-close-scoring" onclick="closeScoring()" style="display:none">Close & Calculate</button>
         <button class="btn btn-outline" id="btn-reopen-scoring" onclick="reopenScoring()" style="display:none">Reopen Scoring</button>
       </div>
+
+      <!-- Scoring Mode Toggle -->
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,61,167,0.15)" id="scoring-mode-section">
+        <label style="margin-bottom:8px;display:block">Scoring Mode</label>
+        <div class="scoring-mode-toggle" id="scoring-mode-toggle">
+          <button type="button" class="smode-btn active" data-mode="individual" onclick="setScoringMode('individual')">Individual</button>
+          <button type="button" class="smode-btn" data-mode="group" onclick="setScoringMode('group')">Group</button>
+        </div>
+        <p style="font-size:0.72rem;color:var(--gray);margin-top:6px" id="scoring-mode-desc">Each player enters their own scores.</p>
+        <div id="group-scorer-assignment" style="display:none;margin-top:12px">
+          <label style="margin-bottom:6px;display:block">Group Scorers</label>
+          <div id="group-scorer-list"></div>
+        </div>
+      </div>
+
       <p style="font-size:0.72rem;color:var(--gray);margin-top:10px">Auto-emails send if this page is open at Sunday 2 PM & Monday 8 AM. Use the manual button in the RSVP Summary as backup.</p>
     </div>
 
@@ -1537,6 +1627,11 @@ let scheduleRsvpListeners = {};
 let expandedScheduleWeeks = {};  // track which weeks have RSVP expanded
 let pairingsData = {};       // { weekNum: [ { teeTime, players: [id,...] }, ... ] }
 let pairingsListener = null;
+let scoringMode = 'individual';    // 'individual' | 'group'
+let scoringModeListener = null;
+let groupScorersData = {};         // { groupIndex: playerId }
+let groupScorersListener = null;
+let activeGroupPlayer = null;      // tracks active tab in group scoring
 let masterCourses = {};      // { courseId: { name, pars: [18 ints] } }
 let masterCoursesListener = null;
 let selectedNine = 'front';  // 'front' or 'back'
@@ -2117,6 +2212,8 @@ async function saveThisWeek() {
   listenToCourseSetup();
   listenToContests();
   listenToPairings();
+  listenToScoringMode();
+  listenToGroupScorers();
   toast('This week updated!');
   renderThisWeek();
 }
@@ -2667,6 +2764,30 @@ function listenToPairings() {
   });
 }
 
+function listenToScoringMode() {
+  const wn = state.thisWeek.weekNum || 1;
+  const ref = db.ref('scoringMode/' + wn);
+  if (scoringModeListener) scoringModeListener.off();
+  scoringModeListener = ref;
+  ref.on('value', (snap) => {
+    scoringMode = snap.val() || 'individual';
+    renderLiveScoreInputs();
+    updateScoringModeUI();
+  });
+}
+
+function listenToGroupScorers() {
+  const wn = state.thisWeek.weekNum || 1;
+  const ref = db.ref('groupScorers/' + wn);
+  if (groupScorersListener) groupScorersListener.off();
+  groupScorersListener = ref;
+  ref.on('value', (snap) => {
+    groupScorersData = snap.val() || {};
+    renderLiveScoreInputs();
+    if (isEditor) renderGroupScorerAssignment();
+  });
+}
+
 /* ─── Tee Time Helpers ─── */
 function addSchedTeeTime() {
   const row = document.getElementById('sched-tee-times-row');
@@ -3201,6 +3322,7 @@ function renderLiveScoring() {
     if (curVal) sel.value = curVal;
   }
   updateRoundStatusUI();
+  updateScoringModeUI();
   renderLiveScoreInputs();
   renderLiveScorecardGrid();
 }
@@ -3221,6 +3343,37 @@ function renderLiveScoreInputs() {
     return;
   }
 
+  // ── GROUP MODE BRANCH ──
+  if (scoringMode === 'group') {
+    const groupInfo = getPlayerGroupInfo(playerId);
+    if (!groupInfo) {
+      container.innerHTML = '<div class="empty-state">You are not in any group pairing. Contact the admin.</div>';
+      if (saveBtn) saveBtn.style.display = 'none';
+      if (totalDiv) totalDiv.style.display = 'none';
+      return;
+    }
+    if (groupInfo.isScorer) {
+      renderGroupScorerInputs(container, groupInfo);
+      if (saveBtn) { saveBtn.style.display = 'inline-block'; saveBtn.onclick = saveGroupScores; }
+      if (totalDiv) totalDiv.style.display = 'none';
+    } else {
+      const scorerPlayer = state.players.find(p => p.id === groupInfo.scorerId);
+      const scorerName = scorerPlayer ? scorerPlayer.name : 'Unknown';
+      container.innerHTML = `
+        <div class="group-locked-message">
+          <div class="group-locked-icon">&#128274;</div>
+          <div class="group-locked-text">
+            <strong>${escHtml(scorerName)}</strong> is entering scores for your group.
+            <br>Watch scores update in real time on the scorecard below.
+          </div>
+        </div>`;
+      if (saveBtn) saveBtn.style.display = 'none';
+      if (totalDiv) totalDiv.style.display = 'none';
+    }
+    return;
+  }
+
+  // ── INDIVIDUAL MODE (existing logic) ──
   const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
   const scores = liveScoresData[playerId] || [];
   const isLocked = roundStatus === 'closed' && !isEditor;
@@ -3420,6 +3573,224 @@ function editLiveScores(playerId) {
   // Admin selects this player for editing
   const sel = document.getElementById('live-player-select');
   if (sel) { sel.value = playerId; renderLiveScoreInputs(); }
+}
+
+/* ─── Scoring Mode (Admin) ─── */
+async function setScoringMode(mode) {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  await db.ref('scoringMode/' + wn).set(mode);
+  if (mode === 'group') {
+    const pairings = pairingsData[wn] || [];
+    if (pairings.length > 0 && Object.keys(groupScorersData).length === 0) {
+      await autoAssignGroupScorers();
+    }
+  }
+  toast(mode === 'group' ? 'Group scoring enabled.' : 'Individual scoring restored.');
+}
+
+function updateScoringModeUI() {
+  document.querySelectorAll('#scoring-mode-toggle .smode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === scoringMode);
+  });
+  const desc = document.getElementById('scoring-mode-desc');
+  if (desc) {
+    desc.textContent = scoringMode === 'group'
+      ? 'One designated scorer per group enters all scores. Individual entry is locked.'
+      : 'Each player enters their own scores.';
+  }
+  const assignDiv = document.getElementById('group-scorer-assignment');
+  if (assignDiv) {
+    assignDiv.style.display = scoringMode === 'group' ? 'block' : 'none';
+    if (scoringMode === 'group') renderGroupScorerAssignment();
+  }
+}
+
+async function autoAssignGroupScorers() {
+  const wn = state.thisWeek.weekNum || 1;
+  const pairings = pairingsData[wn] || [];
+  const scorers = {};
+  pairings.forEach((group, idx) => {
+    if (group.players && group.players.length > 0) {
+      scorers[idx] = group.players[0];
+    }
+  });
+  await db.ref('groupScorers/' + wn).set(scorers);
+}
+
+function renderGroupScorerAssignment() {
+  const container = document.getElementById('group-scorer-list');
+  if (!container) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const pairings = pairingsData[wn] || [];
+  if (!pairings.length) {
+    container.innerHTML = '<div class="empty-state" style="font-size:0.8rem">Generate pairings first to assign group scorers.</div>';
+    return;
+  }
+  let html = '';
+  pairings.forEach((group, gi) => {
+    const scorerId = groupScorersData[gi];
+    html += `<div class="group-scorer-row">
+      <span class="group-scorer-label">Group ${gi + 1}:</span>
+      <select class="group-scorer-select" onchange="changeGroupScorer(${gi}, this.value)">`;
+    (group.players || []).forEach(pid => {
+      const player = state.players.find(p => p.id === pid);
+      if (player) {
+        html += `<option value="${pid}" ${pid === scorerId ? 'selected' : ''}>${escHtml(player.name)}</option>`;
+      }
+    });
+    html += `</select></div>`;
+  });
+  container.innerHTML = html;
+}
+
+async function changeGroupScorer(groupIndex, playerId) {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  await db.ref('groupScorers/' + wn + '/' + groupIndex).set(playerId);
+  toast('Group scorer updated.');
+}
+
+/* ─── Group Scoring Helpers ─── */
+function getPlayerGroupInfo(playerId) {
+  const wn = state.thisWeek.weekNum || 1;
+  const pairings = pairingsData[wn] || [];
+  for (let gi = 0; gi < pairings.length; gi++) {
+    const group = pairings[gi];
+    if (group.players && group.players.includes(playerId)) {
+      const scorerId = groupScorersData[gi] || group.players[0];
+      return { groupIndex: gi, players: group.players, scorerId, isScorer: playerId === scorerId, teeTime: group.teeTime };
+    }
+  }
+  return null;
+}
+
+function renderGroupScorerInputs(container, groupInfo) {
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  if (!activeGroupPlayer || !groupInfo.players.includes(activeGroupPlayer)) {
+    activeGroupPlayer = groupInfo.scorerId;
+  }
+
+  // Player tabs
+  let tabsHtml = '<div class="group-player-tabs">';
+  groupInfo.players.forEach(pid => {
+    const player = state.players.find(p => p.id === pid);
+    if (!player) return;
+    const isActive = pid === activeGroupPlayer;
+    const scores = liveScoresData[pid] || [];
+    const holesEntered = scores.filter(s => s !== null && s !== undefined).length;
+    const statusDot = holesEntered === 9 ? 'complete' : holesEntered > 0 ? 'partial' : 'empty';
+    tabsHtml += `<button class="group-tab ${isActive ? 'active' : ''}" onclick="switchGroupPlayer('${pid}')">
+      ${escHtml(player.name.split(' ')[0])}
+      <span class="group-tab-dot ${statusDot}"></span>
+      ${pid === groupInfo.scorerId ? '<span class="group-tab-you">(You)</span>' : ''}
+    </button>`;
+  });
+  tabsHtml += '</div>';
+
+  // Score inputs for active player
+  const scores = liveScoresData[activeGroupPlayer] || [];
+  let inputsHtml = '<div class="score-entry-row">';
+  for (let i = 0; i < 9; i++) {
+    const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : '';
+    const par = pars[i] || 4;
+    let inputClass = '';
+    if (val !== '' && val !== null) {
+      if (val < par) inputClass = 'input-birdie';
+      else if (val > par) inputClass = 'input-bogey';
+    }
+    inputsHtml += `<div class="hole-input-group">
+      <span class="hole-label">H${i+1}</span>
+      <input type="number" id="group-hole-${i}" value="${val}" min="1" max="15"
+        class="${inputClass}" data-player="${activeGroupPlayer}"
+        oninput="updateGroupScoreStyle(${i})"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();focusNextGroupHole(${i})}">
+      <span class="par-label">Par ${par}</span>
+    </div>`;
+  }
+  inputsHtml += '</div>';
+
+  // Running total for active player
+  let total = 0, totalPar = 0, holes = 0;
+  for (let i = 0; i < 9; i++) {
+    const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : null;
+    if (val !== null) { total += val; totalPar += (pars[i] || 4); holes++; }
+  }
+  let totalHtml = '';
+  if (holes > 0) {
+    const diff = total - totalPar;
+    const diffStr = diff > 0 ? '+' + diff : diff === 0 ? 'E' : diff;
+    const diffClass = diff < 0 ? 'score-under' : diff === 0 ? 'score-even' : 'score-over';
+    const playerName = state.players.find(p => p.id === activeGroupPlayer)?.name || '';
+    totalHtml = `<div class="scoring-total" style="display:flex">
+      <div><span class="st-label">${escHtml(playerName)}</span></div>
+      <div><span class="st-label">Holes</span><br><span class="st-value">${holes}/9</span></div>
+      <div><span class="st-label">Total</span><br><span class="st-value">${total}</span></div>
+      <div><span class="st-label">vs Par</span><br><span class="score-pill ${diffClass}" style="font-size:1rem">${diffStr}</span></div>
+    </div>`;
+  }
+
+  container.innerHTML = `
+    <div class="group-scoring-header">
+      <span class="group-scoring-badge">GROUP SCORING</span>
+      Entering scores for Group ${groupInfo.groupIndex + 1}
+    </div>
+    ${tabsHtml}
+    ${inputsHtml}
+    ${totalHtml}
+  `;
+}
+
+function switchGroupPlayer(playerId) {
+  activeGroupPlayer = playerId;
+  const container = document.getElementById('live-hole-inputs');
+  const selectedPlayer = document.getElementById('live-player-select')?.value;
+  if (!container || !selectedPlayer) return;
+  const groupInfo = getPlayerGroupInfo(selectedPlayer);
+  if (groupInfo && groupInfo.isScorer) {
+    renderGroupScorerInputs(container, groupInfo);
+  }
+}
+
+function updateGroupScoreStyle(holeIdx) {
+  const input = document.getElementById('group-hole-' + holeIdx);
+  if (!input) return;
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const par = pars[holeIdx] || 4;
+  const val = parseInt(input.value);
+  input.className = '';
+  if (!isNaN(val)) {
+    if (val < par) input.className = 'input-birdie';
+    else if (val > par) input.className = 'input-bogey';
+  }
+}
+
+function focusNextGroupHole(holeIdx) {
+  if (holeIdx < 8) {
+    const next = document.getElementById('group-hole-' + (holeIdx + 1));
+    if (next) next.focus();
+  } else {
+    saveGroupScores();
+  }
+}
+
+async function saveGroupScores() {
+  if (!activeGroupPlayer) return toast('No player selected.');
+  if (roundStatus !== 'open' && !isEditor) return toast('Scoring is not open.');
+  const wn = state.thisWeek.weekNum || 1;
+  const scores = [];
+  for (let i = 0; i < 9; i++) {
+    const val = document.getElementById('group-hole-' + i)?.value;
+    scores.push(val !== '' && val !== undefined ? parseInt(val) : null);
+  }
+  try {
+    await db.ref('liveScores/' + wn + '/' + activeGroupPlayer).set(scores);
+    const playerName = state.players.find(p => p.id === activeGroupPlayer)?.name || 'player';
+    toast('Scores saved for ' + playerName + '!');
+  } catch (e) {
+    toast('Failed to save scores.');
+    console.warn(e);
+  }
 }
 
 /* ─── Skins Calculation ─── */
@@ -4129,6 +4500,8 @@ async function preloadDataIfEmpty() {
   listenToContests();
   listenToSchedule();
   listenToPairings();
+  listenToScoringMode();
+  listenToGroupScorers();
   listenToMasterCourses();
   loadEmailSentFlags();
 
