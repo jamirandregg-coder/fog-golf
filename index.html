@@ -762,6 +762,55 @@
     color: var(--gold);
   }
 
+  /* SEASON CHAMPION BANNER */
+  .season-champ-banner {
+    max-width: 500px;
+    margin: 0 auto 6px;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,140,0,0.12), rgba(255,215,0,0.10));
+    border: 2px solid rgba(255,215,0,0.6);
+    border-radius: 50px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    animation: champGlow 4s ease-in-out infinite;
+  }
+  @keyframes champGlow {
+    0%, 100% { box-shadow: 0 0 25px rgba(255,215,0,0.3), 0 0 50px rgba(255,140,0,0.15); }
+    50% { box-shadow: 0 0 45px rgba(255,215,0,0.5), 0 0 80px rgba(255,140,0,0.25); }
+  }
+  .season-champ-banner .champ-trophy {
+    font-size: 2rem;
+    display: inline-block;
+    animation: trophyPulse 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 14px rgba(255,215,0,0.8));
+  }
+  .season-champ-banner .champ-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .season-champ-banner .champ-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--white);
+    text-shadow: 0 0 24px rgba(255,215,0,0.5);
+  }
+  .season-champ-banner .champ-details {
+    font-size: 0.75rem;
+    color: var(--pink-light);
+    margin-top: 2px;
+  }
+  .season-champ-banner .champ-details span {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    color: var(--gold);
+  }
+
   /* TEE TIMES & PAIRINGS */
   .tee-times-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end; }
   .tee-time-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -871,6 +920,12 @@
 </div>
 
 <div style="padding: 0 20px 4px;">
+  <div class="season-champ-banner" id="season-champ-banner">
+    <div class="champ-trophy">🏆</div>
+    <div class="champ-label">2025 Season Champion</div>
+    <div class="champ-name" id="champ-name"></div>
+    <div class="champ-details" id="champ-details"></div>
+  </div>
   <div class="winner-banner" id="winner-banner">
     <div class="winner-trophy">🏆</div>
     <div class="winner-label">This Week's Champion</div>
@@ -3554,6 +3609,63 @@ function renderWinnerBanner() {
   banner.classList.add('visible');
 }
 
+/* ─── Season Champion Banner ─── */
+function renderSeasonChampBanner() {
+  const banner = document.getElementById('season-champ-banner');
+  const nameEl = document.getElementById('champ-name');
+  const detailsEl = document.getElementById('champ-details');
+  if (!banner || !nameEl || !detailsEl) return;
+
+  // Get the most recent past season
+  const seasonKeys = Object.keys(PAST_SEASONS).sort();
+  if (seasonKeys.length === 0) { banner.style.display = 'none'; return; }
+  const latestKey = seasonKeys[seasonKeys.length - 1];
+  const season = PAST_SEASONS[latestKey];
+  if (!season || !season.weeks || season.weeks.length === 0) { banner.style.display = 'none'; return; }
+
+  // Last week winner
+  const lastWeek = season.weeks[season.weeks.length - 1];
+  let lastWkWinner = null, lastWkBest = Infinity;
+  Object.entries(lastWeek.scores).forEach(([name, score]) => {
+    if (score < lastWkBest) { lastWkBest = score; lastWkWinner = name; }
+  });
+
+  // Season avg champion (lowest avg, min 5 rounds)
+  const allPlayers = {};
+  season.weeks.forEach(wk => {
+    Object.entries(wk.scores).forEach(([name, score]) => {
+      if (!allPlayers[name]) allPlayers[name] = { rounds: 0, total: 0 };
+      allPlayers[name].rounds++;
+      allPlayers[name].total += score;
+    });
+  });
+  const qualified = Object.entries(allPlayers)
+    .filter(([, s]) => s.rounds >= 5)
+    .map(([name, s]) => ({ name, avg: (s.total / s.rounds).toFixed(1), rounds: s.rounds }))
+    .sort((a, b) => parseFloat(a.avg) - parseFloat(b.avg));
+
+  const seasonChamp = qualified[0];
+
+  // Update the banner label to show the season year
+  const labelEl = banner.querySelector('.champ-label');
+  if (labelEl) labelEl.textContent = latestKey + ' Season Champion';
+
+  if (seasonChamp) {
+    nameEl.textContent = seasonChamp.name;
+    let parts = [`Avg: <span>${seasonChamp.avg}</span>`];
+    parts.push(`${seasonChamp.rounds} rounds`);
+    if (lastWkWinner) parts.push(`Final Week Winner: <span>${lastWkWinner}</span> (${lastWkBest})`);
+    detailsEl.innerHTML = parts.join(' · ');
+  } else if (lastWkWinner) {
+    nameEl.textContent = lastWkWinner;
+    detailsEl.innerHTML = `Final Week: <span>${lastWkBest}</span> at ${lastWeek.course}`;
+  } else {
+    banner.style.display = 'none';
+    return;
+  }
+  banner.style.display = 'block';
+}
+
 /* ─── Render All ─── */
 function renderAll() {
   renderPlayers();
@@ -3566,6 +3678,7 @@ function renderAll() {
   applyMode();
   renderLiveScoring();
   renderWinnerBanner();
+  renderSeasonChampBanner();
 }
 
 /* ─── Past Seasons Data ─── */
