@@ -626,6 +626,77 @@
   }
   .toast.show { transform: translateY(0); opacity: 1; }
 
+  /* LIVE SCORING */
+  .scorecard-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .scorecard { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 600px; }
+  .scorecard th, .scorecard td { padding: 8px 6px; text-align: center; border: 1px solid rgba(255,61,167,0.12); white-space: nowrap; }
+  .scorecard th { background: rgba(255,61,167,0.12); color: var(--pink-hot); font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; font-family: 'Outfit', sans-serif; font-weight: 700; }
+  .scorecard th.hole-par { font-weight: 400; font-size: 0.65rem; color: var(--gray); text-transform: none; letter-spacing: 0; }
+  .scorecard td.player-name { text-align: left; font-weight: 600; position: sticky; left: 0; background: var(--dark); z-index: 2; min-width: 100px; border-right: 2px solid rgba(255,61,167,0.2); }
+  .scorecard td.score-cell { min-width: 38px; }
+  .scorecard td.score-birdie { background: rgba(255,61,167,0.18); color: var(--pink-hot); font-weight: 800; text-shadow: 0 0 8px rgba(255,61,167,0.4); }
+  .scorecard td.score-eagle { background: rgba(255,61,167,0.3); color: var(--pink-bright); font-weight: 800; }
+  .scorecard td.score-par { color: var(--white); }
+  .scorecard td.score-bogey { color: rgba(255,82,82,0.7); }
+  .scorecard td.score-dbl { color: rgba(255,82,82,0.5); }
+  .scorecard td.total-cell { font-weight: 800; font-family: 'Outfit', sans-serif; font-size: 1rem; border-left: 2px solid rgba(255,61,167,0.2); }
+  .scorecard tr:hover td { background: rgba(255,61,167,0.04); }
+  .scorecard tr:hover td.player-name { background: rgba(255,61,167,0.06); }
+
+  .score-entry-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .hole-input-group { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .hole-input-group .hole-label { font-size: 0.65rem; color: var(--pink-hot); font-weight: 700; letter-spacing: 0.05em; }
+  .hole-input-group .par-label { font-size: 0.6rem; color: var(--gray); }
+  .hole-input-group input {
+    width: 44px; height: 40px; text-align: center; font-size: 1rem; font-weight: 700;
+    padding: 4px; border-radius: 8px; font-family: 'Outfit', sans-serif;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,61,167,0.25); color: var(--white);
+  }
+  .hole-input-group input:focus { border-color: var(--pink-hot); background: rgba(255,61,167,0.1); box-shadow: 0 0 10px rgba(255,61,167,0.2); }
+  .hole-input-group input.input-birdie { border-color: var(--pink-hot); background: rgba(255,61,167,0.15); color: var(--pink-hot); }
+  .hole-input-group input.input-bogey { border-color: rgba(255,82,82,0.4); background: rgba(255,82,82,0.08); }
+
+  .scoring-total { display: flex; gap: 16px; align-items: center; padding: 10px 16px; background: rgba(255,61,167,0.08); border-radius: 10px; margin-top: 8px; }
+  .scoring-total .st-label { font-size: 0.72rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.1em; }
+  .scoring-total .st-value { font-family: 'Outfit', sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--pink-hot); }
+
+  /* ROUND STATUS */
+  .round-status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 16px; border-radius: 50px; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .round-status-setup { background: rgba(255,255,255,0.1); color: var(--gray); border: 1px solid rgba(255,255,255,0.2); }
+  .round-status-open { background: rgba(0,230,118,0.15); color: var(--green-good); border: 1px solid rgba(0,230,118,0.3); }
+  .round-status-closed { background: rgba(255,82,82,0.15); color: var(--red-bad); border: 1px solid rgba(255,82,82,0.3); }
+
+  /* SKINS & PAYOUTS */
+  .payout-card { margin-top: 22px; }
+  .payout-section { margin-bottom: 18px; }
+  .payout-section-title { font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 700; color: var(--pink-hot); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .payout-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 0.85rem; }
+  .payout-row:nth-child(even) { background: rgba(255,255,255,0.02); }
+  .payout-winner { color: var(--pink-hot); font-weight: 700; }
+  .payout-amount { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--green-good); }
+  .payout-push { color: var(--gray); font-style: italic; }
+  .payout-birdie-tag { font-size: 0.65rem; background: rgba(255,61,167,0.2); color: var(--pink-hot); padding: 1px 6px; border-radius: 8px; font-weight: 700; margin-left: 4px; }
+  .earnings-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 8px; font-size: 0.88rem; }
+  .earnings-positive { color: var(--green-good); font-weight: 700; }
+  .earnings-negative { color: var(--red-bad); }
+  .earnings-even { color: var(--gray); }
+
+  /* COURSE SETUP */
+  .par-inputs-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+  .par-hole-group { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .par-hole-group .hole-num { font-size: 0.65rem; color: var(--pink-hot); font-weight: 700; }
+  .par-hole-group input { width: 44px; text-align: center; padding: 6px 4px; font-size: 0.9rem; }
+  .par-hole-group label.ctp-label { font-size: 0.55rem; color: var(--gray); letter-spacing: 0; text-transform: none; margin: 0; display: flex; align-items: center; gap: 2px; cursor: pointer; }
+  .par-hole-group label.ctp-label input[type="checkbox"] { width: auto; margin: 0; }
+
+  /* CONTEST SELECTS */
+  .contest-select-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
+  .contest-select-row .form-group { min-width: 160px; }
+
   /* RESPONSIVE */
   @media (max-width: 600px) {
     .card { padding: 18px; border-radius: 12px; }
@@ -634,6 +705,9 @@
     .header h1 { font-size: clamp(2.5rem, 10vw, 5.5rem); }
     .venmo-banner { flex-direction: column; gap: 6px; text-align: center; padding: 14px 20px; }
     .schedule-item { flex-direction: column; text-align: center; gap: 8px; }
+    .hole-input-group input { width: 38px; height: 36px; font-size: 0.9rem; }
+    .par-hole-group input { width: 38px; }
+    .scorecard td.player-name { min-width: 80px; font-size: 0.75rem; }
   }
 </style>
 </head>
@@ -681,6 +755,7 @@
 
 <div class="nav-tabs">
   <button class="nav-tab active"       onclick="showPanel('home',this)">This Week</button>
+  <button class="nav-tab"              onclick="showPanel('live-scoring',this)">Live Scoring</button>
   <button class="nav-tab"              onclick="showPanel('standings',this)">Standings</button>
   <button class="nav-tab"              onclick="showPanel('history',this)">Scores</button>
   <button class="nav-tab"              onclick="showPanel('schedule',this)">Schedule</button>
@@ -719,6 +794,50 @@
         </div>
       </div>
       <div id="admin-summary-content"></div>
+    </div>
+  </div>
+
+  <!-- LIVE SCORING PANEL -->
+  <div id="panel-live-scoring" class="panel">
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>Live Scoring</span>
+        <span id="round-status-badge" class="round-status-badge round-status-setup">Setup</span>
+      </div>
+      <!-- Round controls are in Manage Week panel -->
+      <!-- Player score entry -->
+      <div id="live-score-entry" style="margin-bottom:20px">
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+          <div class="form-group" style="min-width:180px;max-width:250px">
+            <label>Enter Scores For</label>
+            <select id="live-player-select" onchange="renderLiveScoreInputs()">
+              <option value="">— Select Your Name —</option>
+            </select>
+          </div>
+        </div>
+        <div id="live-hole-inputs"></div>
+        <div id="live-score-total" class="scoring-total" style="display:none"></div>
+        <div style="margin-top:10px">
+          <button class="btn btn-pink" id="save-live-scores-btn" onclick="saveLiveScores()" style="display:none">Save Scores</button>
+        </div>
+      </div>
+      <!-- Full scorecard grid -->
+      <div class="card-title" style="margin-top:10px">Scorecard</div>
+      <div class="scorecard-wrap">
+        <div id="live-scorecard-grid"><div class="empty-state">Waiting for scores...</div></div>
+      </div>
+    </div>
+
+    <!-- Skins & Payout Results (shown after round closes) -->
+    <div id="payout-results" class="card payout-card" style="display:none">
+      <div class="card-title">Round Payouts</div>
+      <div id="payout-content"></div>
+    </div>
+
+    <!-- Contest Winner Selection (admin only, after round closes) -->
+    <div id="contest-selection" class="card" style="display:none">
+      <div class="card-title">Select Contest Winners</div>
+      <div id="contest-selection-content"></div>
     </div>
   </div>
 
@@ -853,10 +972,27 @@
           <textarea id="tw-notes-input" rows="2" placeholder="e.g. Bring cash for skins..."></textarea>
         </div>
       </div>
-      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+      <!-- Hole-by-Hole Par Setup -->
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,61,167,0.15)">
+        <label style="margin-bottom:10px;display:block">Hole-by-Hole Pars (9 Holes)</label>
+        <div class="par-inputs-row" id="par-holes-row"></div>
+        <div style="margin-top:8px">
+          <label style="margin-bottom:6px;display:block">Long Drive Hole</label>
+          <select id="long-drive-select" style="width:140px">
+            <option value="">None</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-pink" onclick="saveThisWeek()">Save This Week</button>
         <button class="btn btn-outline" onclick="markAllPaid()">Mark All In as Paid</button>
         <button class="btn btn-outline" onclick="resetPayments()">Reset Payments</button>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline" id="btn-open-scoring" onclick="openScoring()" style="display:none">Open Scoring</button>
+        <button class="btn btn-pink" id="btn-close-scoring" onclick="closeScoring()" style="display:none">Close & Calculate</button>
+        <button class="btn btn-outline" id="btn-reopen-scoring" onclick="reopenScoring()" style="display:none">Reopen Scoring</button>
       </div>
       <p style="font-size:0.72rem;color:var(--gray);margin-top:10px">Auto-emails send if this page is open at Sunday 2 PM & Monday 8 AM. Use the manual button in the RSVP Summary as backup.</p>
     </div>
@@ -904,6 +1040,16 @@ let curHistoryWeek = null;
 let countdownInterval = null;
 let emailCheckCounter = 0;
 let emailSentFlags = {};
+
+/* ─── Live Scoring State ─── */
+let liveScoresData = {};     // { playerId: [s1,s2,...,s9] }
+let liveScoresListener = null;
+let roundStatus = 'setup';   // 'setup' | 'open' | 'closed'
+let roundStatusListener = null;
+let courseSetupData = {};     // { pars: [...], ctpHoles: [...], longDriveHole: null }
+let courseSetupListener = null;
+let contestsData = {};       // { ctp: { holeIdx: playerId }, longDrive: playerId }
+let contestsListener = null;
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
@@ -1056,6 +1202,8 @@ function applyMode() {
    'tw-course-input','tw-date-input','tw-time-input','tw-par-input','tw-notes-input','current-week-select']
     .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !isEditor; });
   renderScoreEntry();
+  updateRoundStatusUI();
+  renderCourseSetup();
 }
 
 /* ─── Navigation ─── */
@@ -1064,14 +1212,15 @@ function showPanel(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
-  if (name === 'home')        renderThisWeek();
-  if (name === 'scores')      { populateWeekSelect(); renderScoreEntry(); }
-  if (name === 'standings')   renderStandings();
-  if (name === 'history')     renderHistory(curHistoryWeek);
-  if (name === 'players')     renderPlayers();
-  if (name === 'schedule')       renderSchedule();
-  if (name === 'past-seasons')   renderPastSeasons();
-  if (name === 'manage-week')    renderManageWeek();
+  if (name === 'home')           renderThisWeek();
+  if (name === 'live-scoring')   renderLiveScoring();
+  if (name === 'scores')        { populateWeekSelect(); renderScoreEntry(); }
+  if (name === 'standings')     renderStandings();
+  if (name === 'history')       renderHistory(curHistoryWeek);
+  if (name === 'players')       renderPlayers();
+  if (name === 'schedule')      renderSchedule();
+  if (name === 'past-seasons')  renderPastSeasons();
+  if (name === 'manage-week')   renderManageWeek();
 }
 
 /* ─── Firebase RSVP Listener ─── */
@@ -1418,6 +1567,8 @@ function renderManageWeek() {
   document.getElementById('tw-time-input').value = state.thisWeek.time || '';
   document.getElementById('tw-par-input').value = state.thisWeek.par || 72;
   document.getElementById('tw-notes-input').value = state.thisWeek.notes || '';
+  renderCourseSetup();
+  updateRoundStatusUI();
 }
 
 async function saveThisWeek() {
@@ -1431,8 +1582,16 @@ async function saveThisWeek() {
     notes: document.getElementById('tw-notes-input').value.trim()
   };
   await saveState();
+  // Save course setup to Firebase
+  const wn = state.thisWeek.weekNum;
+  const setup = getCourseSetupFromInputs();
+  await db.ref('courseSetup/' + wn).set(setup);
   listenToRSVPs();
   listenToPayments();
+  listenToLiveScores();
+  listenToRoundStatus();
+  listenToCourseSetup();
+  listenToContests();
   toast('This week updated!');
   renderThisWeek();
 }
@@ -1754,6 +1913,727 @@ function renderHistory(sel) {
   `;
 }
 
+/* ─── Live Scoring Firebase Listeners ─── */
+function listenToLiveScores() {
+  const wn = state.thisWeek.weekNum || 1;
+  const ref = db.ref('liveScores/' + wn);
+  if (liveScoresListener) liveScoresListener.off();
+  liveScoresListener = ref;
+  ref.on('value', (snap) => {
+    liveScoresData = snap.val() || {};
+    renderLiveScorecardGrid();
+    renderLiveScoreTotal();
+  });
+}
+
+function listenToRoundStatus() {
+  const wn = state.thisWeek.weekNum || 1;
+  const ref = db.ref('roundStatus/' + wn);
+  if (roundStatusListener) roundStatusListener.off();
+  roundStatusListener = ref;
+  ref.on('value', (snap) => {
+    roundStatus = snap.val() || 'setup';
+    updateRoundStatusUI();
+  });
+}
+
+function listenToCourseSetup() {
+  const wn = state.thisWeek.weekNum || 1;
+  const ref = db.ref('courseSetup/' + wn);
+  if (courseSetupListener) courseSetupListener.off();
+  courseSetupListener = ref;
+  ref.on('value', (snap) => {
+    courseSetupData = snap.val() || {};
+    renderLiveScorecardGrid();
+    renderLiveScoreInputs();
+  });
+}
+
+function listenToContests() {
+  const wn = state.thisWeek.weekNum || 1;
+  const ref = db.ref('contests/' + wn);
+  if (contestsListener) contestsListener.off();
+  contestsListener = ref;
+  ref.on('value', (snap) => {
+    contestsData = snap.val() || {};
+    if (roundStatus === 'closed') renderPayouts();
+  });
+}
+
+/* ─── Course Setup in Manage Week ─── */
+function renderCourseSetup() {
+  const row = document.getElementById('par-holes-row');
+  const ldSel = document.getElementById('long-drive-select');
+  if (!row || !ldSel) return;
+
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const ctpHoles = courseSetupData.ctpHoles || [];
+  const longDriveHole = courseSetupData.longDriveHole;
+
+  row.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const isCtpChecked = ctpHoles.includes(i) ? 'checked' : '';
+    row.innerHTML += `
+      <div class="par-hole-group">
+        <span class="hole-num">H${i+1}</span>
+        <input type="number" id="par-hole-${i}" value="${pars[i] || 4}" min="3" max="6" ${!isEditor ? 'disabled' : ''}>
+        <label class="ctp-label"><input type="checkbox" id="ctp-hole-${i}" ${isCtpChecked} ${!isEditor ? 'disabled' : ''}> CTP</label>
+      </div>
+    `;
+  }
+
+  ldSel.innerHTML = '<option value="">None</option>';
+  for (let i = 0; i < 9; i++) {
+    const sel = longDriveHole === i ? 'selected' : '';
+    ldSel.innerHTML += `<option value="${i}" ${sel}>Hole ${i+1}</option>`;
+  }
+  ldSel.disabled = !isEditor;
+}
+
+function getCourseSetupFromInputs() {
+  const pars = [];
+  const ctpHoles = [];
+  for (let i = 0; i < 9; i++) {
+    pars.push(parseInt(document.getElementById('par-hole-' + i)?.value) || 4);
+    if (document.getElementById('ctp-hole-' + i)?.checked) ctpHoles.push(i);
+  }
+  const ldVal = document.getElementById('long-drive-select')?.value;
+  const longDriveHole = ldVal !== '' && ldVal !== undefined ? parseInt(ldVal) : null;
+  return { pars, ctpHoles, longDriveHole };
+}
+
+/* ─── Round Status UI ─── */
+function updateRoundStatusUI() {
+  const badge = document.getElementById('round-status-badge');
+  if (badge) {
+    badge.className = 'round-status-badge round-status-' + roundStatus;
+    badge.textContent = roundStatus === 'setup' ? 'Setup' : roundStatus === 'open' ? '● Live' : 'Closed';
+  }
+
+  // Admin round control buttons
+  const btnOpen = document.getElementById('btn-open-scoring');
+  const btnClose = document.getElementById('btn-close-scoring');
+  const btnReopen = document.getElementById('btn-reopen-scoring');
+  if (btnOpen) btnOpen.style.display = (isEditor && roundStatus === 'setup') ? 'inline-block' : 'none';
+  if (btnClose) btnClose.style.display = (isEditor && roundStatus === 'open') ? 'inline-block' : 'none';
+  if (btnReopen) btnReopen.style.display = (isEditor && roundStatus === 'closed') ? 'inline-block' : 'none';
+
+  // Show/hide score entry based on round status
+  const entryDiv = document.getElementById('live-score-entry');
+  if (entryDiv) entryDiv.style.display = (roundStatus === 'open') ? 'block' : 'none';
+
+  // Show payout results if closed
+  const payoutDiv = document.getElementById('payout-results');
+  if (payoutDiv) payoutDiv.style.display = (roundStatus === 'closed') ? 'block' : 'none';
+
+  // Contest selection for admin
+  const contestDiv = document.getElementById('contest-selection');
+  if (contestDiv) contestDiv.style.display = (roundStatus === 'closed' && isEditor) ? 'block' : 'none';
+
+  if (roundStatus === 'closed') {
+    renderPayouts();
+    renderContestSelection();
+  }
+}
+
+async function openScoring() {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  // Save course setup first
+  const setup = getCourseSetupFromInputs();
+  await db.ref('courseSetup/' + wn).set(setup);
+  await db.ref('roundStatus/' + wn).set('open');
+  toast('Scoring is now LIVE!');
+}
+
+async function closeScoring() {
+  if (!isEditor) return;
+  if (!confirm('Close scoring and calculate skins/payouts?')) return;
+  const wn = state.thisWeek.weekNum || 1;
+  await db.ref('roundStatus/' + wn).set('closed');
+
+  // Also save totals to state.weeks for standings compatibility
+  saveHoleScoresToWeekTotals();
+  toast('Round closed! Skins & payouts calculated.');
+}
+
+async function reopenScoring() {
+  if (!isEditor) return;
+  if (!confirm('Reopen scoring for corrections?')) return;
+  const wn = state.thisWeek.weekNum || 1;
+  await db.ref('roundStatus/' + wn).set('open');
+  toast('Scoring reopened for corrections.');
+}
+
+/* ─── Live Scoring Tab ─── */
+function renderLiveScoring() {
+  // Populate player select
+  const sel = document.getElementById('live-player-select');
+  if (sel) {
+    const curVal = sel.value;
+    sel.innerHTML = '<option value="">— Select Your Name —</option>';
+    const wn = state.thisWeek.weekNum || 1;
+    const rsvps = rsvpData[wn] || {};
+    // Show players who RSVP'd yes first, then all
+    const yesPlayers = state.players.filter(p => rsvps[p.id] === 'yes');
+    const otherPlayers = state.players.filter(p => rsvps[p.id] !== 'yes');
+    const sorted = [...yesPlayers, ...otherPlayers];
+    sorted.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name + (rsvps[p.id] === 'yes' ? '' : ' (not RSVP\'d)');
+      sel.appendChild(opt);
+    });
+    if (curVal) sel.value = curVal;
+  }
+  updateRoundStatusUI();
+  renderLiveScoreInputs();
+  renderLiveScorecardGrid();
+}
+
+function renderLiveScoreInputs() {
+  const container = document.getElementById('live-hole-inputs');
+  const saveBtn = document.getElementById('save-live-scores-btn');
+  const totalDiv = document.getElementById('live-score-total');
+  if (!container) return;
+
+  const playerId = document.getElementById('live-player-select')?.value;
+  if (!playerId || roundStatus !== 'open') {
+    container.innerHTML = roundStatus !== 'open'
+      ? '<div class="empty-state">Scoring is not open yet. Admin must open scoring in Manage Week.</div>'
+      : '<div class="empty-state">Select your name above to enter scores.</div>';
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (totalDiv) totalDiv.style.display = 'none';
+    return;
+  }
+
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const scores = liveScoresData[playerId] || [];
+  const isLocked = roundStatus === 'closed' && !isEditor;
+
+  let html = '<div class="score-entry-row">';
+  for (let i = 0; i < 9; i++) {
+    const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : '';
+    const par = pars[i] || 4;
+    let inputClass = '';
+    if (val !== '' && val !== null) {
+      if (val < par) inputClass = 'input-birdie';
+      else if (val > par) inputClass = 'input-bogey';
+    }
+    html += `
+      <div class="hole-input-group">
+        <span class="hole-label">H${i+1}</span>
+        <input type="number" id="live-hole-${i}" value="${val}" min="1" max="15"
+          class="${inputClass}" ${isLocked ? 'disabled' : ''}
+          oninput="updateLiveScoreStyle(${i})" onkeydown="if(event.key==='Enter'){event.preventDefault();focusNextLive(${i})}">
+        <span class="par-label">Par ${par}</span>
+      </div>
+    `;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+
+  if (saveBtn) saveBtn.style.display = isLocked ? 'none' : 'inline-block';
+  renderLiveScoreTotal();
+}
+
+function updateLiveScoreStyle(holeIdx) {
+  const input = document.getElementById('live-hole-' + holeIdx);
+  if (!input) return;
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const par = pars[holeIdx] || 4;
+  const val = parseInt(input.value);
+  input.className = '';
+  if (!isNaN(val)) {
+    if (val < par) input.className = 'input-birdie';
+    else if (val > par) input.className = 'input-bogey';
+  }
+  renderLiveScoreTotal();
+}
+
+function focusNextLive(holeIdx) {
+  if (holeIdx < 8) {
+    const next = document.getElementById('live-hole-' + (holeIdx + 1));
+    if (next) next.focus();
+  } else {
+    saveLiveScores();
+  }
+}
+
+function renderLiveScoreTotal() {
+  const totalDiv = document.getElementById('live-score-total');
+  const playerId = document.getElementById('live-player-select')?.value;
+  if (!totalDiv || !playerId) { if(totalDiv) totalDiv.style.display = 'none'; return; }
+
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  let total = 0, totalPar = 0, holes = 0;
+  for (let i = 0; i < 9; i++) {
+    const el = document.getElementById('live-hole-' + i);
+    if (el) {
+      const val = parseInt(el.value);
+      if (!isNaN(val)) { total += val; totalPar += (pars[i] || 4); holes++; }
+    } else {
+      // Use Firebase data
+      const scores = liveScoresData[playerId] || [];
+      if (scores[i] !== null && scores[i] !== undefined) { total += scores[i]; totalPar += (pars[i] || 4); holes++; }
+    }
+  }
+
+  if (holes === 0) { totalDiv.style.display = 'none'; return; }
+  const diff = total - totalPar;
+  const diffStr = diff > 0 ? '+' + diff : diff === 0 ? 'E' : diff;
+  const diffClass = diff < 0 ? 'score-under' : diff === 0 ? 'score-even' : 'score-over';
+  totalDiv.style.display = 'flex';
+  totalDiv.innerHTML = `
+    <div><span class="st-label">Holes</span><br><span class="st-value">${holes}/9</span></div>
+    <div><span class="st-label">Total</span><br><span class="st-value">${total}</span></div>
+    <div><span class="st-label">vs Par</span><br><span class="score-pill ${diffClass}" style="font-size:1rem">${diffStr}</span></div>
+  `;
+}
+
+async function saveLiveScores() {
+  const playerId = document.getElementById('live-player-select')?.value;
+  if (!playerId) return toast('Select a player first.');
+  if (roundStatus !== 'open' && !isEditor) return toast('Scoring is not open.');
+
+  const wn = state.thisWeek.weekNum || 1;
+  const scores = [];
+  for (let i = 0; i < 9; i++) {
+    const val = document.getElementById('live-hole-' + i)?.value;
+    scores.push(val !== '' && val !== undefined ? parseInt(val) : null);
+  }
+
+  try {
+    await db.ref('liveScores/' + wn + '/' + playerId).set(scores);
+    toast('Scores saved!');
+  } catch (e) {
+    toast('Failed to save scores.');
+    console.warn(e);
+  }
+}
+
+/* ─── Live Scorecard Grid ─── */
+function renderLiveScorecardGrid() {
+  const grid = document.getElementById('live-scorecard-grid');
+  if (!grid) return;
+
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const ctpHoles = courseSetupData.ctpHoles || [];
+  const longDriveHole = courseSetupData.longDriveHole;
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvps = rsvpData[wn] || {};
+
+  // Get players who have scores or RSVP'd yes
+  const playersWithScores = Object.keys(liveScoresData);
+  const yesPlayers = state.players.filter(p => rsvps[p.id] === 'yes' || playersWithScores.includes(p.id));
+
+  if (!yesPlayers.length) {
+    grid.innerHTML = '<div class="empty-state">No players have entered scores yet.</div>';
+    return;
+  }
+
+  // Build scorecard table
+  let html = '<table class="scorecard"><thead><tr>';
+  html += '<th style="text-align:left;position:sticky;left:0;background:rgba(255,61,167,0.12);z-index:3">Player</th>';
+  for (let i = 0; i < 9; i++) {
+    let hLabel = 'H' + (i+1);
+    if (ctpHoles.includes(i)) hLabel += ' ⛳';
+    if (longDriveHole === i) hLabel += ' 💪';
+    html += `<th>${hLabel}</th>`;
+  }
+  html += '<th>Tot</th><th>+/-</th></tr>';
+  // Par row
+  html += '<tr style="background:rgba(255,255,255,0.02)"><td class="player-name" style="font-weight:400;color:var(--gray);font-size:0.75rem">PAR</td>';
+  let totalPar = 0;
+  for (let i = 0; i < 9; i++) { totalPar += (pars[i]||4); html += `<td style="color:var(--gray);font-size:0.75rem">${pars[i]||4}</td>`; }
+  html += `<td style="color:var(--gray);font-size:0.75rem;font-weight:700">${totalPar}</td><td></td></tr>`;
+  html += '</thead><tbody>';
+
+  // Player rows sorted by total (completed first)
+  const rows = yesPlayers.map(p => {
+    const scores = liveScoresData[p.id] || [];
+    let total = 0, parPlayed = 0, holesPlayed = 0;
+    for (let i = 0; i < 9; i++) {
+      if (scores[i] !== null && scores[i] !== undefined) {
+        total += scores[i]; parPlayed += (pars[i]||4); holesPlayed++;
+      }
+    }
+    return { player: p, scores, total, parPlayed, holesPlayed };
+  }).sort((a, b) => {
+    if (a.holesPlayed === 0 && b.holesPlayed === 0) return 0;
+    if (a.holesPlayed === 0) return 1;
+    if (b.holesPlayed === 0) return -1;
+    if (a.holesPlayed === 9 && b.holesPlayed < 9) return -1;
+    if (b.holesPlayed === 9 && a.holesPlayed < 9) return 1;
+    return a.total - b.total;
+  });
+
+  rows.forEach(({ player, scores, total, parPlayed, holesPlayed }) => {
+    const canEdit = isEditor && roundStatus === 'open';
+    html += `<tr>`;
+    html += `<td class="player-name">${escHtml(player.name)}${canEdit ? ` <button style="font-size:0.55rem;background:none;border:1px solid rgba(255,61,167,0.3);color:var(--pink-light);padding:1px 5px;border-radius:4px;cursor:pointer" onclick="editLiveScores('${player.id}')">✏️</button>` : ''}</td>`;
+    for (let i = 0; i < 9; i++) {
+      const s = scores[i];
+      const par = pars[i] || 4;
+      if (s === null || s === undefined) {
+        html += '<td class="score-cell" style="color:var(--gray)">—</td>';
+      } else {
+        let cls = 'score-cell score-par';
+        if (s <= par - 2) cls = 'score-cell score-eagle';
+        else if (s === par - 1) cls = 'score-cell score-birdie';
+        else if (s === par + 1) cls = 'score-cell score-bogey';
+        else if (s >= par + 2) cls = 'score-cell score-dbl';
+        html += `<td class="${cls}">${s}</td>`;
+      }
+    }
+    if (holesPlayed > 0) {
+      const diff = total - parPlayed;
+      const diffStr = diff > 0 ? '+' + diff : diff === 0 ? 'E' : '' + diff;
+      const diffClass = diff < 0 ? 'score-under' : diff === 0 ? 'score-even' : 'score-over';
+      html += `<td class="total-cell">${total}</td>`;
+      html += `<td><span class="score-pill ${diffClass}">${diffStr}</span></td>`;
+    } else {
+      html += '<td class="total-cell" style="color:var(--gray)">—</td><td></td>';
+    }
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  grid.innerHTML = html;
+}
+
+function editLiveScores(playerId) {
+  // Admin selects this player for editing
+  const sel = document.getElementById('live-player-select');
+  if (sel) { sel.value = playerId; renderLiveScoreInputs(); }
+}
+
+/* ─── Skins Calculation ─── */
+function calculateSkins() {
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvps = rsvpData[wn] || {};
+
+  // Get all players with complete or partial scores
+  const activePlayers = state.players.filter(p => {
+    const scores = liveScoresData[p.id];
+    return scores && scores.some(s => s !== null && s !== undefined);
+  });
+
+  const numPlayers = activePlayers.length;
+  if (numPlayers === 0) return { skinResults: [], numPlayers: 0 };
+
+  const skinResults = [];
+
+  for (let hole = 0; hole < 9; hole++) {
+    const par = pars[hole] || 4;
+    const holePot = numPlayers * 1; // $1 per player per hole from skins pot
+
+    // Gather scores for this hole
+    const holeScores = [];
+    activePlayers.forEach(p => {
+      const scores = liveScoresData[p.id] || [];
+      if (scores[hole] !== null && scores[hole] !== undefined) {
+        holeScores.push({ player: p, score: scores[hole] });
+      }
+    });
+
+    if (holeScores.length === 0) {
+      skinResults.push({ hole, par, result: 'no-scores', winners: [], amount: 0, holePot, isBirdie: false });
+      continue;
+    }
+
+    // Check for birdies (par - 1 or better)
+    const birdies = holeScores.filter(h => h.score <= par - 1);
+
+    if (birdies.length > 0) {
+      // Birdies ALWAYS win — split among them
+      const amount = holePot / birdies.length;
+      skinResults.push({
+        hole, par, result: 'birdie-win',
+        winners: birdies.map(b => ({ player: b.player, score: b.score, amount })),
+        holePot, isBirdie: true
+      });
+    } else {
+      // No birdies — lowest unique score wins
+      const minScore = Math.min(...holeScores.map(h => h.score));
+      const minPlayers = holeScores.filter(h => h.score === minScore);
+
+      if (minPlayers.length === 1) {
+        skinResults.push({
+          hole, par, result: 'solo-win',
+          winners: [{ player: minPlayers[0].player, score: minPlayers[0].score, amount: holePot }],
+          holePot, isBirdie: false
+        });
+      } else {
+        // Push — tied low, no winner
+        skinResults.push({ hole, par, result: 'push', winners: [], amount: 0, holePot, isBirdie: false });
+      }
+    }
+  }
+
+  return { skinResults, numPlayers };
+}
+
+/* ─── Low Gross Calculation ─── */
+function calculateLowGross() {
+  const activePlayers = state.players.filter(p => {
+    const scores = liveScoresData[p.id];
+    return scores && scores.filter(s => s !== null && s !== undefined).length === 9;
+  });
+
+  if (activePlayers.length === 0) return [];
+
+  const totals = activePlayers.map(p => {
+    const scores = liveScoresData[p.id];
+    const total = scores.reduce((sum, s) => sum + (s || 0), 0);
+    return { player: p, total };
+  });
+
+  const minTotal = Math.min(...totals.map(t => t.total));
+  return totals.filter(t => t.total === minTotal);
+}
+
+/* ─── Payouts ─── */
+function renderPayouts() {
+  const container = document.getElementById('payout-content');
+  const payoutDiv = document.getElementById('payout-results');
+  if (!container || !payoutDiv) return;
+  if (roundStatus !== 'closed') { payoutDiv.style.display = 'none'; return; }
+  payoutDiv.style.display = 'block';
+
+  const { skinResults, numPlayers } = calculateSkins();
+  if (numPlayers === 0) {
+    container.innerHTML = '<div class="empty-state">No scores available for payout calculation.</div>';
+    return;
+  }
+
+  const ENTRY_FEE = 13;
+  const SKINS_PER = 9, CTP_PER = 2, LD_PER = 1, LG_PER = 1;
+  const skinsPot = numPlayers * SKINS_PER;
+  const ctpPot = numPlayers * CTP_PER;
+  const ldPot = numPlayers * LD_PER;
+  const lgPot = numPlayers * LG_PER;
+
+  // Track earnings per player
+  const earnings = {};
+  const getEarnings = (pid) => { if (!earnings[pid]) earnings[pid] = 0; return earnings[pid]; };
+  const addEarnings = (pid, amt) => { if (!earnings[pid]) earnings[pid] = 0; earnings[pid] += amt; };
+
+  let html = `<div style="margin-bottom:14px;font-size:0.85rem;color:var(--gray)">${numPlayers} players &middot; $${ENTRY_FEE}/player &middot; $${numPlayers * ENTRY_FEE} total pot</div>`;
+
+  // === SKINS ===
+  html += '<div class="payout-section">';
+  html += `<div class="payout-section-title">🏌️ Skins <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${skinsPot} pot)</span></div>`;
+
+  skinResults.forEach(sr => {
+    const holeName = `Hole ${sr.hole + 1}`;
+    if (sr.result === 'birdie-win') {
+      const names = sr.winners.map(w => {
+        addEarnings(w.player.id, w.amount);
+        return escHtml(w.player.name);
+      }).join(', ');
+      html += `<div class="payout-row">
+        <span><strong>${holeName}</strong>: <span class="payout-winner">${names}</span> <span class="payout-birdie-tag">BIRDIE</span> (${sr.winners[0].score})</span>
+        <span class="payout-amount">$${sr.winners[0].amount.toFixed(2)}${sr.winners.length > 1 ? ' each' : ''}</span>
+      </div>`;
+    } else if (sr.result === 'solo-win') {
+      const w = sr.winners[0];
+      addEarnings(w.player.id, w.amount);
+      html += `<div class="payout-row">
+        <span><strong>${holeName}</strong>: <span class="payout-winner">${escHtml(w.player.name)}</span> (${w.score})</span>
+        <span class="payout-amount">$${w.amount.toFixed(2)}</span>
+      </div>`;
+    } else {
+      html += `<div class="payout-row"><span><strong>${holeName}</strong>: <span class="payout-push">Push</span></span><span class="payout-push">—</span></div>`;
+    }
+  });
+  html += '</div>';
+
+  // === CTP ===
+  const ctpHoles = courseSetupData.ctpHoles || [];
+  if (ctpHoles.length > 0) {
+    const perCtpHole = ctpPot / ctpHoles.length;
+    html += '<div class="payout-section">';
+    html += `<div class="payout-section-title">⛳ Closest to Pin <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${ctpPot} pot)</span></div>`;
+    ctpHoles.forEach(h => {
+      const winnerId = contestsData.ctp && contestsData.ctp[h];
+      const winner = winnerId ? state.players.find(p => p.id === winnerId) : null;
+      if (winner) {
+        addEarnings(winner.id, perCtpHole);
+        html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perCtpHole.toFixed(2)}</span></div>`;
+      } else {
+        html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+      }
+    });
+    html += '</div>';
+  }
+
+  // === LONG DRIVE ===
+  const longDriveHole = courseSetupData.longDriveHole;
+  if (longDriveHole !== null && longDriveHole !== undefined) {
+    html += '<div class="payout-section">';
+    html += `<div class="payout-section-title">💪 Long Drive <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${ldPot} pot)</span></div>`;
+    const winnerId = contestsData.longDrive;
+    const winner = winnerId ? state.players.find(p => p.id === winnerId) : null;
+    if (winner) {
+      addEarnings(winner.id, ldPot);
+      html += `<div class="payout-row"><span><strong>Hole ${longDriveHole+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${ldPot.toFixed(2)}</span></div>`;
+    } else {
+      html += `<div class="payout-row"><span><strong>Hole ${longDriveHole+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+    }
+    html += '</div>';
+  }
+
+  // === LOW GROSS ===
+  const lowGrossWinners = calculateLowGross();
+  html += '<div class="payout-section">';
+  html += `<div class="payout-section-title">🏆 Low Gross <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${lgPot} pot)</span></div>`;
+  if (lowGrossWinners.length > 0) {
+    const perWinner = lgPot / lowGrossWinners.length;
+    lowGrossWinners.forEach(w => {
+      addEarnings(w.player.id, perWinner);
+      html += `<div class="payout-row"><span><span class="payout-winner">${escHtml(w.player.name)}</span> (${w.total})</span><span class="payout-amount">$${perWinner.toFixed(2)}</span></div>`;
+    });
+  } else {
+    html += `<div class="payout-row"><span class="payout-push">Not yet determined (need all 9 holes)</span><span class="payout-push">—</span></div>`;
+  }
+  html += '</div>';
+
+  // === TOTAL EARNINGS ===
+  html += '<div class="payout-section" style="margin-top:18px;padding-top:14px;border-top:2px solid rgba(255,61,167,0.2)">';
+  html += '<div class="payout-section-title">💰 Total Earnings</div>';
+
+  const earningsArr = Object.entries(earnings)
+    .map(([pid, amt]) => {
+      const p = state.players.find(pl => pl.id === pid);
+      return p ? { player: p, earnings: amt, net: amt - ENTRY_FEE } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.earnings - a.earnings);
+
+  // Also include players with 0 earnings
+  const activePlayers = state.players.filter(p => {
+    const scores = liveScoresData[p.id];
+    return scores && scores.some(s => s !== null && s !== undefined);
+  });
+  activePlayers.forEach(p => {
+    if (!earningsArr.find(e => e.player.id === p.id)) {
+      earningsArr.push({ player: p, earnings: 0, net: -ENTRY_FEE });
+    }
+  });
+  earningsArr.sort((a, b) => b.net - a.net);
+
+  earningsArr.forEach(e => {
+    const netClass = e.net > 0 ? 'earnings-positive' : e.net < 0 ? 'earnings-negative' : 'earnings-even';
+    const netStr = e.net > 0 ? '+$' + e.net.toFixed(2) : e.net === 0 ? '$0.00' : '-$' + Math.abs(e.net).toFixed(2);
+    html += `<div class="earnings-row">
+      <span>${escHtml(e.player.name)}: <strong>$${e.earnings.toFixed(2)}</strong></span>
+      <span class="${netClass}">Net: ${netStr}</span>
+    </div>`;
+  });
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
+/* ─── Contest Winner Selection (Admin) ─── */
+function renderContestSelection() {
+  const container = document.getElementById('contest-selection-content');
+  if (!container || !isEditor) return;
+
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvps = rsvpData[wn] || {};
+  const activePlayers = state.players.filter(p => {
+    const scores = liveScoresData[p.id];
+    return scores && scores.some(s => s !== null && s !== undefined);
+  });
+
+  if (activePlayers.length === 0) {
+    container.innerHTML = '<div class="empty-state">No players with scores yet.</div>';
+    return;
+  }
+
+  let html = '';
+
+  // CTP selection
+  const ctpHoles = courseSetupData.ctpHoles || [];
+  if (ctpHoles.length > 0) {
+    html += '<div style="margin-bottom:16px"><label style="margin-bottom:8px;display:block">⛳ Closest to Pin Winners</label>';
+    html += '<div class="contest-select-row">';
+    ctpHoles.forEach(h => {
+      const curWinner = contestsData.ctp && contestsData.ctp[h] ? contestsData.ctp[h] : '';
+      html += `<div class="form-group">
+        <label>Hole ${h+1}</label>
+        <select id="ctp-winner-${h}" onchange="saveContestWinner('ctp',${h})">
+          <option value="">— Select —</option>
+          ${activePlayers.map(p => `<option value="${p.id}" ${p.id === curWinner ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('')}
+        </select>
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+
+  // Long drive selection
+  const longDriveHole = courseSetupData.longDriveHole;
+  if (longDriveHole !== null && longDriveHole !== undefined) {
+    const curWinner = contestsData.longDrive || '';
+    html += '<div style="margin-bottom:16px"><label style="margin-bottom:8px;display:block">💪 Long Drive Winner</label>';
+    html += '<div class="contest-select-row">';
+    html += `<div class="form-group">
+      <label>Hole ${longDriveHole+1}</label>
+      <select id="ld-winner" onchange="saveContestWinner('longDrive')">
+        <option value="">— Select —</option>
+        ${activePlayers.map(p => `<option value="${p.id}" ${p.id === curWinner ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('')}
+      </select>
+    </div>`;
+    html += '</div></div>';
+  }
+
+  if (!html) html = '<div class="empty-state">No contests configured for this week.</div>';
+  container.innerHTML = html;
+}
+
+async function saveContestWinner(type, holeIdx) {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+
+  if (type === 'ctp') {
+    const val = document.getElementById('ctp-winner-' + holeIdx)?.value || null;
+    await db.ref('contests/' + wn + '/ctp/' + holeIdx).set(val);
+    toast('CTP winner saved');
+  } else if (type === 'longDrive') {
+    const val = document.getElementById('ld-winner')?.value || null;
+    await db.ref('contests/' + wn + '/longDrive').set(val);
+    toast('Long drive winner saved');
+  }
+}
+
+/* ─── Save Hole Scores to Week Totals (for standings compatibility) ─── */
+function saveHoleScoresToWeekTotals() {
+  const wn = state.thisWeek.weekNum || 1;
+  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const totalPar = pars.reduce((s, p) => s + p, 0);
+  const scores = {};
+
+  state.players.forEach(p => {
+    const holeScores = liveScoresData[p.id];
+    if (holeScores && holeScores.filter(s => s !== null && s !== undefined).length > 0) {
+      const total = holeScores.reduce((sum, s) => sum + (s || 0), 0);
+      scores[p.id] = total;
+    }
+  });
+
+  if (Object.keys(scores).length > 0) {
+    state.weeks[wn] = {
+      par: totalPar,
+      course: state.thisWeek.course || '',
+      scores
+    };
+    saveState();
+  }
+}
+
 /* ─── Render All ─── */
 function renderAll() {
   renderPlayers();
@@ -1764,6 +2644,7 @@ function renderAll() {
   renderThisWeek();
   renderSchedule();
   applyMode();
+  renderLiveScoring();
 }
 
 /* ─── Past Seasons Data ─── */
@@ -2016,9 +2897,13 @@ async function preloadDataIfEmpty() {
     await saveState();
     renderAll();
   }
-  // Start listening to Firebase for real-time RSVPs and payments
+  // Start listening to Firebase for real-time data
   listenToRSVPs();
   listenToPayments();
+  listenToLiveScores();
+  listenToRoundStatus();
+  listenToCourseSetup();
+  listenToContests();
   loadEmailSentFlags();
 
   // Start countdown timer and auto-email checks
