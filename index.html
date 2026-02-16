@@ -1093,7 +1093,12 @@ function getRSVPDeadline() {
 function isRSVPLocked() {
   const deadline = getRSVPDeadline();
   if (!deadline) return false;
-  return new Date() >= deadline;
+  const now = new Date();
+  // Lock only during the window between deadline and 24 hours after
+  // After 24 hours past deadline, the round is over — unlock for next week setup
+  const msPast = now.getTime() - deadline.getTime();
+  if (msPast > 24 * 60 * 60 * 1000) return false; // stale deadline, don't lock
+  return msPast >= 0;
 }
 
 function updateDeadlineDisplay() {
