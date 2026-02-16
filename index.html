@@ -651,6 +651,7 @@
   <button class="nav-tab"              onclick="showPanel('standings',this)">Standings</button>
   <button class="nav-tab"              onclick="showPanel('history',this)">Scores</button>
   <button class="nav-tab"              onclick="showPanel('schedule',this)">Schedule</button>
+  <button class="nav-tab"              onclick="showPanel('past-seasons',this)">Past Seasons</button>
   <button class="nav-tab editor-only"  onclick="showPanel('scores',this)">Enter Scores</button>
   <button class="nav-tab editor-only"  onclick="showPanel('players',this)">Players</button>
   <button class="nav-tab editor-only"  onclick="showPanel('manage-week',this)">Manage Week</button>
@@ -706,6 +707,15 @@
       <div id="schedule-list">
         <div class="empty-state">No schedule set yet. Admin can add course info each week.</div>
       </div>
+    </div>
+  </div>
+
+  <!-- PAST SEASONS PANEL -->
+  <div id="panel-past-seasons" class="panel">
+    <div class="card">
+      <div class="card-title">Past Seasons</div>
+      <div class="week-pills" id="season-pills"></div>
+      <div id="past-season-content"><div class="empty-state">Select a season above.</div></div>
     </div>
   </div>
 
@@ -933,8 +943,9 @@ function showPanel(name, btn) {
   if (name === 'standings')   renderStandings();
   if (name === 'history')     renderHistory(curHistoryWeek);
   if (name === 'players')     renderPlayers();
-  if (name === 'schedule')    renderSchedule();
-  if (name === 'manage-week') renderManageWeek();
+  if (name === 'schedule')       renderSchedule();
+  if (name === 'past-seasons')   renderPastSeasons();
+  if (name === 'manage-week')    renderManageWeek();
 }
 
 /* ─── This Week / RSVP ─── */
@@ -1355,7 +1366,260 @@ function renderAll() {
   applyMode();
 }
 
-loadState();
+/* ─── Past Seasons Data ─── */
+const PAST_SEASONS = {
+  '2024': {
+    weeks: [
+      { date:'4/16/2024', course:'Broken Tee', par:36, scores:{
+        'Chris Hemp':42,'Gamal Kader':45,'Jami Andregg':51,'Ken Walton':47,'Matthew Walton':49,'Gregory Walton':50,'Dave Stokes':49,'James Fouther':53,'Jim Ortega':47,'Robert Perkowski':46,'Tim Marchbank':46,'Zach Spratt':56,'Walter Jackson':45,'Mike Mensendick':46,'Ken Carbello':48,'Mike Bryant':52,'Dallas Walton':47,'Roland Jones':50,'Reggie Gamlin':42,'Logan J':42,'Rob Sanchez':52,'Daniel Nunez':43,'Preston Bryant':49,'Les Perry':45,'William Perkowski':51,'Ryan Marchbank':49,'Rob Hoffschneider':46,'Kim F':43,'Phillip Jackson':51,'Lonnie Dixon':47,'Victoria Braucher':53
+      }},
+      { date:'4/23/2024', course:'Aurora Hills', par:36, scores:{
+        'Chris Hemp':39,'Gamal Kader':41,'Jami Andregg':48,'Ken Walton':43,'Matthew Walton':50,'James Fouther':48,'Jim Ortega':42,'Robert Perkowski':44
+      }},
+      { date:'5/7/2024', course:'Overland', par:36, scores:{
+        'Chris Hemp':43,'Gamal Kader':42,'Jami Andregg':50,'Ken Walton':53,'Matthew Walton':50,'Gregory Walton':50,'Dave Stokes':50,'James Fouther':52,'Jim Ortega':46,'Robert Perkowski':51,'Tim Marchbank':44,'Mike Mensendick':46,'Ken Carbello':50,'Mike Bryant':51,'Roland Jones':53
+      }},
+      { date:'5/14/2024', course:'Broken Tee', par:36, scores:{
+        'Chris Hemp':42,'Gamal Kader':45,'Jami Andregg':53,'Ken Walton':49,'Gregory Walton':52,'Dave Stokes':53,'Dwayne Crussell':44,'James Fouther':50,'Jim Ortega':50,'Robert Perkowski':52,'Zach Spratt':53,'Walter Jackson':44
+      }},
+      { date:'5/28/2024', course:'Kennedy', par:36, scores:{
+        'Chris Hemp':41,'Gamal Kader':43,'Jami Andregg':52,'Ken Walton':49,'Matthew Walton':43,'Gregory Walton':49,'Darin Wayne':49,'Dave Stokes':53,'James Fouther':54,'Jim Ortega':52,'Robert Perkowski':52,'Tim Marchbank':44,'Walter Jackson':41,'Mike Mensendick':48,'Ken Carbello':50,'Mike Bryant':51,'Roland Jones':53
+      }},
+      { date:'6/4/2024', course:'Foothills', par:36, scores:{
+        'Chris Hemp':46,'Gamal Kader':49,'Jami Andregg':49,'Ken Walton':44,'Matthew Walton':52,'Gregory Walton':47,'Dave Stokes':47,'James Fouther':55,'Jim Ortega':49,'Robert Perkowski':49,'Tim Marchbank':49,'Walter Jackson':49,'Mike Mensendick':44,'Reggie Gamlin':46,'Logan J':42,'Rob Sanchez':52,'Daniel Nunez':47,'Les Perry':49,'William Perkowski':52,'Rob Hoffschneider':46
+      }},
+      { date:'6/11/2024', course:'Overland', par:36, scores:{
+        'Chris Hemp':38,'Gamal Kader':47,'Jami Andregg':49,'Ken Walton':44,'Matthew Walton':52,'Gregory Walton':45,'Darin Wayne':52,'Dave Stokes':50,'James Fouther':52,'Jim Ortega':48,'Robert Perkowski':41,'Tim Marchbank':47,'Walter Jackson':41,'Mike Mensendick':49,'Roland Jones':50,'Reggie Gamlin':42,'Daniel Nunez':44,'Les Perry':49,'William Perkowski':46,'Kim F':43
+      }},
+      { date:'6/18/2024', course:'Murphy Creek', par:36, scores:{
+        'Chris Hemp':42,'Gamal Kader':50,'Jami Andregg':53,'Ken Walton':47,'Matthew Walton':52,'Gregory Walton':52,'Darin Wayne':49,'James Fouther':57,'Jim Ortega':47,'Robert Perkowski':48,'Tim Marchbank':49,'Walter Jackson':54,'Daniel Nunez':42,'Preston Bryant':49
+      }},
+      { date:'6/25/2024', course:'Meadows', par:36, scores:{
+        'Chris Hemp':53,'Jim Ortega':48,'Robert Perkowski':48,'Tim Marchbank':49,'Ken Walton':51,'Matthew Walton':52,'Gregory Walton':57,'Dave Stokes':45,'James Fouther':53,'Dwayne Crussell':55
+      }},
+      { date:'7/9/2024', course:'Overland', par:36, scores:{
+        'Chris Hemp':44,'Gamal Kader':45,'Jami Andregg':51,'Ken Walton':51,'Matthew Walton':43,'James Fouther':52,'Jim Ortega':46,'Robert Perkowski':45,'Tim Marchbank':45,'Zach Spratt':56,'Walter Jackson':40,'Ken Carbello':50,'Dallas Walton':47,'Daniel Nunez':44,'William Perkowski':51,'Ryan Marchbank':49,'Ken Walton':43
+      }},
+      { date:'7/16/2024', course:'Indian Tree', par:36, scores:{
+        'Chris Hemp':40,'Gamal Kader':42,'Jami Andregg':50,'Ken Walton':51,'Matthew Walton':51,'Dwayne Crussell':55,'James Fouther':53,'Jim Ortega':46,'Tim Marchbank':51,'Zach Spratt':59,'Walter Jackson':43,'Mike Mensendick':45,'Ken Carbello':50,'Mike Bryant':51,'Roland Jones':53,'Reggie Gamlin':37,'Daniel Nunez':41,'Les Perry':41,'William Perkowski':46,'Ryan Marchbank':44,'Phillip Jackson':51,'Lonnie Dixon':47
+      }},
+      { date:'7/23/2024', course:'Kennedy', par:36, scores:{
+        'Chris Hemp':43,'Jami Andregg':56,'Ken Walton':39,'Matthew Walton':55,'Dave Stokes':48,'James Fouther':55,'Jim Ortega':44,'Robert Perkowski':46,'Tim Marchbank':49,'Walter Jackson':49,'Reggie Gamlin':44,'Roland Jones':49,'Daniel Nunez':47,'William Perkowski':52,'Les Perry':41
+      }},
+      { date:'7/30/2024', course:'Riverdale', par:36, scores:{
+        'Chris Hemp':41,'Gamal Kader':43,'Jami Andregg':53,'Ken Walton':46,'Matthew Walton':51,'Gregory Walton':48,'Dave Stokes':48,'Dwayne Crussell':59,'James Fouther':49,'Jim Ortega':44,'Robert Perkowski':39,'Tim Marchbank':42,'Zach Spratt':53,'Walter Jackson':42,'Ken Carbello':43,'Roland Jones':50,'Daniel Nunez':40
+      }},
+      { date:'8/6/2024', course:'Willis Case', par:36, scores:{
+        'Chris Hemp':46,'Gamal Kader':46,'Jami Andregg':41,'Ken Walton':42,'Matthew Walton':46,'Gregory Walton':48,'Dave Stokes':43,'James Fouther':51,'Jim Ortega':45,'Robert Perkowski':47,'Tim Marchbank':43,'Walter Jackson':43,'Mike Mensendick':45,'Les Perry':41,'Reggie Gamlin':37,'Daniel Nunez':42,'William Perkowski':96
+      }},
+      { date:'8/13/2024', course:'Murphy Creek', par:36, scores:{
+        'Chris Hemp':41,'Jami Andregg':53,'Ken Walton':50,'Matthew Walton':45,'Gregory Walton':49,'Dave Stokes':52,'James Fouther':57,'Robert Perkowski':45,'Tim Marchbank':41,'Walter Jackson':45,'Ken Carbello':45,'Ryan Marchbank':49,'Roland Jones':48,'Reggie Gamlin':44,'Victoria Braucher':53
+      }},
+      { date:'8/20/2024', course:'Common Ground', par:36, scores:{
+        'Chris Hemp':41,'Gamal Kader':45,'Jami Andregg':59,'Ken Walton':45,'Matthew Walton':46,'Gregory Walton':53,'Dave Stokes':53,'James Fouther':60,'Jim Ortega':53,'Robert Perkowski':50,'Tim Marchbank':48,'Walter Jackson':45,'Mike Bryant':56,'William Perkowski':53
+      }},
+      { date:'8/27/2024', course:'City Park', par:70, scores:{
+        'Chris Hemp':85,'Gamal Kader':87,'Jami Andregg':98,'Ken Walton':96,'Gregory Walton':95,'Dave Stokes':86,'James Fouther':98,'Robert Perkowski':87,'Walter Jackson':91,'Ken Carbello':45,'Ryan Marchbank':49,'Roland Jones':88,'Reggie Gamlin':89,'William Perkowski':96
+      }},
+      { date:'9/3/2024', course:'Westwoods', par:36, scores:{
+        'Chris Hemp':43,'Matthew Walton':46,'James Fouther':50,'Jim Ortega':47,'Tim Marchbank':48,'Walter Jackson':43,'Ken Carbello':50,'Ryan Marchbank':47,'Lonnie Dixon':47
+      }}
+    ]
+  },
+  '2025': {
+    weeks: [
+      { date:'4/15/2025', course:'Kennedy', par:36, scores:{
+        'Chris Hemp':38,'Dallas Walton':50,'Walter Jackson':51,'Jami Andregg':50,'Matthew Walton':47,'Ken Walton':44,'Robert Perkowski':45,'Gamal Kader':47,'Lonnie Dixon':49,'Ken Carbello':45,'Gregory Walton':45
+      }},
+      { date:'4/22/2025', course:'City Park', par:35, scores:{
+        'Gamal Kader':40,'Ken Carbello':47,'Lonnie Dixon':42,'Robert Perkowski':44,'Walter Jackson':48,'Dallas Walton':51,'Jami Andregg':46,'Matthew Walton':46,'Ken Walton':42,'Jim Ortega':44,'Ryan Marchbank':39,'James Fouther':46,'Tim Marchbank':44,'William Perkowski':51,'Chris Hemp':43,'Gregory Walton':41
+      }},
+      { date:'4/29/2025', course:'Willis Case', par:36, scores:{
+        'Jami Andregg':54,'Robert Perkowski':49,'Gamal Kader':48,'Ken Carbello':57,'Tim Marchbank':43,'Jim Ortega':50,'William Perkowski':50,'James Fouther':55,'Chris Hemp':45,'Ken Walton':48,'Robert Newell':23,'Ryan Marchbank':26
+      }},
+      { date:'5/13/2025', course:'Overland', par:36, scores:{
+        'Matthew Walton':51,'Ken Walton':45,'Roland Jones':50,'Chris Hemp':45,'Jami Andregg':52,'Dallas Walton':55,'Ryan Marchbank':46,'Dwayne Crussell':51,'Lonnie Dixon':43,'Jim Ortega':47,'Gamal Kader':41,'Walter Jackson':45
+      }},
+      { date:'5/20/2025', course:'City Park', par:35, scores:{
+        'Tim Marchbank':44,'Gamal Kader':48,'Lonnie Dixon':44,'Ken Walton':45,'Jim Ortega':42,'Matthew Walton':41,'Dallas Walton':45,'Jami Andregg':52,'Chris Hemp':40,'Roland Jones':47,'Dave Stokes':47,'Walter Jackson':44,'Robert Perkowski':48
+      }},
+      { date:'5/27/2025', course:'Overland', par:36, scores:{
+        'Tim Marchbank':41,'Matthew Walton':45,'Lonnie Dixon':44,'James Fouther':49,'Rob Hoffschneider':42,'Jami Andregg':48,'Dallas Walton':45,'Chris Hemp':41,'Ken Walton':49,'Robert Perkowski':52,'Gamal Kader':45,'Ken Carbello':45,'Reggie Gamlin':43,'Jim Ortega':57,'Walter Jackson':48
+      }},
+      { date:'6/10/2025', course:'Willis Case', par:36, scores:{
+        'Chris Hemp':43,'Dallas Walton':54,'Walter Jackson':42,'Phillip Jackson':55,'Jami Andregg':44,'Ken Walton':45,'Reggie Gamlin':48,'Dwayne Crussell':54,'Robert Perkowski':51,'Gamal Kader':47
+      }},
+      { date:'6/26/2025', course:'Westwoods', par:36, scores:{
+        'Tim Marchbank':42,'Robert Perkowski':53,'Phillip Jackson':53,'Walter Jackson':49,'Gamal Kader':42,'Ken Walton':47,'Jerry Montoya':50,'William Perkowski':49,'Chris Hemp':49,'Lonnie Dixon':47,'James Fouther':51,'Jim Ortega':52,'Matthew Walton':53,'Jami Andregg':56,'Dallas Walton':54,'William Wittman':44,'Ben Pemble':54,'Evan Battey':66
+      }},
+      { date:'7/1/2025', course:'Kennedy', par:36, scores:{
+        'Tim Marchbank':50,'Ryan Marchbank':54,'Micheal Bryant':50,'Lonnie Dixon':46,'Dave Stokes':51,'Carlos Bossy':49,'Denny Sharkey':44,'Ken Walton':46,'Walter Jackson':46,'Ben Pemble':54,'James Fouther':51,'Matthew Walton':52,'Chris Hemp':47,'Jami Andregg':54,'Gamal Kader':46,'Jim Ortega':50
+      }},
+      { date:'7/8/2025', course:'Walnut Creek', par:36, scores:{
+        'Tim Marchbank':46,'Walter Jackson':41,'Robert Perkowski':47,'Lonnie Dixon':45,'Ben Pemble':58,'Gamal Kader':44,'Dallas Walton':47,'Denny Sharkey':43,'Ken Walton':46,'Chris Hemp':43,'Jim Ortega':46,'Carlos Bossy':44,'William Perkowski':50
+      }},
+      { date:'7/15/2025', course:'Kennedy', par:36, scores:{
+        'Dallas Walton':53,'Ben Pemble':54,'Victoria':55,'Jami Andregg':52,'Chris Hemp':46,'Denny Sharkey':48,'Reggie Gamlin':48,'Walter Jackson':49,'Tim Marchbank':48,'Ken Walton':52,'Lonnie Dixon':46
+      }},
+      { date:'7/22/2025', course:'Westwoods', par:36, scores:{
+        'Tim Marchbank':48,'Jim Ortega':48,'Matthew Walton':54,'Dallas Walton':50,'Ben Pemble':53,'Chris Hemp':51,'Lonnie Dixon':48,'Jami Andregg':50,'James Fouther':50,'Walter Jackson':48,'Ken Walton':50
+      }},
+      { date:'7/29/2025', course:'Foothills', par:36, scores:{
+        'Matthew Walton':50,'Ken Walton':46,'Lonnie Dixon':52,'Phillip Jackson':59,'Walter Jackson':58,'Dallas Walton':47,'Ben Pemble':56,'Jim Ortega':49
+      }},
+      { date:'8/5/2025', course:'Willis Case', par:36, scores:{
+        'William Wittman':44,'Ryan Marchbank':44,'Dallas Walton':50,'Matthew Walton':48,'Tim Marchbank':43,'Dave Stokes':53,'Ken Carbello':45,'Robert Perkowski':49,'Carlos Bossy':48,'Jim Ortega':49,'Lonnie Dixon':42
+      }},
+      { date:'8/12/2025', course:'Willis Case', par:36, scores:{
+        'Gamal Kader':45,'Ken Carbello':48,'Denny Sharkey':47,'Lonnie Dixon':53,'James Fouther':52,'Gregory Walton':49,'Robert Perkowski':51,'Jami Andregg':49,'Brett':53,'Chris Hemp':44,'Tim Marchbank':45
+      }},
+      { date:'8/18/2025', course:'Indian Tree', par:36, scores:{
+        'Ben Pemble':54,'Dallas Walton':42,'Matthew Walton':47,'Ryan Marchbank':46,'James Fouther':48,'Gregory Walton':42,'Ken Walton':46,'Lonnie Dixon':43,'Chris Hemp':40,'Jami Andregg':49,'Reggie Gamlin':40,'Robert Perkowski':45,'Denny Sharkey':43,'Gamal Kader':45,'Ken Carbello':40
+      }},
+      { date:'8/27/2025', course:'Overland', par:36, scores:{
+        'Ryan Marchbank':46,'Lonnie Dixon':46,'Matthew Walton':55,'Jami Andregg':50,'Reggie Gamlin':43,'Ben Pemble':51,'Ryan Sims':48,'Chris Hemp':43,'Dave Stokes':48,'Ken Walton':40,'Gregory Walton':52,'Robert Perkowski':52,'Denny Sharkey':51
+      }}
+    ]
+  }
+};
+
+let curPastSeason = '2025';
+let curPastWeek = null;
+
+function renderPastSeasons() {
+  const pillsEl = document.getElementById('season-pills');
+  const contentEl = document.getElementById('past-season-content');
+  const seasons = Object.keys(PAST_SEASONS).sort();
+
+  pillsEl.innerHTML = seasons.map(s => `
+    <button class="week-pill ${s === curPastSeason ? 'active' : ''}" onclick="selectPastSeason('${s}')">${s} Season</button>
+  `).join('');
+
+  const season = PAST_SEASONS[curPastSeason];
+  if (!season) { contentEl.innerHTML = '<div class="empty-state">No data for this season.</div>'; return; }
+
+  const weeks = season.weeks;
+  if (curPastWeek === null || curPastWeek >= weeks.length) curPastWeek = weeks.length - 1;
+
+  // Week sub-pills
+  let weekPills = '<div class="week-pills" style="margin-top:14px">' + weeks.map((w, i) => `
+    <button class="week-pill ${i === curPastWeek ? 'active' : ''}" onclick="selectPastWeek(${i})">${w.date.split('/').slice(0,2).join('/')}</button>
+  `).join('') + '</div>';
+
+  const w = weeks[curPastWeek];
+  const entries = Object.entries(w.scores).map(([name, score]) => ({ name, score, vsPar: score - w.par }))
+    .sort((a, b) => a.score - b.score);
+
+  // Season summary stats
+  const allPlayers = {};
+  weeks.forEach(wk => {
+    Object.entries(wk.scores).forEach(([name, score]) => {
+      if (!allPlayers[name]) allPlayers[name] = { rounds: 0, total: 0, best: Infinity };
+      allPlayers[name].rounds++;
+      allPlayers[name].total += score;
+      if (score < allPlayers[name].best) allPlayers[name].best = score;
+    });
+  });
+  const playerStats = Object.entries(allPlayers).map(([name, s]) => ({
+    name, ...s, avg: (s.total / s.rounds).toFixed(1)
+  })).sort((a, b) => parseFloat(a.avg) - parseFloat(b.avg));
+
+  contentEl.innerHTML = `
+    <div class="standings-meta" style="margin-top:16px">
+      <div class="meta-stat"><div class="val">${Object.keys(allPlayers).length}</div><div class="lbl">Players</div></div>
+      <div class="meta-stat"><div class="val">${weeks.length}</div><div class="lbl">Weeks</div></div>
+      <div class="meta-stat"><div class="val">${playerStats[0]?.name || '—'}</div><div class="lbl">Lowest Avg (${playerStats[0]?.avg || '—'})</div></div>
+    </div>
+    ${weekPills}
+    <div style="margin:16px 0 12px;display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+      <span style="font-family:'Outfit',sans-serif;font-size:1.15rem;color:var(--pink-hot);font-weight:700">
+        ${escHtml(w.date)} — ${escHtml(w.course)}
+      </span>
+      <span style="font-size:0.78rem;color:var(--gray)">Par ${w.par} &middot; ${entries.length} players</span>
+    </div>
+    <div class="score-table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th>Score</th><th>vs Par</th></tr></thead>
+        <tbody>
+          ${entries.map((e, i) => {
+            const rc = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
+            const vpc = e.vsPar < 0 ? 'score-under' : e.vsPar === 0 ? 'score-even' : 'score-over';
+            return `<tr ${i === 0 ? 'class="leader"' : ''}>
+              <td><span class="rank-badge ${rc}">${i + 1}</span></td>
+              <td><strong>${escHtml(e.name)}</strong></td>
+              <td style="font-weight:700;font-size:1rem">${e.score}</td>
+              <td><span class="score-pill ${vpc}">${e.vsPar > 0 ? '+' : ''}${e.vsPar}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="margin-top:22px">
+      <div class="card-title">${curPastSeason} Season Standings (by Avg Score)</div>
+      <div class="score-table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Player</th><th>Rounds</th><th>Avg</th><th>Best</th></tr></thead>
+          <tbody>
+            ${playerStats.map((p, i) => {
+              const rc = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
+              return `<tr ${i === 0 ? 'class="leader"' : ''}>
+                <td><span class="rank-badge ${rc}">${i + 1}</span></td>
+                <td><strong>${escHtml(p.name)}</strong></td>
+                <td>${p.rounds}</td>
+                <td style="color:var(--pink-hot);font-weight:700">${p.avg}</td>
+                <td>${p.best}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function selectPastSeason(s) {
+  curPastSeason = s;
+  curPastWeek = null;
+  renderPastSeasons();
+}
+function selectPastWeek(i) {
+  curPastWeek = i;
+  renderPastSeasons();
+}
+
+/* ─── Pre-load roster if empty ─── */
+async function preloadDataIfEmpty() {
+  await loadState();
+  if (state.players.length === 0) {
+    const roster = [
+      'Ben Pemble','Brooks O\'Hearn','Chris Hemp','Dallas Walton','Daniel Nunez',
+      'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
+      'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
+      'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
+      'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
+      'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
+      'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
+      'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
+      'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
+      'Zach Spratt','Denny Sharkey','Carlos Bossy','Ben Pemble','Brett',
+      'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
+    ];
+    // Deduplicate
+    const seen = new Set();
+    roster.forEach(name => {
+      const lower = name.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        state.players.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), name, handicap: 0 });
+      }
+    });
+    await saveState();
+    renderAll();
+  }
+}
+
+// Override the original load
+preloadDataIfEmpty();
 </script>
 </body>
 </html>
