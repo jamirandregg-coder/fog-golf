@@ -693,6 +693,61 @@
   .par-hole-group label.ctp-label { font-size: 0.55rem; color: var(--gray); letter-spacing: 0; text-transform: none; margin: 0; display: flex; align-items: center; gap: 2px; cursor: pointer; }
   .par-hole-group label.ctp-label input[type="checkbox"] { width: auto; margin: 0; }
 
+  /* WINNER BANNER */
+  .winner-banner {
+    display: none;
+    max-width: 500px;
+    margin: 0 auto 6px;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,61,167,0.1), rgba(255,215,0,0.08));
+    border: 1px solid rgba(255,215,0,0.4);
+    border-radius: 50px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    animation: winnerGlow 3s ease-in-out infinite;
+  }
+  .winner-banner.visible { display: block; }
+  @keyframes winnerGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.2), 0 0 40px rgba(255,61,167,0.1); }
+    50% { box-shadow: 0 0 35px rgba(255,215,0,0.4), 0 0 70px rgba(255,61,167,0.2); }
+  }
+  .winner-trophy {
+    font-size: 1.8rem;
+    display: inline-block;
+    animation: trophyPulse 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 12px rgba(255,215,0,0.7));
+  }
+  @keyframes trophyPulse {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(255,215,0,0.7)); }
+    50% { transform: scale(1.12); filter: drop-shadow(0 0 20px rgba(255,215,0,1)) drop-shadow(0 0 40px rgba(255,215,0,0.5)); }
+  }
+  .winner-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .winner-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--white);
+    text-shadow: 0 0 20px rgba(255,215,0,0.4);
+  }
+  .winner-details {
+    font-size: 0.75rem;
+    color: var(--pink-light);
+    margin-top: 2px;
+  }
+  .winner-details .winner-score {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    color: var(--gold);
+  }
+
   /* CONTEST SELECTS */
   .contest-select-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
   .contest-select-row .form-group { min-width: 160px; }
@@ -732,6 +787,15 @@
   <div class="golf-icon">&#9971;</div>
   <h1>FOG</h1>
   <div class="subtitle">Friends of Golf</div>
+</div>
+
+<div style="padding: 0 20px 4px;">
+  <div class="winner-banner" id="winner-banner">
+    <div class="winner-trophy">🏆</div>
+    <div class="winner-label">This Week's Champion</div>
+    <div class="winner-name" id="winner-name"></div>
+    <div class="winner-details" id="winner-details"></div>
+  </div>
 </div>
 
 <div style="padding: 8px 20px;">
@@ -1817,6 +1881,7 @@ async function saveScores() {
   renderStandings();
   renderHistory(curHistoryWeek);
   toast('Week ' + week + ' scores saved!');
+  renderWinnerBanner();
 }
 
 /* ─── Standings ─── */
@@ -2059,6 +2124,7 @@ async function closeScoring() {
 
   // Also save totals to state.weeks for standings compatibility
   saveHoleScoresToWeekTotals();
+  renderWinnerBanner();
   toast('Round closed! Skins & payouts calculated.');
 }
 
@@ -2639,6 +2705,56 @@ function saveHoleScoresToWeekTotals() {
   }
 }
 
+/* ─── Winner Banner ─── */
+function renderWinnerBanner() {
+  const banner = document.getElementById('winner-banner');
+  const nameEl = document.getElementById('winner-name');
+  const detailsEl = document.getElementById('winner-details');
+  if (!banner || !nameEl || !detailsEl) return;
+
+  // Find the most recent completed week with scores
+  const completedWeeks = Object.keys(state.weeks)
+    .filter(w => {
+      const wd = state.weeks[w];
+      return wd && wd.scores && Object.keys(wd.scores).length > 0;
+    })
+    .sort((a, b) => +b - +a); // newest first
+
+  if (completedWeeks.length === 0) {
+    banner.classList.remove('visible');
+    return;
+  }
+
+  const latestWeek = completedWeeks[0];
+  const wd = state.weeks[latestWeek];
+  const scores = wd.scores || {};
+  const par = wd.par || 36;
+  const course = wd.course || '';
+
+  // Find lowest score (winner)
+  let bestScore = Infinity;
+  let winnerId = null;
+  Object.entries(scores).forEach(([pid, score]) => {
+    if (score < bestScore) { bestScore = score; winnerId = pid; }
+  });
+
+  if (!winnerId) { banner.classList.remove('visible'); return; }
+
+  const winner = state.players.find(p => p.id === winnerId);
+  if (!winner) { banner.classList.remove('visible'); return; }
+
+  const diff = bestScore - par;
+  const diffStr = diff > 0 ? '+' + diff : diff === 0 ? 'E' : '' + diff;
+
+  nameEl.textContent = winner.name;
+  let detailParts = [`Week ${latestWeek}`];
+  if (course) detailParts.push(course);
+  detailParts.push(`Score: <span class="winner-score">${bestScore}</span> (${diffStr})`);
+  detailsEl.innerHTML = detailParts.join(' · ');
+
+  banner.classList.add('visible');
+}
+
 /* ─── Render All ─── */
 function renderAll() {
   renderPlayers();
@@ -2650,6 +2766,7 @@ function renderAll() {
   renderSchedule();
   applyMode();
   renderLiveScoring();
+  renderWinnerBanner();
 }
 
 /* ─── Past Seasons Data ─── */
