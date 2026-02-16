@@ -748,6 +748,39 @@
     color: var(--gold);
   }
 
+  /* SCHEDULE RSVP */
+  .sched-rsvp-toggle {
+    display: flex; align-items: center; gap: 6px; margin-top: 8px; cursor: pointer;
+    font-size: 0.75rem; color: var(--pink-light); font-weight: 600;
+  }
+  .sched-rsvp-toggle:hover { color: var(--pink-hot); }
+  .sched-rsvp-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 6px; margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid rgba(255,61,167,0.1);
+  }
+  .sched-rsvp-chip {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,61,167,0.1);
+    border-radius: 8px; padding: 6px 10px; font-size: 0.78rem;
+  }
+  .sched-rsvp-chip.sched-yes { border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.05); }
+  .sched-rsvp-chip.sched-no { border-color: rgba(255,82,82,0.2); background: rgba(255,82,82,0.03); opacity: 0.6; }
+  .sched-rsvp-btn {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 8px; border-radius: 12px; cursor: pointer; border: none;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .sched-btn-in { background: var(--green-good); color: var(--dark); }
+  .sched-btn-out { background: rgba(255,82,82,0.3); color: #ff8a8a; }
+  .sched-btn-pending { background: rgba(255,255,255,0.15); color: var(--gray); }
+  .sched-rsvp-count {
+    font-size: 0.78rem; color: var(--pink-light); font-weight: 600;
+  }
+  .sched-rsvp-count .sched-count-num { color: var(--pink-hot); font-weight: 800; font-family: 'Outfit', sans-serif; }
+  .schedule-item { cursor: default; }
+  .schedule-item .sched-expand { transition: all 0.3s; overflow: hidden; }
+
   /* CONTEST SELECTS */
   .contest-select-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
   .contest-select-row .form-group { min-width: 160px; }
@@ -930,6 +963,37 @@
 
   <!-- SCHEDULE PANEL -->
   <div id="panel-schedule" class="panel">
+    <!-- Admin: Add/Edit Schedule -->
+    <div class="card editor-only-card">
+      <div class="card-title">Add to Schedule</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Week #</label>
+          <select id="sched-week-select"></select>
+        </div>
+        <div class="form-group wide">
+          <label>Course</label>
+          <input type="text" id="sched-course-input" placeholder="e.g. Kennedy...">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="sched-date-input">
+        </div>
+        <div class="form-group">
+          <label>Tee Time</label>
+          <input type="time" id="sched-time-input" value="14:00">
+        </div>
+        <div class="form-group">
+          <label>Par</label>
+          <input type="number" id="sched-par-input" value="36" min="27" max="80" style="width:80px">
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn btn-pink" onclick="saveScheduleWeek()">Save Week</button>
+      </div>
+    </div>
     <div class="card">
       <div class="card-title">Season Schedule</div>
       <div id="schedule-list">
@@ -1114,6 +1178,11 @@ let courseSetupData = {};     // { pars: [...], ctpHoles: [...], longDriveHole: 
 let courseSetupListener = null;
 let contestsData = {};       // { ctp: { holeIdx: playerId }, longDrive: playerId }
 let contestsListener = null;
+let scheduleData = {};       // { weekNum: { course, date, time, par } }
+let scheduleListener = null;
+let scheduleRsvpData = {};   // { weekNum: { playerId: status } }
+let scheduleRsvpListeners = {};
+let expandedScheduleWeeks = {};  // track which weeks have RSVP expanded
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
@@ -1668,64 +1737,190 @@ async function saveThisWeek() {
 /* ─── Schedule ─── */
 function renderSchedule() {
   const el = document.getElementById('schedule-list');
-  const weekNums = Object.keys(state.weeks).filter(w => {
-    const wd = state.weeks[w];
-    return wd && (wd.course || Object.keys(wd.scores || {}).length > 0);
-  }).sort((a, b) => +a - +b);
-
   const currentWn = state.thisWeek.weekNum || 1;
 
-  if (!weekNums.length && !state.thisWeek.course) {
-    el.innerHTML = '<div class="empty-state">No schedule set yet. Admin can add course info each week.</div>';
+  // Populate admin week selector
+  const schedSel = document.getElementById('sched-week-select');
+  if (schedSel) {
+    const curVal = schedSel.value;
+    schedSel.innerHTML = '';
+    for (let w = 1; w <= TOTAL_WEEKS; w++) {
+      const opt = document.createElement('option');
+      opt.value = w;
+      const sd = scheduleData[w];
+      opt.textContent = 'Week ' + w + (sd && sd.course ? ' ✓' : '');
+      schedSel.appendChild(opt);
+    }
+    if (curVal) schedSel.value = curVal;
+    schedSel.onchange = loadScheduleWeekForm;
+  }
+
+  // Merge all weeks: from scheduleData (Firebase), state.weeks (localStorage), and state.thisWeek
+  const allWeeks = {};
+
+  // Firebase schedule entries (primary source for future dates)
+  Object.entries(scheduleData).forEach(([w, data]) => {
+    allWeeks[w] = { ...data, source: 'schedule' };
+  });
+
+  // state.weeks (completed weeks with scores)
+  Object.keys(state.weeks).forEach(w => {
+    const wd = state.weeks[w];
+    if (wd && (wd.course || Object.keys(wd.scores || {}).length > 0)) {
+      if (!allWeeks[w]) allWeeks[w] = {};
+      allWeeks[w] = { ...allWeeks[w], course: allWeeks[w].course || wd.course, par: allWeeks[w].par || wd.par, hasScores: Object.keys(wd.scores || {}).length > 0, scoreCount: Object.keys(wd.scores || {}).length };
+    }
+  });
+
+  // Current week (state.thisWeek)
+  if (state.thisWeek.course) {
+    if (!allWeeks[currentWn]) allWeeks[currentWn] = {};
+    allWeeks[currentWn] = { ...allWeeks[currentWn], course: state.thisWeek.course, date: allWeeks[currentWn].date || state.thisWeek.date, time: allWeeks[currentWn].time || state.thisWeek.time, par: state.thisWeek.par, isCurrent: true };
+  }
+
+  const sortedWeeks = Object.keys(allWeeks).sort((a, b) => +a - +b);
+
+  if (!sortedWeeks.length) {
+    el.innerHTML = '<div class="empty-state">No schedule set yet. Admin can add weeks above.</div>';
     return;
   }
 
   let items = [];
 
-  // Show current week at top if it has info
-  if (state.thisWeek.course) {
+  sortedWeeks.forEach(w => {
+    const wd = allWeeks[w];
+    const isCurrent = +w === currentWn && wd.isCurrent;
+    const hasScores = wd.hasScores;
+    const isPast = hasScores || (+w < currentWn && !isCurrent);
+    const isUpcoming = !isPast && !isCurrent;
+
+    // Determine badge
+    let badgeClass, badgeText;
+    if (isCurrent) { badgeClass = 'badge-current'; badgeText = 'This Week'; }
+    else if (isPast) { badgeClass = 'badge-completed'; badgeText = 'Completed'; }
+    else { badgeClass = 'badge-upcoming'; badgeText = 'Upcoming'; }
+
+    // Format date/time
     let details = [];
-    if (state.thisWeek.date) {
-      const d = new Date(state.thisWeek.date + 'T00:00:00');
+    if (wd.date) {
+      const d = new Date(wd.date + 'T00:00:00');
       details.push(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
     }
-    if (state.thisWeek.time) {
-      const [h, m] = state.thisWeek.time.split(':');
+    if (wd.time) {
+      const [h, m] = wd.time.split(':');
       const hr = parseInt(h);
       details.push((hr > 12 ? hr - 12 : hr) + ':' + m + (hr >= 12 ? ' PM' : ' AM'));
     }
-    items.push(`
-      <div class="schedule-item" style="border-color:rgba(255,61,167,0.5)">
-        <div class="schedule-week-num">W${currentWn}</div>
-        <div class="schedule-info">
-          <div class="course">${escHtml(state.thisWeek.course)}</div>
-          <div class="details">${details.length ? details.join(' &middot; ') : ''} ${state.thisWeek.par ? '&middot; Par ' + state.thisWeek.par : ''}</div>
-        </div>
-        <span class="schedule-badge badge-current">This Week</span>
-      </div>
-    `);
-  }
+    if (wd.par) details.push('Par ' + wd.par);
+    if (hasScores) details.push(wd.scoreCount + ' players');
 
-  // Past weeks with scores
-  weekNums.forEach(w => {
-    if (+w === currentWn && state.thisWeek.course) return; // skip if already shown as current
-    const wd = state.weeks[w];
-    const hasScores = Object.keys(wd.scores || {}).length > 0;
-    const badge = +w < currentWn ? 'badge-completed' : 'badge-upcoming';
-    const badgeText = +w < currentWn ? 'Completed' : 'Upcoming';
+    // RSVP count for this week
+    const weekRsvps = scheduleRsvpData[w] || rsvpData[w] || {};
+    const yesCount = Object.values(weekRsvps).filter(v => v === 'yes').length;
+
+    // Build RSVP section for upcoming/current weeks
+    let rsvpHtml = '';
+    if (isUpcoming || isCurrent) {
+      const isExpanded = expandedScheduleWeeks[w];
+      rsvpHtml += `<div style="margin-top:6px">
+        <div class="sched-rsvp-toggle" onclick="toggleScheduleRSVP(${w})">
+          <span class="sched-rsvp-count"><span class="sched-count-num">${yesCount}</span> confirmed</span>
+          <span style="font-size:0.65rem">${isExpanded ? '▲ Hide' : '▼ RSVP'}</span>
+        </div>`;
+
+      if (isExpanded) {
+        rsvpHtml += `<div class="sched-rsvp-grid">`;
+        rsvpHtml += state.players.map(p => {
+          const status = weekRsvps[p.id] || 'pending';
+          const chipClass = status === 'yes' ? 'sched-yes' : status === 'no' ? 'sched-no' : '';
+          const btnClass = status === 'yes' ? 'sched-btn-in' : status === 'no' ? 'sched-btn-out' : 'sched-btn-pending';
+          const btnText = status === 'yes' ? "In" : status === 'no' ? 'Out' : '—';
+          return `<div class="sched-rsvp-chip ${chipClass}">
+            <span style="font-weight:600">${escHtml(p.name)}</span>
+            <button class="sched-rsvp-btn ${btnClass}" onclick="event.stopPropagation();toggleScheduleWeekRSVP('${p.id}',${w})">${btnText}</button>
+          </div>`;
+        }).join('');
+        rsvpHtml += '</div>';
+      }
+      rsvpHtml += '</div>';
+    }
+
+    // Admin edit button
+    const editBtn = isEditor && !isPast ? ` <button style="font-size:0.55rem;background:none;border:1px solid rgba(255,61,167,0.3);color:var(--pink-light);padding:1px 6px;border-radius:4px;cursor:pointer" onclick="event.stopPropagation();loadScheduleWeekToForm(${w})">Edit</button>` : '';
+
+    const borderStyle = isCurrent ? 'border-color:rgba(255,61,167,0.5)' : '';
+
     items.push(`
-      <div class="schedule-item">
+      <div class="schedule-item" style="${borderStyle}">
         <div class="schedule-week-num">W${w}</div>
-        <div class="schedule-info">
-          <div class="course">${wd.course ? escHtml(wd.course) : 'Course TBD'}</div>
-          <div class="details">Par ${wd.par || 72} ${hasScores ? '&middot; ' + Object.keys(wd.scores).length + ' players' : ''}</div>
+        <div class="schedule-info" style="flex:1">
+          <div class="course">${wd.course ? escHtml(wd.course) : 'Course TBD'}${editBtn}</div>
+          <div class="details">${details.length ? details.join(' &middot; ') : 'Date TBD'}</div>
+          ${rsvpHtml}
         </div>
-        <span class="schedule-badge ${badge}">${badgeText}</span>
+        <span class="schedule-badge ${badgeClass}">${badgeText}</span>
       </div>
     `);
   });
 
   el.innerHTML = items.join('');
+}
+
+function toggleScheduleRSVP(weekNum) {
+  expandedScheduleWeeks[weekNum] = !expandedScheduleWeeks[weekNum];
+  renderSchedule();
+}
+
+async function toggleScheduleWeekRSVP(playerId, weekNum) {
+  const weekRsvps = scheduleRsvpData[weekNum] || rsvpData[weekNum] || {};
+  const cur = weekRsvps[playerId] || 'pending';
+  const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
+  try {
+    await db.ref('rsvps/' + weekNum + '/' + playerId).set(next);
+  } catch (e) {
+    toast('RSVP update failed');
+    console.warn(e);
+  }
+}
+
+/* ─── Schedule Admin ─── */
+function loadScheduleWeekForm() {
+  const w = document.getElementById('sched-week-select')?.value;
+  if (!w) return;
+  loadScheduleWeekToForm(parseInt(w));
+}
+
+function loadScheduleWeekToForm(weekNum) {
+  const sel = document.getElementById('sched-week-select');
+  if (sel) sel.value = weekNum;
+  const sd = scheduleData[weekNum] || {};
+  document.getElementById('sched-course-input').value = sd.course || '';
+  document.getElementById('sched-date-input').value = sd.date || '';
+  document.getElementById('sched-time-input').value = sd.time || '14:00';
+  document.getElementById('sched-par-input').value = sd.par || 36;
+}
+
+async function saveScheduleWeek() {
+  if (!isEditor) return;
+  const weekNum = document.getElementById('sched-week-select')?.value;
+  if (!weekNum) return toast('Select a week first.');
+  const data = {
+    course: document.getElementById('sched-course-input').value.trim(),
+    date: document.getElementById('sched-date-input').value,
+    time: document.getElementById('sched-time-input').value || '14:00',
+    par: parseInt(document.getElementById('sched-par-input').value) || 36
+  };
+  if (!data.course && !data.date) return toast('Enter at least a course or date.');
+  try {
+    await db.ref('schedule/' + weekNum).set(data);
+    toast('Week ' + weekNum + ' saved to schedule!');
+    // Clear form for next entry
+    document.getElementById('sched-course-input').value = '';
+    document.getElementById('sched-date-input').value = '';
+  } catch (e) {
+    toast('Failed to save schedule');
+    console.warn(e);
+  }
 }
 
 /* ─── Players ─── */
@@ -2027,6 +2222,31 @@ function listenToContests() {
   ref.on('value', (snap) => {
     contestsData = snap.val() || {};
     if (roundStatus === 'closed') renderPayouts();
+  });
+}
+
+/* ─── Schedule Firebase Listener ─── */
+function listenToSchedule() {
+  const ref = db.ref('schedule');
+  if (scheduleListener) scheduleListener.off();
+  scheduleListener = ref;
+  ref.on('value', (snap) => {
+    scheduleData = snap.val() || {};
+    renderSchedule();
+    // Attach RSVP listeners for all scheduled weeks
+    Object.keys(scheduleData).forEach(wn => {
+      listenToScheduleRSVP(wn);
+    });
+  });
+}
+
+function listenToScheduleRSVP(weekNum) {
+  if (scheduleRsvpListeners[weekNum]) return; // already listening
+  const ref = db.ref('rsvps/' + weekNum);
+  scheduleRsvpListeners[weekNum] = ref;
+  ref.on('value', (snap) => {
+    scheduleRsvpData[weekNum] = snap.val() || {};
+    renderSchedule();
   });
 }
 
@@ -3026,6 +3246,7 @@ async function preloadDataIfEmpty() {
   listenToRoundStatus();
   listenToCourseSetup();
   listenToContests();
+  listenToSchedule();
   loadEmailSentFlags();
 
   // Start countdown timer and auto-email checks
