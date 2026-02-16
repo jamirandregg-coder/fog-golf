@@ -1627,6 +1627,7 @@ let scheduleRsvpListeners = {};
 let expandedScheduleWeeks = {};  // track which weeks have RSVP expanded
 let pairingsData = {};       // { weekNum: [ { teeTime, players: [id,...] }, ... ] }
 let pairingsListener = null;
+let rsvpOverrideLocked = false;    // admin manual RSVP lock override
 let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
 let groupScorersData = {};         // { groupIndex: playerId }
@@ -1676,6 +1677,8 @@ function getRSVPDeadline() {
 }
 
 function isRSVPLocked() {
+  // Admin manual override takes priority
+  if (rsvpOverrideLocked) return true;
   const deadline = getRSVPDeadline();
   if (!deadline) return false;
   const now = new Date();
@@ -1689,6 +1692,17 @@ function isRSVPLocked() {
 function updateDeadlineDisplay() {
   const el = document.getElementById('rsvp-deadline-display');
   if (!el) return;
+
+  // If admin manually locked RSVPs
+  if (rsvpOverrideLocked) {
+    let html = '<div class="deadline-locked">RSVPs ARE LOCKED (Manual Override)</div>';
+    if (isEditor) {
+      html += `<button class="btn btn-outline" style="margin-top:8px;font-size:0.72rem;padding:5px 14px" onclick="unlockRSVPOverride()">Unlock RSVPs</button>`;
+    }
+    el.innerHTML = html;
+    return;
+  }
+
   const deadline = getRSVPDeadline();
   if (!deadline) { el.innerHTML = ''; return; }
   const now = new Date();
@@ -1704,7 +1718,32 @@ function updateDeadlineDisplay() {
   let timeStr = '';
   if (days > 0) timeStr += days + 'd ';
   timeStr += hours + 'h ' + minutes + 'm ' + seconds + 's';
-  el.innerHTML = `<div class="deadline-pill"><span class="dl-label">RSVP Closes In:</span><span class="dl-time">${timeStr}</span></div>`;
+  let html = `<div class="deadline-pill"><span class="dl-label">RSVP Closes In:</span><span class="dl-time">${timeStr}</span></div>`;
+  if (isEditor) {
+    html += `<button class="btn btn-outline" style="margin-top:8px;font-size:0.72rem;padding:5px 14px" onclick="lockRSVPOverride()">Lock RSVPs Now</button>`;
+  }
+  el.innerHTML = html;
+}
+
+async function lockRSVPOverride() {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  rsvpOverrideLocked = true;
+  await db.ref('rsvpOverride/' + wn).set(true);
+  updateDeadlineDisplay();
+  renderThisWeek();
+  toast('RSVPs locked manually.');
+  autoGeneratePairingsIfNeeded();
+}
+
+async function unlockRSVPOverride() {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  rsvpOverrideLocked = false;
+  await db.ref('rsvpOverride/' + wn).set(false);
+  updateDeadlineDisplay();
+  renderThisWeek();
+  toast('RSVPs unlocked.');
 }
 
 /* ─── Storage ─── */
@@ -4504,6 +4543,14 @@ async function preloadDataIfEmpty() {
   listenToGroupScorers();
   listenToMasterCourses();
   loadEmailSentFlags();
+
+  // Load RSVP override state
+  const wnOverride = state.thisWeek.weekNum || 1;
+  db.ref('rsvpOverride/' + wnOverride).on('value', (snap) => {
+    rsvpOverrideLocked = snap.val() === true;
+    updateDeadlineDisplay();
+    renderThisWeek();
+  });
 
   // Start countdown timer and auto-email checks
   countdownInterval = setInterval(() => {
