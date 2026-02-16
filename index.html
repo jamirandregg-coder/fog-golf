@@ -1548,6 +1548,11 @@ async function toggleRSVP(playerId) {
 
   try {
     await db.ref('rsvps/' + wn + '/' + playerId).set(next);
+    // Redirect to Venmo when player RSVPs "In"
+    if (next === 'yes') {
+      const venmoLink = document.getElementById('venmo-link');
+      if (venmoLink) window.open(venmoLink.href, '_blank');
+    }
   } catch (e) {
     toast('RSVP update failed - try again.');
     console.warn(e);
@@ -1955,6 +1960,11 @@ async function toggleScheduleWeekRSVP(playerId, weekNum) {
   const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
   try {
     await db.ref('rsvps/' + weekNum + '/' + playerId).set(next);
+    // Redirect to Venmo when player RSVPs "In"
+    if (next === 'yes') {
+      const venmoLink = document.getElementById('venmo-link');
+      if (venmoLink) window.open(venmoLink.href, '_blank');
+    }
   } catch (e) {
     toast('RSVP update failed');
     console.warn(e);
