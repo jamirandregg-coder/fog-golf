@@ -1527,6 +1527,22 @@ async function removePlayer(id) {
   toast('Player removed.');
 }
 
+async function editPlayer(id) {
+  if (!isEditor) return;
+  const p = state.players.find(p => p.id === id);
+  if (!p) return;
+  const newName = prompt('Player name:', p.name);
+  if (newName === null) return; // cancelled
+  if (!newName.trim()) return toast('Name cannot be empty.');
+  const newHcp = prompt('Handicap:', p.handicap || 0);
+  if (newHcp === null) return; // cancelled
+  p.name = newName.trim();
+  p.handicap = parseInt(newHcp) || 0;
+  await saveState();
+  renderPlayers(); renderScoreEntry(); renderRSVP(); renderStandings();
+  toast(p.name + ' updated!');
+}
+
 function renderPlayers() {
   const list = document.getElementById('player-list');
   const count = document.getElementById('roster-count');
@@ -1543,7 +1559,10 @@ function renderPlayers() {
         <span>${escHtml(p.name)}</span>
         ${p.handicap ? `<span style="font-size:0.7rem;color:var(--gray);margin-left:4px">(HCP ${p.handicap})</span>` : ''}
       </span>
-      ${isEditor ? `<button class="btn btn-danger" onclick="removePlayer('${p.id}')">✕</button>` : ''}
+      ${isEditor ? `<span style="display:flex;gap:4px">
+        <button class="btn btn-outline" style="font-size:0.6rem;padding:3px 8px;border-radius:8px" onclick="editPlayer('${p.id}')">Edit</button>
+        <button class="btn btn-danger" onclick="removePlayer('${p.id}')">✕</button>
+      </span>` : ''}
     </div>
   `).join('');
 }
