@@ -1507,7 +1507,6 @@ async function addPlayer() {
   const hcpEl = document.getElementById('player-handicap-input');
   const name = nameEl.value.trim();
   if (!name) return toast('Enter a player name.');
-  if (state.players.length >= 30) return toast('Maximum 30 players reached.');
   if (state.players.find(p => p.name.toLowerCase() === name.toLowerCase())) return toast('Player already exists.');
   state.players.push({ id: Date.now().toString(), name, handicap: parseInt(hcpEl.value) || 0 });
   nameEl.value = ''; hcpEl.value = '';
@@ -1531,7 +1530,7 @@ async function removePlayer(id) {
 function renderPlayers() {
   const list = document.getElementById('player-list');
   const count = document.getElementById('roster-count');
-  if (count) count.textContent = '(' + state.players.length + '/30)';
+  if (count) count.textContent = '(' + state.players.length + ' players)';
   if (!list) return;
   if (!state.players.length) {
     list.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No players yet.</div>';
