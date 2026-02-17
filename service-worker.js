@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fog-golf-v3';
+const CACHE_NAME = 'fog-golf-v4';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/index.html'

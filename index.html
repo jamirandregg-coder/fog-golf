@@ -1881,6 +1881,7 @@ let groupSaveTimers = {};           // debounce timers for auto-saving group sco
 let masterCourses = {};      // { courseId: { name, pars: [18 ints] } }
 let masterCoursesListener = null;
 let weekResultsListener = null;  // Firebase listener for week results (cross-device sync)
+let pendingSyncs = {};           // { weekNum: weekResult } — queued writes that failed to sync
 let selectedNine = 'front';  // 'front' or 'back'
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
@@ -2603,7 +2604,7 @@ async function updateFCMSubscriberCount() {
     const count = snap.numChildren();
     const el = document.getElementById('fcm-subscriber-count');
     if (el) el.textContent = count + ' device' + (count !== 1 ? 's' : '') + ' subscribed to push notifications';
-  } catch (e) { /* ignore */ }
+  } catch (e) { console.warn('Subscriber count error:', e); }
 }
 
 /* ─── Manage Week (editor) ─── */
@@ -3031,7 +3032,13 @@ async function saveScores() {
   state.weeks[week] = weekResult;
   await saveState();
   // Sync to Firebase so all devices see the scores
-  db.ref('weekResults/' + week).set(weekResult).catch(e => console.error('Error saving week results to Firebase:', e));
+  try {
+    await db.ref('weekResults/' + week).set(weekResult);
+  } catch (e) {
+    console.error('Error saving week results to Firebase:', e);
+    toast('Scores saved locally but failed to sync — will retry.');
+    pendingSyncs[week] = weekResult;
+  }
   populateWeekSelect();
   renderStandings();
   renderHistory(curHistoryWeek);
@@ -4802,7 +4809,25 @@ function saveHoleScoresToWeekTotals() {
     state.weeks[wn] = weekResult;
     saveState();
     // Sync to Firebase so all devices can see the results
-    db.ref('weekResults/' + wn).set(weekResult).catch(e => console.error('Error saving week results to Firebase:', e));
+    db.ref('weekResults/' + wn).set(weekResult).catch(e => {
+      console.error('Error saving week results to Firebase:', e);
+      pendingSyncs[wn] = weekResult;
+    });
+  }
+}
+
+/* ─── Flush pending week result syncs to Firebase ─── */
+async function flushPendingSyncs() {
+  const weeks = Object.keys(pendingSyncs);
+  if (!weeks.length) return;
+  for (const wn of weeks) {
+    try {
+      await db.ref('weekResults/' + wn).set(pendingSyncs[wn]);
+      delete pendingSyncs[wn];
+      console.log('Synced pending week ' + wn + ' to Firebase');
+    } catch (e) {
+      console.warn('Retry sync failed for week ' + wn + ':', e);
+    }
   }
 }
 
@@ -4816,7 +4841,7 @@ function listenToWeekResults() {
     const results = snap.val() || {};
     let changed = false;
 
-    // On first load: if local has week data that Firebase doesn't, push it up (one-time migration)
+    // On first load: push any local-only week data up to Firebase
     if (firstLoad) {
       firstLoad = false;
       const localWeeks = Object.keys(state.weeks).filter(w => {
@@ -4829,13 +4854,23 @@ function listenToWeekResults() {
         const localData = state.weeks[wn];
         const fbCount = fbData ? Object.keys(fbData.scores || {}).length : 0;
         const localCount = Object.keys(localData.scores || {}).length;
+        // Push to Firebase if local has scores that Firebase doesn't
         if (localCount > fbCount) {
           updates['weekResults/' + wn] = localData;
         }
       });
       if (Object.keys(updates).length > 0) {
-        console.log('Migrating local week results to Firebase:', Object.keys(updates));
-        db.ref().update(updates).catch(e => console.error('Migration error:', e));
+        console.log('Syncing local week results to Firebase:', Object.keys(updates));
+        db.ref().update(updates)
+          .then(() => console.log('Week results synced to Firebase successfully'))
+          .catch(e => {
+            console.error('Sync to Firebase failed:', e);
+            // Queue for retry on next visibility change
+            Object.entries(updates).forEach(([path, data]) => {
+              const wn = path.replace('weekResults/', '');
+              pendingSyncs[wn] = data;
+            });
+          });
       }
     }
 
@@ -5289,6 +5324,12 @@ async function preloadDataIfEmpty() {
       autoGeneratePairingsIfNeeded();
     } catch(e) { console.error('Auto-pairings error:', e); }
   }, 3000);
+
+  // Retry any failed syncs when app regains focus
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    flushPendingSyncs();
+  });
 }
 
 /* ─── Auto-generate pairings after RSVP deadline ─── */
