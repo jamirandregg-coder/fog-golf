@@ -2527,7 +2527,9 @@ async function requestNotificationPermission() {
     const perm = await Notification.requestPermission();
     console.log('Notification permission:', perm);
     if (perm === 'granted') {
-      const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY });
+      // Pass our existing SW registration so FCM doesn't look for /firebase-messaging-sw.js
+      const swReg = await navigator.serviceWorker.getRegistration();
+      const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: swReg });
       console.log('FCM token:', token ? 'received (' + token.length + ' chars)' : 'null');
       if (token) { currentFCMToken = token; await saveFCMToken(token); }
       hideNotificationBanner();
