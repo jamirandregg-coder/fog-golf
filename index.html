@@ -1773,7 +1773,7 @@ const db = firebase.database();
 
 // ── FCM / Push Notification Config ──
 const FCM_VAPID_KEY = 'BLt-nddGQquAs8gM9EVd5NRFNQ7WszqVMkQhbE3gPxZzE7VZH5UMAJ1OCIDNLn2KHrcsWW2--N7lR8SPfUgwvKQ';
-const CLOUD_FUNCTION_URL = ''; // TODO: After deploying Cloud Functions, paste the sendNotification URL here
+const CLOUD_FUNCTION_URL = 'https://us-central1-fog-golf.cloudfunctions.net/sendNotification';
 let messaging = null;
 let currentFCMToken = null;
 let announcementListener = null;
