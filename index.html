@@ -1648,11 +1648,31 @@
 <script>
 /* ─── PWA: Service Worker + Install Prompt ─── */
 
-// Register service worker
+// Register service worker with auto-update
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/service-worker.js')
-    .then(reg => console.log('SW registered:', reg.scope))
+    .then(reg => {
+      console.log('SW registered:', reg.scope);
+      // Check for updates every 60 seconds
+      setInterval(() => reg.update(), 60000);
+      // When a new SW is waiting, activate it immediately
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') {
+              console.log('New version available — reloading.');
+              window.location.reload();
+            }
+          });
+        }
+      });
+    })
     .catch(err => console.warn('SW registration failed:', err));
+  // If the controller changes (new SW took over), reload to get fresh content
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
 }
 
 // Generate apple-touch-icon via canvas (for iOS home screen icon)
@@ -1960,7 +1980,7 @@ async function loadState() {
     }
   } catch(e) { console.warn('No saved data yet.'); }
   setLoading(false);
-  renderAll();
+  try { renderAll(); } catch(e) { console.error('renderAll error during loadState:', e); }
 }
 
 /* ─── Auth ─── */
@@ -5043,72 +5063,87 @@ function selectPastWeek(i) {
 
 /* ─── Pre-load roster if empty ─── */
 async function preloadDataIfEmpty() {
-  await loadState();
-  if (state.players.length === 0) {
-    const roster = [
-      'Ben Pemble','Brooks O\'Hearn','Chris Hamp','Dallas Walton','Daniel Nunez',
-      'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
-      'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
-      'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
-      'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
-      'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
-      'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
-      'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
-      'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
-      'Zach Spratt','Denny Sharkey','Carlos Bossy','Ben Pemble','Brett',
-      'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
-    ];
-    // Deduplicate
-    const seen = new Set();
-    roster.forEach(name => {
-      const lower = name.toLowerCase();
-      if (!seen.has(lower)) {
-        seen.add(lower);
-        state.players.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), name, handicap: 0 });
-      }
-    });
-    await saveState();
-    renderAll();
+  try {
+    await loadState();
+    if (state.players.length === 0) {
+      const roster = [
+        'Ben Pemble','Brooks O\'Hearn','Chris Hamp','Dallas Walton','Daniel Nunez',
+        'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
+        'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
+        'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
+        'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
+        'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
+        'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
+        'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
+        'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
+        'Zach Spratt','Denny Sharkey','Carlos Bossy','Ben Pemble','Brett',
+        'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
+      ];
+      // Deduplicate
+      const seen = new Set();
+      roster.forEach(name => {
+        const lower = name.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          state.players.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), name, handicap: 0 });
+        }
+      });
+      await saveState();
+      try { renderAll(); } catch(e) { console.error('renderAll error after seed:', e); }
+    }
+  } catch(e) {
+    console.error('Error during loadState/seed:', e);
   }
-  // Start listening to Firebase for real-time data
-  listenToRSVPs();
-  listenToPayments();
-  listenToLiveScores();
-  listenToRoundStatus();
-  listenToCourseSetup();
-  listenToContests();
-  listenToSchedule();
-  listenToPairings();
-  listenToAllPairings();
-  listenToScoringMode();
-  listenToGroupScorers();
-  listenToMasterCourses();
-  listenToAnnouncement();
-  loadEmailSentFlags();
-  initFCM();
+
+  // ALWAYS start Firebase listeners — even if loadState or renderAll had issues
+  try {
+    listenToRSVPs();
+    listenToPayments();
+    listenToLiveScores();
+    listenToRoundStatus();
+    listenToCourseSetup();
+    listenToContests();
+    listenToSchedule();
+    listenToPairings();
+    listenToAllPairings();
+    listenToScoringMode();
+    listenToGroupScorers();
+    listenToMasterCourses();
+    listenToAnnouncement();
+    loadEmailSentFlags();
+    initFCM();
+  } catch(e) {
+    console.error('Error setting up Firebase listeners:', e);
+  }
 
   // Load RSVP override state
-  const wnOverride = state.thisWeek.weekNum || 1;
-  db.ref('rsvpOverride/' + wnOverride).on('value', (snap) => {
-    rsvpOverrideLocked = snap.val() === true;
-    updateDeadlineDisplay();
-    renderThisWeek();
-  });
+  try {
+    const wnOverride = state.thisWeek.weekNum || 1;
+    db.ref('rsvpOverride/' + wnOverride).on('value', (snap) => {
+      rsvpOverrideLocked = snap.val() === true;
+      updateDeadlineDisplay();
+      renderThisWeek();
+    });
+  } catch(e) { console.error('RSVP override listener error:', e); }
 
   // Start countdown timer and auto-email checks
   countdownInterval = setInterval(() => {
-    updateDeadlineDisplay();
-    emailCheckCounter++;
-    if (emailCheckCounter % 30 === 0 && isEditor) {
-      checkAutoEmailTriggers();
-    }
+    try {
+      updateDeadlineDisplay();
+      emailCheckCounter++;
+      if (emailCheckCounter % 30 === 0 && isEditor) {
+        checkAutoEmailTriggers();
+      }
+    } catch(e) { console.error('Timer error:', e); }
   }, 1000);
-  updateDeadlineDisplay();
+  try { updateDeadlineDisplay(); } catch(e) { /* ignore */ }
 
   // Check payment cutoff and auto-pairings after data loads (give listeners time)
   setTimeout(() => {
-    enforcePaymentCutoff();
-    autoGeneratePairingsIfNeeded();
+    try {
+      enforcePaymentCutoff();
+      autoGeneratePairingsIfNeeded();
+    } catch(e) { console.error('Auto-pairings error:', e); }
   }, 3000);
 }
 
@@ -5128,7 +5163,7 @@ async function autoGeneratePairingsIfNeeded() {
 }
 
 // Override the original load
-preloadDataIfEmpty();
+preloadDataIfEmpty().catch(e => console.error('Fatal init error:', e));
 </script>
 
 <!-- WhatsApp Floating Button -->

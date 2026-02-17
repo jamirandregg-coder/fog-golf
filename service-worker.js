@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fog-golf-v2';
+const CACHE_NAME = 'fog-golf-v3';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/index.html'
@@ -32,6 +32,7 @@ self.addEventListener('fetch', event => {
   // Skip caching for Firebase, EmailJS, Cloud Functions, and other API/SDK requests
   if (
     url.hostname.includes('firebaseio.com') ||
+    url.hostname.includes('googleapis.com') ||
     url.hostname.includes('emailjs.com') ||
     url.hostname.includes('gstatic.com') ||
     url.hostname.includes('cloudfunctions.net')
