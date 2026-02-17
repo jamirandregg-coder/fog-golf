@@ -1838,6 +1838,7 @@ let groupScorersListener = null;
 let groupSaveTimers = {};           // debounce timers for auto-saving group scores
 let masterCourses = {};      // { courseId: { name, pars: [18 ints] } }
 let masterCoursesListener = null;
+let weekResultsListener = null;  // Firebase listener for week results (cross-device sync)
 let selectedNine = 'front';  // 'front' or 'back'
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
@@ -2945,8 +2946,11 @@ async function saveScores() {
     const v = document.getElementById('score-' + p.id)?.value;
     if (v !== '' && v !== undefined && !isNaN(parseInt(v))) scores[p.id] = parseInt(v);
   });
-  state.weeks[week] = { par, course, scores };
+  const weekResult = { par, course, scores };
+  state.weeks[week] = weekResult;
   await saveState();
+  // Sync to Firebase so all devices see the scores
+  db.ref('weekResults/' + week).set(weekResult).catch(e => console.error('Error saving week results to Firebase:', e));
   populateWeekSelect();
   renderStandings();
   renderHistory(curHistoryWeek);
@@ -4709,13 +4713,71 @@ function saveHoleScoresToWeekTotals() {
   });
 
   if (Object.keys(scores).length > 0) {
-    state.weeks[wn] = {
+    const weekResult = {
       par: totalPar,
       course: state.thisWeek.course || '',
       scores
     };
+    state.weeks[wn] = weekResult;
     saveState();
+    // Sync to Firebase so all devices can see the results
+    db.ref('weekResults/' + wn).set(weekResult).catch(e => console.error('Error saving week results to Firebase:', e));
   }
+}
+
+/* ─── Listen to Week Results from Firebase (cross-device sync) ─── */
+function listenToWeekResults() {
+  const ref = db.ref('weekResults');
+  if (weekResultsListener) weekResultsListener.off();
+  weekResultsListener = ref;
+  let firstLoad = true;
+  ref.on('value', (snap) => {
+    const results = snap.val() || {};
+    let changed = false;
+
+    // On first load: if local has week data that Firebase doesn't, push it up (one-time migration)
+    if (firstLoad) {
+      firstLoad = false;
+      const localWeeks = Object.keys(state.weeks).filter(w => {
+        const wd = state.weeks[w];
+        return wd && wd.scores && Object.keys(wd.scores).length > 0;
+      });
+      const updates = {};
+      localWeeks.forEach(wn => {
+        const fbData = results[wn];
+        const localData = state.weeks[wn];
+        const fbCount = fbData ? Object.keys(fbData.scores || {}).length : 0;
+        const localCount = Object.keys(localData.scores || {}).length;
+        if (localCount > fbCount) {
+          updates['weekResults/' + wn] = localData;
+        }
+      });
+      if (Object.keys(updates).length > 0) {
+        console.log('Migrating local week results to Firebase:', Object.keys(updates));
+        db.ref().update(updates).catch(e => console.error('Migration error:', e));
+      }
+    }
+
+    // Merge Firebase week results into local state
+    Object.entries(results).forEach(([wn, data]) => {
+      if (data && data.scores) {
+        const existing = state.weeks[wn];
+        const fbScoreCount = Object.keys(data.scores).length;
+        const localScoreCount = existing ? Object.keys(existing.scores || {}).length : 0;
+        // Use Firebase data if it has more scores or if local doesn't have this week
+        if (!existing || fbScoreCount >= localScoreCount) {
+          state.weeks[wn] = data;
+          changed = true;
+        }
+      }
+    });
+    if (changed) {
+      saveState();
+      renderStandings();
+      renderHistory(null);
+      renderWinnerBanner();
+    }
+  });
 }
 
 /* ─── Winner Banner ─── */
@@ -5109,6 +5171,7 @@ async function preloadDataIfEmpty() {
     listenToScoringMode();
     listenToGroupScorers();
     listenToMasterCourses();
+    listenToWeekResults();
     listenToAnnouncement();
     loadEmailSentFlags();
     initFCM();
