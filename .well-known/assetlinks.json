@@ -1,10 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "golf.thefog.twa",
-      "sha256_cert_fingerprints": ["REPLACE_WITH_YOUR_FINGERPRINT"]
-    }
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "golf.thefog.twa",
+    "sha256_cert_fingerprints": ["BC:0F:03:D7:FB:E9:EB:D6:E9:DD:4C:82:2F:87:4F:12:89:7E:F2:4C:CB:08:AD:58:6E:82:21:25:46:57:D0:9A"]
   }
-]
+}]
