@@ -4341,7 +4341,6 @@ function renderGroupScorerAssignment() {
 }
 
 async function changeGroupScorer(groupIndex, playerId) {
-  if (!isEditor) return;
   const wn = state.thisWeek.weekNum || 1;
   await db.ref('groupScorers/' + wn + '/' + groupIndex).set(playerId);
   toast('Group scorer updated.');
@@ -4435,16 +4434,35 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
     playerRows += '</tr>';
   });
 
-  const roleLabel = isScorer
-    ? 'You are the group scorer — enter scores for all players'
-    : 'Enter your own scores below — your group scorer can also enter for you';
+  // Build scorer picker — any group member can choose who scores
+  const allActive = getActivePlayers();
+  let scorerPickerHtml = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
+  scorerPickerHtml += '<span style="font-size:0.78rem;color:var(--gray)">Group scorer:</span>';
+  scorerPickerHtml += `<select class="group-scorer-select" onchange="changeGroupScorer(${groupInfo.groupIndex}, this.value)" style="font-size:0.82rem">`;
+  groupInfo.players.forEach(pid => {
+    const pl = allActive.find(p => p.id === pid);
+    if (pl) {
+      const sel = pid === groupInfo.scorerId ? 'selected' : '';
+      scorerPickerHtml += `<option value="${pid}" ${sel}>${escHtml(pl.name)}</option>`;
+    }
+  });
+  scorerPickerHtml += '</select>';
+  if (!isScorer) {
+    scorerPickerHtml += `<button class="btn btn-outline" style="font-size:0.72rem;padding:5px 12px" onclick="changeGroupScorer(${groupInfo.groupIndex},'${selectedPlayerId}')">I'll Score</button>`;
+  }
+  scorerPickerHtml += '</div>';
+
+  const roleHint = isScorer
+    ? 'You are scoring for everyone in this group'
+    : 'Your group scorer enters scores for all — you can also enter your own below';
 
   container.innerHTML = `
     <div class="group-scoring-header">
       <span class="group-scoring-badge">GROUP SCORING</span>
       Group ${groupInfo.groupIndex + 1} — ${escHtml(courseName)} (${nine === 'front' ? 'Front' : 'Back'} 9)
     </div>
-    <div style="font-size:0.78rem;color:var(--gray);margin-bottom:10px">${roleLabel}</div>
+    ${scorerPickerHtml}
+    <div style="font-size:0.72rem;color:var(--gray);margin-bottom:10px;font-style:italic">${roleHint}</div>
     <div class="group-scorecard-wrap">
       <table class="group-scorecard">
         <thead>${headerRow}</thead>
