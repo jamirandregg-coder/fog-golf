@@ -2647,6 +2647,7 @@ function renderManageWeek() {
 
 async function saveThisWeek() {
   if (!isEditor) return;
+  const oldWeekNum = state.thisWeek.weekNum;
   const teeTimes = getTeeTimes('tw-tee-input');
   state.thisWeek = {
     weekNum: parseInt(document.getElementById('current-week-select').value),
@@ -2657,6 +2658,11 @@ async function saveThisWeek() {
     par: parseInt(document.getElementById('tw-par-input').value) || 72,
     notes: document.getElementById('tw-notes-input').value.trim()
   };
+  // If week changed, clear old week's RSVPs so everyone resets to "pending"
+  const newWeekNum = state.thisWeek.weekNum;
+  if (oldWeekNum && oldWeekNum !== newWeekNum) {
+    await db.ref('rsvps/' + oldWeekNum).remove();
+  }
   await saveState();
   // Save course setup to Firebase
   const wn = state.thisWeek.weekNum;
