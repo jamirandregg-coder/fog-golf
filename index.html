@@ -2882,6 +2882,10 @@ async function saveScheduleWeek() {
 }
 
 /* ─── Players ─── */
+function syncPlayersToFirebase() {
+  db.ref('players').set(state.players).catch(e => console.warn('Player sync error:', e));
+}
+
 async function addPlayer() {
   if (!isEditor) return;
   const nameEl = document.getElementById('player-name-input');
@@ -2892,6 +2896,7 @@ async function addPlayer() {
   state.players.push({ id: Date.now().toString(), name, handicap: parseInt(hcpEl.value) || 0 });
   nameEl.value = ''; hcpEl.value = '';
   await saveState();
+  syncPlayersToFirebase();
   renderPlayers(); renderScoreEntry(); renderRSVP();
   toast(name + ' added!');
   nameEl.focus();
@@ -2904,6 +2909,7 @@ async function removePlayer(id) {
   state.players = state.players.filter(p => p.id !== id);
   Object.values(state.weeks).forEach(w => { delete w.scores[id]; });
   await saveState();
+  syncPlayersToFirebase();
   renderPlayers(); renderScoreEntry(); renderStandings();
   toast('Player removed.');
 }
@@ -2920,6 +2926,7 @@ async function editPlayer(id) {
   p.name = newName.trim();
   p.handicap = parseInt(newHcp) || 0;
   await saveState();
+  syncPlayersToFirebase();
   renderPlayers(); renderScoreEntry(); renderRSVP(); renderStandings();
   toast(p.name + ' updated!');
 }
@@ -5243,31 +5250,73 @@ function selectPastWeek(i) {
 async function preloadDataIfEmpty() {
   try {
     await loadState();
-    if (state.players.length === 0) {
-      const roster = [
-        'Ben Pemble','Brooks O\'Hearn','Chris Hamp','Dallas Walton','Daniel Nunez',
-        'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
-        'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
-        'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
-        'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
-        'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
-        'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
-        'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
-        'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
-        'Zach Spratt','Denny Sharkey','Carlos Bossy','Ben Pemble','Brett',
-        'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
-      ];
-      // Deduplicate
-      const seen = new Set();
-      roster.forEach(name => {
-        const lower = name.toLowerCase();
-        if (!seen.has(lower)) {
-          seen.add(lower);
-          state.players.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), name, handicap: 0 });
-        }
-      });
-      await saveState();
-      try { renderAll(); } catch(e) { console.error('renderAll error after seed:', e); }
+
+    // Always try to load the shared player roster from Firebase first
+    try {
+      const playersSnap = await db.ref('players').once('value');
+      const fbPlayers = playersSnap.val();
+      if (fbPlayers && Array.isArray(fbPlayers) && fbPlayers.length > 0) {
+        state.players = fbPlayers;
+        await saveState();
+        try { renderAll(); } catch(e) { console.error('renderAll error after loading players from Firebase:', e); }
+      } else if (state.players.length === 0) {
+        // No players in Firebase and none locally — seed the roster and push to Firebase
+        const roster = [
+          'Ben Pemble','Brooks O\'Hearn','Chris Hamp','Dallas Walton','Daniel Nunez',
+          'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
+          'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
+          'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
+          'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
+          'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
+          'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
+          'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
+          'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
+          'Zach Spratt','Denny Sharkey','Carlos Bossy','Ben Pemble','Brett',
+          'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
+        ];
+        const seen = new Set();
+        roster.forEach(name => {
+          const lower = name.toLowerCase();
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            state.players.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), name, handicap: 0 });
+          }
+        });
+        await db.ref('players').set(state.players);
+        await saveState();
+        try { renderAll(); } catch(e) { console.error('renderAll error after seed:', e); }
+      } else {
+        // Local players exist but Firebase doesn't have them — push to Firebase
+        await db.ref('players').set(state.players);
+      }
+    } catch(e) {
+      console.warn('Firebase players sync error:', e);
+      // Fall back to local — if no local players either, seed them
+      if (state.players.length === 0) {
+        const roster = [
+          'Ben Pemble','Brooks O\'Hearn','Chris Hamp','Dallas Walton','Daniel Nunez',
+          'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
+          'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
+          'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
+          'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
+          'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
+          'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
+          'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
+          'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
+          'Zach Spratt','Denny Sharkey','Carlos Bossy','Ben Pemble','Brett',
+          'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
+        ];
+        const seen = new Set();
+        roster.forEach(name => {
+          const lower = name.toLowerCase();
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            state.players.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), name, handicap: 0 });
+          }
+        });
+        await saveState();
+        try { renderAll(); } catch(e) { console.error('renderAll error after seed:', e); }
+      }
     }
   } catch(e) {
     console.error('Error during loadState/seed:', e);
