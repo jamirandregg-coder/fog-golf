@@ -4035,20 +4035,30 @@ function renderLiveScoreInputs() {
     return;
   }
 
-  // ── GROUP MODE BRANCH ──
+  // ── GROUP MODE: show group scorecard ABOVE individual entry ──
+  // Group scorer can score for everyone; individual entry always available below.
   if (scoringMode === 'group') {
     const groupInfo = getPlayerGroupInfo(playerId);
-    if (!groupInfo) {
-      container.innerHTML = '<div class="empty-state">You are not in any group pairing. Contact the admin.</div>';
-      if (saveBtn) saveBtn.style.display = 'none';
-      if (totalDiv) totalDiv.style.display = 'none';
-      return;
+    if (groupInfo) {
+      const groupDiv = document.createElement('div');
+      groupDiv.style.marginBottom = '24px';
+      renderGroupScorecardGrid(groupDiv, groupInfo, playerId);
+      // Add a group save button inside the group section
+      const groupSaveBtn = document.createElement('button');
+      groupSaveBtn.className = 'btn btn-primary';
+      groupSaveBtn.style.cssText = 'margin-top:10px;font-size:0.82rem';
+      groupSaveBtn.textContent = 'Save Group Scores';
+      groupSaveBtn.onclick = saveGroupScores;
+      groupDiv.appendChild(groupSaveBtn);
+      // Separator
+      const sep = document.createElement('div');
+      sep.style.cssText = 'border-top:1px solid rgba(255,61,167,0.2);margin:18px 0 12px;padding-top:12px;font-size:0.78rem;color:var(--gray)';
+      sep.textContent = '— or enter your own score below —';
+      container.innerHTML = '';
+      container.appendChild(groupDiv);
+      container.appendChild(sep);
+      // Fall through to also render individual inputs below
     }
-    // Render scorecard grid — scorer can edit all players, non-scorer can edit only their own row
-    renderGroupScorecardGrid(container, groupInfo, playerId);
-    if (saveBtn) { saveBtn.style.display = 'inline-block'; saveBtn.onclick = saveGroupScores; }
-    if (totalDiv) totalDiv.style.display = 'none';
-    return;
   }
 
   // ── INDIVIDUAL MODE (existing logic) ──
@@ -4076,7 +4086,14 @@ function renderLiveScoreInputs() {
     `;
   }
   html += '</div>';
-  container.innerHTML = html;
+  // If group scorecard was rendered above, append individual below it; otherwise replace
+  if (scoringMode === 'group' && container.children.length > 0) {
+    const indivDiv = document.createElement('div');
+    indivDiv.innerHTML = html;
+    container.appendChild(indivDiv);
+  } else {
+    container.innerHTML = html;
+  }
 
   if (saveBtn) saveBtn.style.display = isLocked ? 'none' : 'inline-block';
   renderLiveScoreTotal();
@@ -4277,7 +4294,7 @@ function updateScoringModeUI() {
   const desc = document.getElementById('scoring-mode-desc');
   if (desc) {
     desc.textContent = scoringMode === 'group'
-      ? 'One designated scorer per group enters all scores. Individual entry is locked.'
+      ? 'Group scorers see all players in their group. Everyone can still enter their own scores.'
       : 'Each player enters their own scores.';
   }
   const assignDiv = document.getElementById('group-scorer-assignment');
