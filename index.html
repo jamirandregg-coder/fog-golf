@@ -2893,7 +2893,7 @@ async function addPlayer() {
   const name = nameEl.value.trim();
   if (!name) return toast('Enter a player name.');
   if (state.players.find(p => p.name.toLowerCase() === name.toLowerCase())) return toast('Player already exists.');
-  state.players.push({ id: Date.now().toString(), name, handicap: parseInt(hcpEl.value) || 0 });
+  state.players.push({ id: generatePlayerId(name), name, handicap: parseInt(hcpEl.value) || 0 });
   nameEl.value = ''; hcpEl.value = '';
   await saveState();
   syncPlayersToFirebase();
@@ -5246,81 +5246,143 @@ function selectPastWeek(i) {
   renderPastSeasons();
 }
 
+/* ─── One-time migration: remap old player IDs to current ones ─── */
+async function migratePlayerIds() {
+  try {
+    const migrated = localStorage.getItem('fog-id-migration-done');
+    if (migrated) return;
+
+    // Old phone IDs → current Firebase player IDs
+    const idMap = {
+      '1771279458546jgcd': '1771259947963k1u3',  // Chris Hamp
+      '1771279458546a4p3': '1771259947963ue1a',  // Jami Andregg
+      '1771279458546xesk': '1771259947963i9zt'   // Matthew Walton
+    };
+    const staleIds = ['1771273328812540j'];  // stray ID from third device
+    const oldIds = Object.keys(idMap);
+    const updates = {};
+
+    // Remap liveScores/1
+    const liveSnap = await db.ref('liveScores/1').once('value');
+    const liveData = liveSnap.val() || {};
+    for (const oldId of oldIds) {
+      if (liveData[oldId] !== undefined) {
+        updates['liveScores/1/' + idMap[oldId]] = liveData[oldId];
+        updates['liveScores/1/' + oldId] = null;  // delete old
+      }
+    }
+
+    // Remap weekResults/1/scores
+    const weekSnap = await db.ref('weekResults/1/scores').once('value');
+    const weekScores = weekSnap.val() || {};
+    for (const oldId of oldIds) {
+      if (weekScores[oldId] !== undefined) {
+        updates['weekResults/1/scores/' + idMap[oldId]] = weekScores[oldId];
+        updates['weekResults/1/scores/' + oldId] = null;
+      }
+    }
+
+    // Clean up old + stale IDs from rsvps/1
+    for (const oldId of [...oldIds, ...staleIds]) {
+      updates['rsvps/1/' + oldId] = null;
+    }
+
+    // Clean up old + stale IDs from payments/1
+    for (const oldId of [...oldIds, ...staleIds]) {
+      updates['payments/1/' + oldId] = null;
+    }
+
+    // Fix pairings/1 — replace old IDs in player arrays
+    const pairSnap = await db.ref('pairings/1').once('value');
+    const pairData = pairSnap.val();
+    if (pairData && Array.isArray(pairData)) {
+      const fixedPairings = pairData.map(group => {
+        if (!group || !group.players) return group;
+        return {
+          ...group,
+          players: group.players
+            .map(pid => idMap[pid] || pid)
+            .filter(pid => !staleIds.includes(pid))
+            // Deduplicate (in case both old and new ID were in the array)
+            .filter((pid, i, arr) => arr.indexOf(pid) === i)
+        };
+      });
+      updates['pairings/1'] = fixedPairings;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db.ref().update(updates);
+      console.log('Player ID migration complete:', updates);
+    }
+
+    localStorage.setItem('fog-id-migration-done', '1');
+  } catch (e) {
+    console.error('Player ID migration error:', e);
+  }
+}
+
 /* ─── Pre-load roster if empty ─── */
+const DEFAULT_ROSTER = [
+  'Ben Pemble','Brooks O\'Hearn','Chris Hamp','Dallas Walton','Daniel Nunez',
+  'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
+  'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
+  'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
+  'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
+  'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
+  'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
+  'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
+  'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
+  'Zach Spratt','Denny Sharkey','Carlos Bossy','Brett',
+  'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
+];
+
+function generatePlayerId(name) {
+  // Deterministic ID from player name — same name always produces same ID
+  const hash = name.toLowerCase().split('').reduce((h, c) => ((h << 5) - h) + c.charCodeAt(0) | 0, 0);
+  return 'p_' + Math.abs(hash).toString(36) + name.length.toString(36);
+}
+
+function seedRoster() {
+  const seen = new Set();
+  state.players = [];
+  DEFAULT_ROSTER.forEach(name => {
+    const lower = name.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      state.players.push({ id: generatePlayerId(name), name, handicap: 0 });
+    }
+  });
+}
+
 async function preloadDataIfEmpty() {
   try {
     await loadState();
 
-    // Always try to load the shared player roster from Firebase first
+    // Firebase is always the source of truth for the player roster
     try {
       const playersSnap = await db.ref('players').once('value');
       const fbPlayers = playersSnap.val();
       if (fbPlayers && Array.isArray(fbPlayers) && fbPlayers.length > 0) {
+        // Firebase has players — use them on every device
         state.players = fbPlayers;
-        await saveState();
-        try { renderAll(); } catch(e) { console.error('renderAll error after loading players from Firebase:', e); }
-      } else if (state.players.length === 0) {
-        // No players in Firebase and none locally — seed the roster and push to Firebase
-        const roster = [
-          'Ben Pemble','Brooks O\'Hearn','Chris Hamp','Dallas Walton','Daniel Nunez',
-          'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
-          'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
-          'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
-          'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
-          'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
-          'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
-          'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
-          'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
-          'Zach Spratt','Denny Sharkey','Carlos Bossy','Ben Pemble','Brett',
-          'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
-        ];
-        const seen = new Set();
-        roster.forEach(name => {
-          const lower = name.toLowerCase();
-          if (!seen.has(lower)) {
-            seen.add(lower);
-            state.players.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), name, handicap: 0 });
-          }
-        });
-        await db.ref('players').set(state.players);
-        await saveState();
-        try { renderAll(); } catch(e) { console.error('renderAll error after seed:', e); }
       } else {
-        // Local players exist but Firebase doesn't have them — push to Firebase
+        // Firebase is empty — seed roster and push to Firebase
+        seedRoster();
         await db.ref('players').set(state.players);
       }
     } catch(e) {
       console.warn('Firebase players sync error:', e);
-      // Fall back to local — if no local players either, seed them
-      if (state.players.length === 0) {
-        const roster = [
-          'Ben Pemble','Brooks O\'Hearn','Chris Hamp','Dallas Walton','Daniel Nunez',
-          'Dave Stokes','Dwayne Crussell','Evan Battey','Gamal Kader','Gregory Walton',
-          'Jami Andregg','James Fouther','Jerry Montoya','Jim Ortega','Ken Carbello',
-          'Ken Walton','Kim F','Les Perry','Logan J','Lonnie Dixon',
-          'Matthew Walton','Micheal Bryant','Mike Bryant','Mike Mensendick',
-          'Phillip Jackson','Preston Bryant','Reggie Gamlin','Rob Hoffschneider',
-          'Rob Sanchez','Robert Newell','Robert Perkowski','Roland Jones',
-          'Roy Thomas','Ryan B','Ryan Marchbank','Tim Marchbank','Trey Turner',
-          'Victoria Braucher','Walter Jackson','William Perkowski','William Wittman',
-          'Zach Spratt','Denny Sharkey','Carlos Bossy','Ben Pemble','Brett',
-          'Ryan Sims','Megan King','RJ Anchrum','Mamadou Kader','Mike Montoya'
-        ];
-        const seen = new Set();
-        roster.forEach(name => {
-          const lower = name.toLowerCase();
-          if (!seen.has(lower)) {
-            seen.add(lower);
-            state.players.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), name, handicap: 0 });
-          }
-        });
-        await saveState();
-        try { renderAll(); } catch(e) { console.error('renderAll error after seed:', e); }
-      }
+      // Offline fallback — seed locally if needed
+      if (state.players.length === 0) seedRoster();
     }
+    await saveState();
+    try { renderAll(); } catch(e) { console.error('renderAll error:', e); }
   } catch(e) {
     console.error('Error during loadState/seed:', e);
   }
+
+  // Run one-time ID migration before listeners start
+  await migratePlayerIds();
 
   // ALWAYS start Firebase listeners — even if loadState or renderAll had issues
   try {
