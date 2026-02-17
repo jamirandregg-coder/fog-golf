@@ -1,4 +1,31 @@
-const CACHE_NAME = 'fog-golf-v6';
+// Firebase messaging SDK — required for FCM push token registration
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+  apiKey: "AIzaSyD8swdfrbrzGsvP--QYL0fuWE_cp7zk7HE",
+  authDomain: "fog-golf.firebaseapp.com",
+  projectId: "fog-golf",
+  storageBucket: "fog-golf.firebasestorage.app",
+  messagingSenderId: "865532832027",
+  appId: "1:865532832027:web:389127ab5a9f01d2e28bbe",
+  databaseURL: "https://fog-golf-default-rtdb.firebaseio.com"
+});
+
+const messaging = firebase.messaging();
+
+// Handle background push messages (when app is not in foreground)
+messaging.onBackgroundMessage((payload) => {
+  const n = payload.notification || {};
+  self.registration.showNotification(n.title || 'FOG Golf League', {
+    body: n.body || 'New notification',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: 'fog-notification-' + Date.now()
+  });
+});
+
+const CACHE_NAME = 'fog-golf-v7';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/index.html'
@@ -61,39 +88,6 @@ self.addEventListener('fetch', event => {
           return new Response('Offline', { status: 503, statusText: 'Offline' });
         });
       })
-  );
-});
-
-// ── Push Notification Handling ──
-
-// Listen for push events from FCM
-self.addEventListener('push', event => {
-  let title = 'FOG Golf League';
-  let body = 'You have a new notification';
-  let data = {};
-
-  if (event.data) {
-    try {
-      const payload = event.data.json();
-      if (payload.notification) {
-        title = payload.notification.title || title;
-        body = payload.notification.body || body;
-      }
-      if (payload.data) data = payload.data;
-    } catch (e) {
-      // If not JSON, use as plain text
-      body = event.data.text() || body;
-    }
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body: body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: 'fog-notification-' + Date.now(),
-      data: data
-    })
   );
 });
 

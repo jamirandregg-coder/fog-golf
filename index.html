@@ -2522,16 +2522,16 @@ function initFCM() {
 }
 
 async function requestNotificationPermission() {
-  if (!messaging || !FCM_VAPID_KEY) return;
+  if (!messaging || !FCM_VAPID_KEY) { console.warn('FCM not ready:', !messaging, !FCM_VAPID_KEY); return; }
   try {
     const perm = await Notification.requestPermission();
+    console.log('Notification permission:', perm);
     if (perm === 'granted') {
       const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY });
+      console.log('FCM token:', token ? 'received (' + token.length + ' chars)' : 'null');
       if (token) { currentFCMToken = token; await saveFCMToken(token); }
-      // Hide the banner on success
       hideNotificationBanner();
     } else {
-      // Permission denied or dismissed — hide banner
       hideNotificationBanner();
     }
   } catch (e) { console.warn('FCM token error:', e); }
