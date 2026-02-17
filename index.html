@@ -1884,6 +1884,7 @@ let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
 let groupScorersData = {};         // { groupIndex: playerId }
 let groupScorersListener = null;
+let thisWeekListener = null;
 let groupSaveTimers = {};           // debounce timers for auto-saving group scores
 let masterCourses = {};      // { courseId: { name, pars: [18 ints] } }
 let masterCoursesListener = null;
@@ -2724,6 +2725,8 @@ async function saveThisWeek() {
     await db.ref('rsvps/' + oldWeekNum).remove();
   }
   await saveState();
+  // Sync thisWeek to Firebase so all devices see it
+  await db.ref('thisWeek').set(state.thisWeek);
   // Save course setup to Firebase
   const wn = state.thisWeek.weekNum;
   const setup = getCourseSetupFromInputs();
@@ -3223,6 +3226,35 @@ function renderHistory(sel) {
 }
 
 /* ─── Live Scoring Firebase Listeners ─── */
+function listenToThisWeek() {
+  const ref = db.ref('thisWeek');
+  if (thisWeekListener) thisWeekListener.off();
+  thisWeekListener = ref;
+  ref.on('value', (snap) => {
+    const tw = snap.val();
+    if (tw && tw.weekNum) {
+      const oldWn = state.thisWeek.weekNum;
+      state.thisWeek = tw;
+      saveState();
+      // If week number changed, re-attach week-specific listeners
+      if (oldWn !== tw.weekNum) {
+        listenToRSVPs();
+        listenToGuests();
+        listenToPayments();
+        listenToLiveScores();
+        listenToRoundStatus();
+        listenToCourseSetup();
+        listenToContests();
+        listenToPairings();
+        listenToScoringMode();
+        listenToGroupScorers();
+      }
+      renderThisWeek();
+      try { renderAll(); } catch(e) {}
+    }
+  });
+}
+
 function listenToLiveScores() {
   const wn = state.thisWeek.weekNum || 1;
   const ref = db.ref('liveScores/' + wn);
@@ -5468,7 +5500,17 @@ async function preloadDataIfEmpty() {
   try {
     await loadState();
 
-    // Firebase is always the source of truth for the player roster
+    // Firebase is always the source of truth for thisWeek and the player roster
+    try {
+      const twSnap = await db.ref('thisWeek').once('value');
+      const fbThisWeek = twSnap.val();
+      if (fbThisWeek && fbThisWeek.weekNum) {
+        state.thisWeek = fbThisWeek;
+      }
+    } catch(e) {
+      console.warn('Firebase thisWeek sync error:', e);
+    }
+
     try {
       const playersSnap = await db.ref('players').once('value');
       const fbPlayers = playersSnap.val();
@@ -5496,6 +5538,7 @@ async function preloadDataIfEmpty() {
 
   // ALWAYS start Firebase listeners — even if loadState or renderAll had issues
   try {
+    listenToThisWeek();
     listenToRSVPs();
     listenToGuests();
     listenToPayments();
