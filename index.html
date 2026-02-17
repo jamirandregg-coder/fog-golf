@@ -268,6 +268,37 @@
   }
   .pwa-dismiss:hover { color: var(--white); border-color: var(--pink-hot); }
 
+  /* NOTIFICATION PERMISSION BANNER */
+  .notif-permission-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, rgba(255,200,50,0.15), rgba(255,160,20,0.10));
+    border: 1px solid rgba(255,200,50,0.4);
+    border-radius: 50px;
+    margin: 0 auto 10px;
+    max-width: 500px;
+    position: relative;
+    animation: notifGlow 3s ease-in-out infinite;
+  }
+  @keyframes notifGlow {
+    0%, 100% { box-shadow: 0 0 15px rgba(255,200,50,0.12); }
+    50% { box-shadow: 0 0 25px rgba(255,200,50,0.3), 0 0 50px rgba(255,200,50,0.08); }
+  }
+  .notif-permission-banner .notif-text {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--white);
+    letter-spacing: 0.05em;
+  }
+  .notif-permission-banner .notif-sub {
+    font-size: 0.72rem;
+    color: rgba(255,200,50,0.8);
+    letter-spacing: 0.03em;
+  }
+
   /* THIS WEEK HERO */
   .this-week-hero {
     background: linear-gradient(135deg, rgba(255,61,167,0.12), rgba(230,0,126,0.08));
@@ -1228,6 +1259,17 @@
 
 <!-- Announcement Banner (admin-posted, shown to all) -->
 <div id="announcement-banner-container"></div>
+
+<!-- Notification Permission Banner (shown to users who haven't enabled push) -->
+<div class="notif-permission-banner" id="notif-permission-banner" style="display:none">
+  <button class="pwa-dismiss" onclick="dismissNotificationBanner()" aria-label="Dismiss">&times;</button>
+  <span style="font-size:1.4rem">🔔</span>
+  <div>
+    <div class="notif-text">Turn On Notifications</div>
+    <div class="notif-sub">Get alerts when scoring opens &amp; results are posted</div>
+  </div>
+  <button class="btn btn-pink" style="padding:8px 18px;font-size:0.75rem" onclick="handleEnableNotifications()">Enable</button>
+</div>
 
 <div class="mode-bar">
   <div class="mode-badge mode-viewer" id="mode-badge">
@@ -2464,8 +2506,17 @@ function initFCM() {
       const n = payload.notification || {};
       toast((n.title ? n.title + ': ' : '') + (n.body || 'New notification'));
     });
-    // Request permission after a short delay
-    setTimeout(() => requestNotificationPermission(), 3000);
+    // Check current permission state
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        // Already granted — silently get/refresh token
+        requestNotificationPermission();
+      } else if (Notification.permission === 'default') {
+        // Not yet asked — show the banner so user can tap to enable (required on iOS)
+        setTimeout(() => showNotificationBanner(), 2000);
+      }
+      // If 'denied', do nothing — user explicitly blocked notifications
+    }
   } catch (e) { console.warn('FCM init error:', e); }
 }
 
@@ -2476,8 +2527,38 @@ async function requestNotificationPermission() {
     if (perm === 'granted') {
       const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY });
       if (token) { currentFCMToken = token; await saveFCMToken(token); }
+      // Hide the banner on success
+      hideNotificationBanner();
+    } else {
+      // Permission denied or dismissed — hide banner
+      hideNotificationBanner();
     }
   } catch (e) { console.warn('FCM token error:', e); }
+}
+
+function showNotificationBanner() {
+  // Don't show if user dismissed recently (30-day cooldown)
+  const dismissed = localStorage.getItem('fog-notif-dismissed');
+  if (dismissed && Date.now() - parseInt(dismissed) < 30 * 24 * 60 * 60 * 1000) return;
+  // Don't show if permission already granted or denied
+  if ('Notification' in window && Notification.permission !== 'default') return;
+  const banner = document.getElementById('notif-permission-banner');
+  if (banner) banner.style.display = 'flex';
+}
+
+function hideNotificationBanner() {
+  const banner = document.getElementById('notif-permission-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+async function handleEnableNotifications() {
+  // This is called from a button tap — user gesture satisfies iOS requirement
+  await requestNotificationPermission();
+}
+
+function dismissNotificationBanner() {
+  hideNotificationBanner();
+  localStorage.setItem('fog-notif-dismissed', Date.now().toString());
 }
 
 async function saveFCMToken(token) {
