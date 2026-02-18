@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Capacitor build output
+www/
+
+# iOS build artifacts
+ios/App/Pods/
+ios/App/output/
+DerivedData/
+build/
+*.xcworkspace/xcuserdata/
+
+# macOS
+.DS_Store
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

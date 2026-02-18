@@ -2496,7 +2496,13 @@ async function clearAnnouncement() {
 }
 
 /* ─── FCM Push Notifications ─── */
+const isNativeApp = window.Capacitor?.isNativePlatform?.() === true;
+
 function initFCM() {
+  if (isNativeApp) {
+    initNativePush();
+    return;
+  }
   try {
     if (!firebase.messaging || !firebase.messaging.isSupported()) {
       console.log('FCM not supported in this browser.');
@@ -2521,7 +2527,73 @@ function initFCM() {
   } catch (e) { console.warn('FCM init error:', e); }
 }
 
+/* ─── Native Push (Capacitor iOS) ─── */
+async function initNativePush() {
+  try {
+    const FirebaseMessaging = window.Capacitor?.Plugins?.FirebaseMessaging;
+    if (!FirebaseMessaging) {
+      console.warn('FirebaseMessaging plugin not available');
+      return;
+    }
+
+    // Check current permission status
+    const permStatus = await FirebaseMessaging.checkPermissions();
+    if (permStatus.receive === 'granted') {
+      // Already granted — get token silently
+      await getNativeToken(FirebaseMessaging);
+    } else if (permStatus.receive === 'prompt') {
+      // Not yet asked — show the banner so user can tap to enable
+      setTimeout(() => showNotificationBanner(), 2000);
+    }
+
+    // Listen for foreground notifications
+    FirebaseMessaging.addListener('notificationReceived', (event) => {
+      const n = event.notification || {};
+      toast((n.title ? n.title + ': ' : '') + (n.body || 'New notification'));
+    });
+
+    // Listen for notification taps (app was in background)
+    FirebaseMessaging.addListener('notificationActionPerformed', () => {
+      // App is already open — no action needed
+    });
+
+    // Listen for token refresh
+    FirebaseMessaging.addListener('tokenReceived', async (event) => {
+      if (event.token) {
+        currentFCMToken = event.token;
+        await saveFCMToken(event.token);
+      }
+    });
+  } catch (e) { console.warn('Native push init error:', e); }
+}
+
+async function getNativeToken(FirebaseMessaging) {
+  try {
+    const { token } = await FirebaseMessaging.getToken();
+    console.log('Native FCM token:', token ? 'received (' + token.length + ' chars)' : 'null');
+    if (token) {
+      currentFCMToken = token;
+      await saveFCMToken(token);
+    }
+    hideNotificationBanner();
+  } catch (e) { console.warn('Native FCM token error:', e); }
+}
+
 async function requestNotificationPermission() {
+  // Native app path
+  if (isNativeApp) {
+    try {
+      const FirebaseMessaging = window.Capacitor?.Plugins?.FirebaseMessaging;
+      if (!FirebaseMessaging) return;
+      const perm = await FirebaseMessaging.requestPermissions();
+      if (perm.receive === 'granted') {
+        await getNativeToken(FirebaseMessaging);
+      }
+      hideNotificationBanner();
+    } catch (e) { console.warn('Native permission error:', e); }
+    return;
+  }
+  // Web path
   if (!messaging || !FCM_VAPID_KEY) { console.warn('FCM not ready:', !messaging, !FCM_VAPID_KEY); return; }
   try {
     const perm = await Notification.requestPermission();
@@ -2570,6 +2642,28 @@ async function saveFCMToken(token) {
   try {
     await db.ref('fcmTokens/' + hash).set({ token, timestamp: Date.now(), lastSeen: Date.now() });
   } catch (e) { console.warn('FCM token save error:', e); }
+}
+
+/* ─── Capacitor Native Features (iOS only) ─── */
+async function initCapacitorNative() {
+  if (!isNativeApp) return;
+  try {
+    // Style the native status bar to match the dark theme
+    const StatusBar = window.Capacitor?.Plugins?.StatusBar;
+    if (StatusBar) {
+      await StatusBar.setStyle({ style: 'DARK' });
+      await StatusBar.setBackgroundColor({ color: '#0f0a10' });
+    }
+  } catch (e) { console.warn('StatusBar init error:', e); }
+}
+
+// Add haptic feedback on score entry in native app
+function hapticTap() {
+  if (!isNativeApp) return;
+  try {
+    const Haptics = window.Capacitor?.Plugins?.Haptics;
+    if (Haptics) Haptics.impact({ style: 'LIGHT' });
+  } catch (e) { /* ignore */ }
 }
 
 async function sendPushNotification() {
@@ -5410,6 +5504,7 @@ async function preloadDataIfEmpty() {
     listenToAnnouncement();
     loadEmailSentFlags();
     initFCM();
+    initCapacitorNative();
   } catch(e) {
     console.error('Error setting up Firebase listeners:', e);
   }

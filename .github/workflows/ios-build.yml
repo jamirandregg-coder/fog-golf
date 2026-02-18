@@ -1,0 +1,76 @@
+name: iOS Build & TestFlight
+
+on:
+  # Only trigger manually or when native config changes
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14  # Apple Silicon runner
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets and sync to iOS
+        run: npm run build && npx cap sync ios
+
+      - name: Setup Ruby & CocoaPods
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Install CocoaPods
+        run: cd ios/App && pod install
+
+      - name: Build iOS App
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.ASC_API_KEY }}
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/App.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY }}" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ secrets.PROVISIONING_PROFILE }}" \
+            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}"
+
+      - name: Export IPA
+        run: |
+          cd ios/App
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath build/output
+
+      - name: Upload to TestFlight
+        if: success()
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.ASC_API_KEY }}
+        run: |
+          xcrun altool --upload-app \
+            -f ios/App/build/output/*.ipa \
+            -t ios \
+            --apiKey $APP_STORE_CONNECT_API_KEY_ID \
+            --apiIssuer $APP_STORE_CONNECT_API_ISSUER_ID

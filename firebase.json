@@ -1,0 +1,38 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "functions/**",
+      "node_modules/**",
+      "ios/**",
+      "scripts/**",
+      "resources/**",
+      "www/**",
+      ".github/**",
+      ".claude/**",
+      "package.json",
+      "package-lock.json",
+      "capacitor.config.json",
+      ".gitignore",
+      "*.md"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/service-worker.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
+  }
+}

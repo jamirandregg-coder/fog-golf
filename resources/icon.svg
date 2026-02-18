@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f0a10"/>
+  <text x="256" y="280" font-family="Arial Black,sans-serif" font-weight="900" font-size="180" fill="#ff3da7" text-anchor="middle">FOG</text>
+  <text x="256" y="380" font-family="Arial,sans-serif" font-weight="700" font-size="72" fill="#ff77c4" text-anchor="middle">GOLF</text>
+</svg>
