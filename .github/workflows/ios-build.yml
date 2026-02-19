@@ -31,9 +31,6 @@ jobs:
           mkdir -p /Users/runner/private_keys
           echo "$API_KEY_CONTENT" > /Users/runner/private_keys/AuthKey.p8
 
-      - name: Install CocoaPods dependencies
-        run: cd ios/App && pod install --repo-update
-
       - name: Set up keychain
         run: |
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
@@ -43,14 +40,23 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security list-keychains -d user -s $KEYCHAIN_PATH
 
+      - name: Resolve Swift Package dependencies
+        run: |
+          cd ios/App
+          xcodebuild -project App.xcodeproj \
+            -scheme App \
+            -clonedSourcePackagesDirPath $RUNNER_TEMP/spm-cache \
+            -resolvePackageDependencies
+
       - name: Build and Archive
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace \
+          xcodebuild -project App.xcodeproj \
             -scheme App \
             -sdk iphoneos \
             -configuration Release \
             -archivePath $RUNNER_TEMP/App.xcarchive \
+            -clonedSourcePackagesDirPath $RUNNER_TEMP/spm-cache \
             -authenticationKeyPath $KEY_PATH \
             -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
@@ -61,7 +67,7 @@ jobs:
 
       - name: Create ExportOptions.plist
         run: |
-          cat > $RUNNER_TEMP/ExportOptions.plist <<'EOF'
+          cat > $RUNNER_TEMP/ExportOptions.plist <<'PLISTEOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -76,7 +82,7 @@ jobs:
             <string>automatic</string>
           </dict>
           </plist>
-          EOF
+          PLISTEOF
 
       - name: Export IPA
         run: |
