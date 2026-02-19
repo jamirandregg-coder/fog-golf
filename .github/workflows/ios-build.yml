@@ -61,6 +61,7 @@ jobs:
             -scheme App \
             -sdk iphoneos \
             -configuration Release \
+            -destination 'generic/platform=iOS' \
             -archivePath $RUNNER_TEMP/App.xcarchive \
             -clonedSourcePackagesDirPath $RUNNER_TEMP/spm-cache \
             -authenticationKeyPath "$KEY_PATH" \
@@ -69,6 +70,7 @@ jobs:
             -allowProvisioningUpdates \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             archive
 
       - name: Create ExportOptions.plist
