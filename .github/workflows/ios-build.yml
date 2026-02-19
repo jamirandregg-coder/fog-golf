@@ -1,11 +1,14 @@
 name: iOS Build & TestFlight
 
 on:
-  workflow_dispatch:  # Manual trigger only — no auto-build on push
+  workflow_dispatch:  # Manual trigger only
 
 jobs:
   build:
-    runs-on: macos-14  # Apple Silicon runner
+    runs-on: macos-14
+
+    env:
+      KEY_PATH: /Users/runner/private_keys/AuthKey.p8
 
     steps:
       - uses: actions/checkout@v4
@@ -24,34 +27,21 @@ jobs:
       - name: Setup App Store Connect API Key
         env:
           API_KEY_CONTENT: ${{ secrets.ASC_API_KEY }}
-          API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
         run: |
-          mkdir -p ~/private_keys
-          printf '%s\n' "$API_KEY_CONTENT" > ~/private_keys/AuthKey_${API_KEY_ID}.p8
+          mkdir -p /Users/runner/private_keys
+          echo "$API_KEY_CONTENT" > /Users/runner/private_keys/AuthKey.p8
 
       - name: Install CocoaPods dependencies
         run: cd ios/App && pod install --repo-update
 
-      - name: Set up code signing
+      - name: Set up keychain
         run: |
-          # Create a temporary keychain
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
-
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security list-keychains -d user -s $KEYCHAIN_PATH
-
-          # Use xcodebuild to resolve signing with App Store Connect API
-          cd ios/App
-          xcodebuild -resolvePackageDependencies \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
-            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
-            -allowProvisioningUpdates
 
       - name: Build and Archive
         run: |
@@ -61,7 +51,7 @@ jobs:
             -sdk iphoneos \
             -configuration Release \
             -archivePath $RUNNER_TEMP/App.xcarchive \
-            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyPath $KEY_PATH \
             -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
             -allowProvisioningUpdates \
@@ -71,7 +61,7 @@ jobs:
 
       - name: Create ExportOptions.plist
         run: |
-          cat > $RUNNER_TEMP/ExportOptions.plist << 'PLIST'
+          cat > $RUNNER_TEMP/ExportOptions.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -86,7 +76,7 @@ jobs:
             <string>automatic</string>
           </dict>
           </plist>
-          PLIST
+          EOF
 
       - name: Export IPA
         run: |
@@ -94,7 +84,7 @@ jobs:
             -archivePath $RUNNER_TEMP/App.xcarchive \
             -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
             -exportPath $RUNNER_TEMP/output \
-            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyPath $KEY_PATH \
             -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
             -allowProvisioningUpdates
@@ -102,13 +92,6 @@ jobs:
       - name: Upload to TestFlight
         if: success()
         run: |
-          xcrun notarytool submit $RUNNER_TEMP/output/*.ipa \
-            --key ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
-            --key-id ${{ secrets.ASC_KEY_ID }} \
-            --issuer ${{ secrets.ASC_ISSUER_ID }} \
-            --wait 2>/dev/null || true
-
-          # Use altool as primary upload method
           xcrun altool --upload-app \
             -f $RUNNER_TEMP/output/*.ipa \
             -t ios \
@@ -118,5 +101,5 @@ jobs:
       - name: Clean up
         if: always()
         run: |
-          rm -rf ~/private_keys
+          rm -rf /Users/runner/private_keys
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db 2>/dev/null || true
