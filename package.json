@@ -1,0 +1,23 @@
+{
+  "name": "fog-golf",
+  "version": "1.0.0",
+  "description": "FOG Golf League - iOS App with Capacitor",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/copy-web.js",
+    "sync": "npm run build && npx cap sync",
+    "sync:ios": "npm run build && npx cap sync ios"
+  },
+  "keywords": [],
+  "author": "Jami Andregg",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor-firebase/messaging": "^8.0.1",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/ios": "^8.1.0",
+    "@capacitor/status-bar": "^8.0.1",
+    "firebase": "^12.9.0"
+  }
+}

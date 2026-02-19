@@ -1,0 +1,25 @@
+{
+  "appId": "com.foggolf.app",
+  "appName": "FOG Golf",
+  "webDir": "www",
+  "server": {
+    "url": "https://fog-golf.web.app",
+    "cleartext": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0f0a10"
+    }
+  },
+  "ios": {
+    "backgroundColor": "#0f0a10",
+    "allowsLinkPreview": false,
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile",
+    "scheme": "FOG Golf"
+  }
+}
