@@ -2030,16 +2030,9 @@ async function loadState() {
     if (raw) {
       const loaded = JSON.parse(raw);
       state.players = loaded.players || [];
-      state.thisWeek = loaded.thisWeek || { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
-      // 2026 season reset: clear cached weeks data so all devices start fresh
-      // (Firebase is the source of truth — weekResults listener will repopulate)
-      if (!localStorage.getItem('fog-2026-reset')) {
-        state.weeks = {};
-        state.thisWeek = { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
-        localStorage.setItem('fog-2026-reset', 'true');
-      } else {
-        state.weeks = loaded.weeks || {};
-      }
+      // 2026 season reset: clear ALL cached weeks data so all devices start fresh
+      state.weeks = {};
+      state.thisWeek = { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
     }
   } catch(e) { console.warn('No saved data yet.'); }
   setLoading(false);
@@ -5093,37 +5086,9 @@ function listenToWeekResults() {
     const results = snap.val() || {};
     let changed = false;
 
-    // On first load: push any local-only week data up to Firebase
+    // On first load: skip local-to-Firebase sync (Firebase is source of truth)
     if (firstLoad) {
       firstLoad = false;
-      const localWeeks = Object.keys(state.weeks).filter(w => {
-        const wd = state.weeks[w];
-        return wd && wd.scores && Object.keys(wd.scores).length > 0;
-      });
-      const updates = {};
-      localWeeks.forEach(wn => {
-        const fbData = results[wn];
-        const localData = state.weeks[wn];
-        const fbCount = fbData ? Object.keys(fbData.scores || {}).length : 0;
-        const localCount = Object.keys(localData.scores || {}).length;
-        // Push to Firebase if local has scores that Firebase doesn't
-        if (localCount > fbCount) {
-          updates['weekResults/' + wn] = localData;
-        }
-      });
-      if (Object.keys(updates).length > 0) {
-        console.log('Syncing local week results to Firebase:', Object.keys(updates));
-        db.ref().update(updates)
-          .then(() => console.log('Week results synced to Firebase successfully'))
-          .catch(e => {
-            console.error('Sync to Firebase failed:', e);
-            // Queue for retry on next visibility change
-            Object.entries(updates).forEach(([path, data]) => {
-              const wn = path.replace('weekResults/', '');
-              pendingSyncs[wn] = data;
-            });
-          });
-      }
     }
 
     // Merge Firebase week results into local state
