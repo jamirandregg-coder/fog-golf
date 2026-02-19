@@ -10,7 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FOG Golf">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f0a10'/%3E%3Ctext x='16' y='22' font-family='Arial Black,sans-serif' font-weight='900' font-size='12' fill='%23ff3da7' text-anchor='middle'%3EFOG%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -394,6 +395,9 @@
   .rsvp-unpaid { background: rgba(255,82,82,0.3); color: #ff8a8a; font-size: 0.62rem; }
   .rsvp-chip .chip-actions { display: flex; align-items: center; gap: 4px; }
   .rsvp-chip .paid-badge { font-size: 0.6rem; color: var(--green-good); font-weight: 700; letter-spacing: 0.08em; }
+  .guest-badge { font-size:0.55rem; color:var(--gold,#ffd700); font-weight:700; letter-spacing:0.08em; padding:1px 6px; border:1px solid rgba(255,215,0,0.4); border-radius:4px; background:rgba(255,215,0,0.1); vertical-align:middle; margin-left:4px; }
+  .guest-remove-btn { background:none; border:1px solid rgba(255,82,82,0.3); color:#ff5252; font-size:0.65rem; padding:2px 6px; border-radius:4px; cursor:pointer; }
+  .guest-remove-btn:hover { background:rgba(255,82,82,0.15); }
 
   /* DEADLINE COUNTDOWN */
   .deadline-pill {
@@ -1166,10 +1170,10 @@
     0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.15); }
     50% { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
   }
-  .announcement-content { display: flex; align-items: flex-start; gap: 10px; }
-  .announcement-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
-  .announcement-text { flex: 1; color: var(--white); font-size: 0.9rem; font-weight: 600; line-height: 1.4; }
-  .announcement-date { font-size: 0.65rem; color: var(--gray); margin-top: 4px; display: block; }
+  .announcement-content { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .announcement-icon { font-size: 1.3rem; }
+  .announcement-text { color: var(--white); font-size: 0.9rem; font-weight: 600; line-height: 1.4; text-align: center; }
+  .announcement-date { font-size: 0.65rem; color: var(--gray); margin-top: 4px; display: block; text-align: center; }
   .announcement-close {
     position: absolute; top: 6px; right: 8px; background: none; border: none;
     color: var(--gray); font-size: 1.2rem; cursor: pointer; padding: 2px 6px; line-height: 1;
@@ -1306,7 +1310,11 @@
 
     <div class="card">
       <div class="card-title">RSVP for This Week</div>
-      <p style="font-size:0.85rem;color:var(--gray);margin-bottom:16px">Tap your name to toggle your RSVP status.</p>
+      <p style="font-size:0.85rem;color:var(--gray);margin-bottom:12px">Tap your name to toggle your RSVP status.</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+        <input type="text" id="guest-name-input" placeholder="Guest name..." style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,61,167,0.3);background:rgba(255,255,255,0.05);color:var(--white);font-family:'Space Grotesk',sans-serif;font-size:0.85rem" onkeydown="if(event.key==='Enter')addGuest()">
+        <button class="btn btn-outline" style="font-size:0.78rem;padding:8px 16px" onclick="addGuest()">+ Add Guest</button>
+      </div>
       <div class="rsvp-grid" id="rsvp-list">
         <div class="empty-state" style="grid-column:1/-1">No players yet. Admin must add players first.</div>
       </div>
@@ -1877,12 +1885,15 @@ let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
 let groupScorersData = {};         // { groupIndex: playerId }
 let groupScorersListener = null;
+let thisWeekListener = null;
 let groupSaveTimers = {};           // debounce timers for auto-saving group scores
 let masterCourses = {};      // { courseId: { name, pars: [18 ints] } }
 let masterCoursesListener = null;
 let weekResultsListener = null;  // Firebase listener for week results (cross-device sync)
 let pendingSyncs = {};           // { weekNum: weekResult } — queued writes that failed to sync
 let selectedNine = 'front';  // 'front' or 'back'
+let guestData = {};          // { weekNum: { guestId: guestObj } }
+let guestListener = null;
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
@@ -2102,6 +2113,27 @@ function showPanel(name, btn) {
   if (name === 'manage-week')   renderManageWeek();
 }
 
+/* ─── Get active players (roster + current-week guests) ─── */
+function getActivePlayers() {
+  const wn = state.thisWeek.weekNum || 1;
+  const guests = guestData[wn] || {};
+  const guestList = Object.values(guests).map(g => ({ ...g, isGuest: true }));
+  return [...state.players, ...guestList];
+}
+
+/* ─── Firebase Guest Listener ─── */
+function listenToGuests() {
+  const wn = state.thisWeek.weekNum || 1;
+  const ref = db.ref('guests/' + wn);
+  if (guestListener) guestListener.off();
+  guestListener = ref;
+  ref.on('value', (snap) => {
+    guestData[wn] = snap.val() || {};
+    renderThisWeek();
+    if (isEditor) renderAdminSummary();
+  });
+}
+
 /* ─── Firebase RSVP Listener ─── */
 function listenToRSVPs() {
   const wn = state.thisWeek.weekNum || 1;
@@ -2180,7 +2212,8 @@ function renderThisWeek() {
 
 function renderRSVP() {
   const list = document.getElementById('rsvp-list');
-  if (!state.players.length) {
+  const allPlayers = getActivePlayers();
+  if (!allPlayers.length) {
     list.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No players yet. Admin must add players first.</div>';
     return;
   }
@@ -2189,7 +2222,7 @@ function renderRSVP() {
   const payments = paymentData[wn] || {};
   const locked = isRSVPLocked() && !isEditor;
 
-  list.innerHTML = state.players.map(p => {
+  list.innerHTML = allPlayers.map(p => {
     const status = rsvps[p.id] || 'pending';
     const paid = payments[p.id] === true;
     const chipClass = status === 'yes' ? 'rsvp-yes' : status === 'no' ? 'rsvp-no' : '';
@@ -2205,9 +2238,12 @@ function renderRSVP() {
       payHtml = '<span class="paid-badge">PAID</span>';
     }
 
+    const guestBadge = p.isGuest ? ' <span class="guest-badge">GUEST</span>' : '';
+    const guestRemoveBtn = p.isGuest && isEditor ? ` <button class="guest-remove-btn" onclick="removeGuest('${p.id}')" title="Remove guest">✕</button>` : '';
+
     return `
       <div class="rsvp-chip ${chipClass}">
-        <span style="font-weight:600">${escHtml(p.name)}</span>
+        <span style="font-weight:600">${escHtml(p.name)}${guestBadge}${guestRemoveBtn}</span>
         <span class="chip-actions">
           ${payHtml}
           <button class="rsvp-status ${btnClass}" onclick="toggleRSVP('${p.id}')" ${disabledAttr}>${btnText}</button>
@@ -2215,6 +2251,34 @@ function renderRSVP() {
       </div>
     `;
   }).join('');
+}
+
+async function addGuest() {
+  const nameEl = document.getElementById('guest-name-input');
+  const name = nameEl.value.trim();
+  if (!name) return toast('Enter a guest name.');
+  const wn = state.thisWeek.weekNum || 1;
+  if (getActivePlayers().find(p => p.name.toLowerCase() === name.toLowerCase())) return toast('A player with that name already exists.');
+  const guestId = 'guest_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try {
+    await db.ref('guests/' + wn + '/' + guestId).set({ id: guestId, name, handicap: 0, isGuest: true, addedAt: Date.now() });
+    await db.ref('rsvps/' + wn + '/' + guestId).set('yes');
+    nameEl.value = '';
+    toast(name + ' added as guest!');
+  } catch (e) { toast('Failed to add guest.'); console.warn(e); }
+}
+
+async function removeGuest(guestId) {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const guest = (guestData[wn] || {})[guestId];
+  if (!guest || !confirm('Remove guest ' + guest.name + '?')) return;
+  try {
+    await db.ref('guests/' + wn + '/' + guestId).remove();
+    await db.ref('rsvps/' + wn + '/' + guestId).remove();
+    await db.ref('liveScores/' + wn + '/' + guestId).remove();
+    toast('Guest removed.');
+  } catch (e) { toast('Failed to remove guest.'); console.warn(e); }
 }
 
 async function toggleRSVP(playerId) {
@@ -2310,13 +2374,13 @@ function renderAdminSummary() {
   const payments = paymentData[wn] || {};
   const inList = [], outList = [], pendingList = [];
 
-  state.players.forEach(p => {
+  getActivePlayers().forEach(p => {
     const status = rsvps[p.id] || 'pending';
     const paid = payments[p.id] === true;
-    const entry = { name: p.name, paid };
+    const entry = { name: p.name + (p.isGuest ? ' (Guest)' : ''), paid };
     if (status === 'yes') inList.push(entry);
     else if (status === 'no') outList.push(entry);
-    else pendingList.push(entry);
+    else if (!p.isGuest) pendingList.push(entry);
   });
 
   const renderList = (items, showPay) => {
@@ -2331,7 +2395,7 @@ function renderAdminSummary() {
     `).join('');
   };
 
-  const total = state.players.length;
+  const total = getActivePlayers().length;
   const responded = inList.length + outList.length;
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:10px">
@@ -2361,12 +2425,12 @@ function buildRSVPSummaryText() {
   const payments = paymentData[wn] || {};
   const inPlayers = [], outPlayers = [], pendingPlayers = [];
 
-  state.players.forEach(p => {
+  getActivePlayers().forEach(p => {
     const status = rsvps[p.id] || 'pending';
     const paid = payments[p.id] === true;
-    if (status === 'yes') inPlayers.push(p.name + (paid ? ' (Paid)' : ' (UNPAID)'));
+    if (status === 'yes') inPlayers.push(p.name + (paid ? ' (Paid)' : ' (UNPAID)') + (p.isGuest ? ' [GUEST]' : ''));
     else if (status === 'no') outPlayers.push(p.name);
-    else pendingPlayers.push(p.name);
+    else if (!p.isGuest) pendingPlayers.push(p.name);
   });
 
   let text = 'FOG Golf League - Week ' + wn + ' RSVP Summary\n';
@@ -2461,10 +2525,8 @@ function renderAnnouncement(data) {
       <button class="announcement-close" onclick="dismissAnnouncement(${data.timestamp})">&times;</button>
       <div class="announcement-content">
         <span class="announcement-icon">📢</span>
-        <div>
-          <div class="announcement-text">${escHtml(data.text)}</div>
-          ${dateStr ? `<span class="announcement-date">${dateStr}</span>` : ''}
-        </div>
+        <div class="announcement-text">${escHtml(data.text)}</div>
+        ${dateStr ? `<span class="announcement-date">${dateStr}</span>` : ''}
       </div>
     </div>`;
 }
@@ -2758,11 +2820,14 @@ async function saveThisWeek() {
     await db.ref('rsvps/' + oldWeekNum).remove();
   }
   await saveState();
+  // Sync thisWeek to Firebase so all devices see it
+  await db.ref('thisWeek').set(state.thisWeek);
   // Save course setup to Firebase
   const wn = state.thisWeek.weekNum;
   const setup = getCourseSetupFromInputs();
   await db.ref('courseSetup/' + wn).set(setup);
   listenToRSVPs();
+  listenToGuests();
   listenToPayments();
   listenToLiveScores();
   listenToRoundStatus();
@@ -2876,13 +2941,14 @@ function renderSchedule() {
 
       if (isExpanded) {
         rsvpHtml += `<div class="sched-rsvp-grid">`;
-        rsvpHtml += state.players.map(p => {
+        rsvpHtml += getActivePlayers().map(p => {
           const status = weekRsvps[p.id] || 'pending';
           const chipClass = status === 'yes' ? 'sched-yes' : status === 'no' ? 'sched-no' : '';
           const btnClass = status === 'yes' ? 'sched-btn-in' : status === 'no' ? 'sched-btn-out' : 'sched-btn-pending';
           const btnText = status === 'yes' ? "In" : status === 'no' ? 'Out' : '—';
+          const guestBadge = p.isGuest ? ' <span class="guest-badge">GUEST</span>' : '';
           return `<div class="sched-rsvp-chip ${chipClass}">
-            <span style="font-weight:600">${escHtml(p.name)}</span>
+            <span style="font-weight:600">${escHtml(p.name)}${guestBadge}</span>
             <button class="sched-rsvp-btn ${btnClass}" onclick="event.stopPropagation();toggleScheduleWeekRSVP('${p.id}',${w})">${btnText}</button>
           </div>`;
         }).join('');
@@ -3255,6 +3321,35 @@ function renderHistory(sel) {
 }
 
 /* ─── Live Scoring Firebase Listeners ─── */
+function listenToThisWeek() {
+  const ref = db.ref('thisWeek');
+  if (thisWeekListener) thisWeekListener.off();
+  thisWeekListener = ref;
+  ref.on('value', (snap) => {
+    const tw = snap.val();
+    if (tw && tw.weekNum) {
+      const oldWn = state.thisWeek.weekNum;
+      state.thisWeek = tw;
+      saveState();
+      // If week number changed, re-attach week-specific listeners
+      if (oldWn !== tw.weekNum) {
+        listenToRSVPs();
+        listenToGuests();
+        listenToPayments();
+        listenToLiveScores();
+        listenToRoundStatus();
+        listenToCourseSetup();
+        listenToContests();
+        listenToPairings();
+        listenToScoringMode();
+        listenToGroupScorers();
+      }
+      renderThisWeek();
+      try { renderAll(); } catch(e) {}
+    }
+  });
+}
+
 function listenToLiveScores() {
   const wn = state.thisWeek.weekNum || 1;
   const ref = db.ref('liveScores/' + wn);
@@ -3409,9 +3504,10 @@ function renderPairingsTab() {
         </div>
         <div class="pairing-players">`;
       (group.players || []).forEach((pid, pi) => {
-        const player = state.players.find(p => p.id === pid);
+        const player = getActivePlayers().find(p => p.id === pid);
         if (player) {
-          html += `<span class="pairing-player"><span class="pairing-num">${pi + 1}</span>${escHtml(player.name)}</span>`;
+          const gb = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
+          html += `<span class="pairing-player"><span class="pairing-num">${pi + 1}</span>${escHtml(player.name)}${gb}</span>`;
         }
       });
       html += `</div></div>`;
@@ -3581,7 +3677,7 @@ async function generatePairings() {
   const rsvps = rsvpData[wn] || {};
 
   // Get confirmed players
-  const confirmedPlayers = state.players.filter(p => rsvps[p.id] === 'yes');
+  const confirmedPlayers = getActivePlayers().filter(p => rsvps[p.id] === 'yes');
   if (confirmedPlayers.length === 0) return toast('No confirmed players to pair.');
 
   // Get tee times from schedule or thisWeek
@@ -3665,9 +3761,10 @@ function renderPairingsDisplay() {
       <div class="pairing-players">`;
 
     (group.players || []).forEach((pid, pi) => {
-      const player = state.players.find(p => p.id === pid);
+      const player = getActivePlayers().find(p => p.id === pid);
       if (player) {
-        html += `<span class="pairing-player"><span class="pairing-num">${pi + 1}</span>${escHtml(player.name)}</span>`;
+        const gb = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
+        html += `<span class="pairing-player"><span class="pairing-num">${pi + 1}</span>${escHtml(player.name)}${gb}</span>`;
       }
     });
 
@@ -4029,13 +4126,14 @@ function renderLiveScoring() {
     const wn = state.thisWeek.weekNum || 1;
     const rsvps = rsvpData[wn] || {};
     // Show players who RSVP'd yes first, then all
-    const yesPlayers = state.players.filter(p => rsvps[p.id] === 'yes');
-    const otherPlayers = state.players.filter(p => rsvps[p.id] !== 'yes');
+    const allActive = getActivePlayers();
+    const yesPlayers = allActive.filter(p => rsvps[p.id] === 'yes');
+    const otherPlayers = allActive.filter(p => rsvps[p.id] !== 'yes');
     const sorted = [...yesPlayers, ...otherPlayers];
     sorted.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = p.name + (rsvps[p.id] === 'yes' ? '' : ' (not RSVP\'d)');
+      opt.textContent = p.name + (p.isGuest ? ' [GUEST]' : '') + (rsvps[p.id] === 'yes' ? '' : ' (not RSVP\'d)');
       sel.appendChild(opt);
     });
     if (curVal) sel.value = curVal;
@@ -4062,20 +4160,30 @@ function renderLiveScoreInputs() {
     return;
   }
 
-  // ── GROUP MODE BRANCH ──
+  // ── GROUP MODE: show group scorecard ABOVE individual entry ──
+  // Group scorer can score for everyone; individual entry always available below.
   if (scoringMode === 'group') {
     const groupInfo = getPlayerGroupInfo(playerId);
-    if (!groupInfo) {
-      container.innerHTML = '<div class="empty-state">You are not in any group pairing. Contact the admin.</div>';
-      if (saveBtn) saveBtn.style.display = 'none';
-      if (totalDiv) totalDiv.style.display = 'none';
-      return;
+    if (groupInfo) {
+      const groupDiv = document.createElement('div');
+      groupDiv.style.marginBottom = '24px';
+      renderGroupScorecardGrid(groupDiv, groupInfo, playerId);
+      // Add a group save button inside the group section
+      const groupSaveBtn = document.createElement('button');
+      groupSaveBtn.className = 'btn btn-primary';
+      groupSaveBtn.style.cssText = 'margin-top:10px;font-size:0.82rem';
+      groupSaveBtn.textContent = 'Save Group Scores';
+      groupSaveBtn.onclick = saveGroupScores;
+      groupDiv.appendChild(groupSaveBtn);
+      // Separator
+      const sep = document.createElement('div');
+      sep.style.cssText = 'border-top:1px solid rgba(255,61,167,0.2);margin:18px 0 12px;padding-top:12px;font-size:0.78rem;color:var(--gray)';
+      sep.textContent = '— or enter your own score below —';
+      container.innerHTML = '';
+      container.appendChild(groupDiv);
+      container.appendChild(sep);
+      // Fall through to also render individual inputs below
     }
-    // Render scorecard grid — scorer can edit all players, non-scorer can edit only their own row
-    renderGroupScorecardGrid(container, groupInfo, playerId);
-    if (saveBtn) { saveBtn.style.display = 'inline-block'; saveBtn.onclick = saveGroupScores; }
-    if (totalDiv) totalDiv.style.display = 'none';
-    return;
   }
 
   // ── INDIVIDUAL MODE (existing logic) ──
@@ -4103,7 +4211,14 @@ function renderLiveScoreInputs() {
     `;
   }
   html += '</div>';
-  container.innerHTML = html;
+  // If group scorecard was rendered above, append individual below it; otherwise replace
+  if (scoringMode === 'group' && container.children.length > 0) {
+    const indivDiv = document.createElement('div');
+    indivDiv.innerHTML = html;
+    container.appendChild(indivDiv);
+  } else {
+    container.innerHTML = html;
+  }
 
   if (saveBtn) saveBtn.style.display = isLocked ? 'none' : 'inline-block';
   renderLiveScoreTotal();
@@ -4199,7 +4314,7 @@ function renderLiveScorecardGrid() {
   const playersWithScores = Object.entries(liveScoresData)
     .filter(([, scores]) => Array.isArray(scores) && scores.some(s => s !== null && s !== undefined))
     .map(([id]) => id);
-  const yesPlayers = state.players.filter(p => rsvps[p.id] === 'yes' || playersWithScores.includes(p.id));
+  const yesPlayers = getActivePlayers().filter(p => rsvps[p.id] === 'yes' || playersWithScores.includes(p.id));
 
   if (!yesPlayers.length) {
     grid.innerHTML = '<div class="empty-state">No players have entered scores yet.</div>';
@@ -4245,7 +4360,8 @@ function renderLiveScorecardGrid() {
   rows.forEach(({ player, scores, total, parPlayed, holesPlayed }) => {
     const canEdit = isEditor && roundStatus === 'open';
     html += `<tr>`;
-    html += `<td class="player-name">${escHtml(player.name)}${canEdit ? ` <button style="font-size:0.55rem;background:none;border:1px solid rgba(255,61,167,0.3);color:var(--pink-light);padding:1px 5px;border-radius:4px;cursor:pointer" onclick="editLiveScores('${player.id}')">✏️</button>` : ''}</td>`;
+    const gBadge = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
+    html += `<td class="player-name">${escHtml(player.name)}${gBadge}${canEdit ? ` <button style="font-size:0.55rem;background:none;border:1px solid rgba(255,61,167,0.3);color:var(--pink-light);padding:1px 5px;border-radius:4px;cursor:pointer" onclick="editLiveScores('${player.id}')">✏️</button>` : ''}</td>`;
     for (let i = 0; i < 9; i++) {
       const s = scores[i];
       const par = pars[i] || 4;
@@ -4303,7 +4419,7 @@ function updateScoringModeUI() {
   const desc = document.getElementById('scoring-mode-desc');
   if (desc) {
     desc.textContent = scoringMode === 'group'
-      ? 'One designated scorer per group enters all scores. Individual entry is locked.'
+      ? 'Group scorers see all players in their group. Everyone can still enter their own scores.'
       : 'Each player enters their own scores.';
   }
   const assignDiv = document.getElementById('group-scorer-assignment');
@@ -4341,7 +4457,7 @@ function renderGroupScorerAssignment() {
       <span class="group-scorer-label">Group ${gi + 1}:</span>
       <select class="group-scorer-select" onchange="changeGroupScorer(${gi}, this.value)">`;
     (group.players || []).forEach(pid => {
-      const player = state.players.find(p => p.id === pid);
+      const player = getActivePlayers().find(p => p.id === pid);
       if (player) {
         html += `<option value="${pid}" ${pid === scorerId ? 'selected' : ''}>${escHtml(player.name)}</option>`;
       }
@@ -4352,7 +4468,6 @@ function renderGroupScorerAssignment() {
 }
 
 async function changeGroupScorer(groupIndex, playerId) {
-  if (!isEditor) return;
   const wn = state.thisWeek.weekNum || 1;
   await db.ref('groupScorers/' + wn + '/' + groupIndex).set(playerId);
   toast('Group scorer updated.');
@@ -4398,7 +4513,7 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
   // Player rows
   let playerRows = '';
   groupInfo.players.forEach(pid => {
-    const player = state.players.find(p => p.id === pid);
+    const player = getActivePlayers().find(p => p.id === pid);
     if (!player) return;
     const scores = liveScoresData[pid] || [];
     const firstName = player.name.split(' ')[0];
@@ -4408,7 +4523,8 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
 
     let total = 0, holesPlayed = 0;
     playerRows += `<tr>`;
-    playerRows += `<td class="gs-player-name ${isGroupScorer ? 'gs-scorer' : ''}" title="${escHtml(player.name)}">${escHtml(firstName)}${isGroupScorer ? ' ✎' : ''}</td>`;
+    const gsBadge = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
+    playerRows += `<td class="gs-player-name ${isGroupScorer ? 'gs-scorer' : ''}" title="${escHtml(player.name)}">${escHtml(firstName)}${gsBadge}${isGroupScorer ? ' ✎' : ''}</td>`;
 
     for (let i = 0; i < 9; i++) {
       const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : '';
@@ -4445,16 +4561,35 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
     playerRows += '</tr>';
   });
 
-  const roleLabel = isScorer
-    ? 'You are the group scorer — enter scores for all players'
-    : 'Enter your own scores below — your group scorer can also enter for you';
+  // Build scorer picker — any group member can choose who scores
+  const allActive = getActivePlayers();
+  let scorerPickerHtml = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
+  scorerPickerHtml += '<span style="font-size:0.78rem;color:var(--gray)">Group scorer:</span>';
+  scorerPickerHtml += `<select class="group-scorer-select" onchange="changeGroupScorer(${groupInfo.groupIndex}, this.value)" style="font-size:0.82rem">`;
+  groupInfo.players.forEach(pid => {
+    const pl = allActive.find(p => p.id === pid);
+    if (pl) {
+      const sel = pid === groupInfo.scorerId ? 'selected' : '';
+      scorerPickerHtml += `<option value="${pid}" ${sel}>${escHtml(pl.name)}</option>`;
+    }
+  });
+  scorerPickerHtml += '</select>';
+  if (!isScorer) {
+    scorerPickerHtml += `<button class="btn btn-outline" style="font-size:0.72rem;padding:5px 12px" onclick="changeGroupScorer(${groupInfo.groupIndex},'${selectedPlayerId}')">I'll Score</button>`;
+  }
+  scorerPickerHtml += '</div>';
+
+  const roleHint = isScorer
+    ? 'You are scoring for everyone in this group'
+    : 'Your group scorer enters scores for all — you can also enter your own below';
 
   container.innerHTML = `
     <div class="group-scoring-header">
       <span class="group-scoring-badge">GROUP SCORING</span>
       Group ${groupInfo.groupIndex + 1} — ${escHtml(courseName)} (${nine === 'front' ? 'Front' : 'Back'} 9)
     </div>
-    <div style="font-size:0.78rem;color:var(--gray);margin-bottom:10px">${roleLabel}</div>
+    ${scorerPickerHtml}
+    <div style="font-size:0.72rem;color:var(--gray);margin-bottom:10px;font-style:italic">${roleHint}</div>
     <div class="group-scorecard-wrap">
       <table class="group-scorecard">
         <thead>${headerRow}</thead>
@@ -4600,7 +4735,7 @@ function calculateSkins() {
   const rsvps = rsvpData[wn] || {};
 
   // Get all players with complete or partial scores
-  const activePlayers = state.players.filter(p => {
+  const activePlayers = getActivePlayers().filter(p => {
     const scores = liveScoresData[p.id];
     return scores && scores.some(s => s !== null && s !== undefined);
   });
@@ -4662,7 +4797,7 @@ function calculateSkins() {
 
 /* ─── Low Gross Calculation ─── */
 function calculateLowGross() {
-  const activePlayers = state.players.filter(p => {
+  const activePlayers = getActivePlayers().filter(p => {
     const scores = liveScoresData[p.id];
     return scores && scores.filter(s => s !== null && s !== undefined).length === 9;
   });
@@ -4743,7 +4878,7 @@ function renderPayouts() {
     html += `<div class="payout-section-title">⛳ Closest to Pin <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${ctpPot} pot)</span></div>`;
     ctpHoles.forEach(h => {
       const winnerId = contestsData.ctp && contestsData.ctp[h];
-      const winner = winnerId ? state.players.find(p => p.id === winnerId) : null;
+      const winner = winnerId ? getActivePlayers().find(p => p.id === winnerId) : null;
       if (winner) {
         addEarnings(winner.id, perCtpHole);
         html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perCtpHole.toFixed(2)}</span></div>`;
@@ -4760,7 +4895,7 @@ function renderPayouts() {
     html += '<div class="payout-section">';
     html += `<div class="payout-section-title">💪 Long Drive <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${ldPot} pot)</span></div>`;
     const winnerId = contestsData.longDrive;
-    const winner = winnerId ? state.players.find(p => p.id === winnerId) : null;
+    const winner = winnerId ? getActivePlayers().find(p => p.id === winnerId) : null;
     if (winner) {
       addEarnings(winner.id, ldPot);
       html += `<div class="payout-row"><span><strong>Hole ${longDriveHole+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${ldPot.toFixed(2)}</span></div>`;
@@ -4791,18 +4926,18 @@ function renderPayouts() {
 
   const earningsArr = Object.entries(earnings)
     .map(([pid, amt]) => {
-      const p = state.players.find(pl => pl.id === pid);
+      const p = getActivePlayers().find(pl => pl.id === pid);
       return p ? { player: p, earnings: amt, net: amt - ENTRY_FEE } : null;
     })
     .filter(Boolean)
     .sort((a, b) => b.earnings - a.earnings);
 
   // Also include players with 0 earnings
-  const activePlayers = state.players.filter(p => {
+  const activePlayersEarnings = getActivePlayers().filter(p => {
     const scores = liveScoresData[p.id];
     return scores && scores.some(s => s !== null && s !== undefined);
   });
-  activePlayers.forEach(p => {
+  activePlayersEarnings.forEach(p => {
     if (!earningsArr.find(e => e.player.id === p.id)) {
       earningsArr.push({ player: p, earnings: 0, net: -ENTRY_FEE });
     }
@@ -4829,7 +4964,7 @@ function renderContestSelection() {
 
   const wn = state.thisWeek.weekNum || 1;
   const rsvps = rsvpData[wn] || {};
-  const activePlayers = state.players.filter(p => {
+  const activePlayers = getActivePlayers().filter(p => {
     const scores = liveScoresData[p.id];
     return scores && scores.some(s => s !== null && s !== undefined);
   });
@@ -4901,7 +5036,7 @@ function saveHoleScoresToWeekTotals() {
   const totalPar = pars.reduce((s, p) => s + p, 0);
   const scores = {};
 
-  state.players.forEach(p => {
+  getActivePlayers().forEach(p => {
     const holeScores = liveScoresData[p.id];
     if (holeScores && holeScores.filter(s => s !== null && s !== undefined).length > 0) {
       const total = holeScores.reduce((sum, s) => sum + (s || 0), 0);
@@ -5040,7 +5175,7 @@ function renderWinnerBanner() {
 
   if (!winnerId) { banner.classList.remove('visible'); return; }
 
-  const winner = state.players.find(p => p.id === winnerId);
+  const winner = getActivePlayers().find(p => p.id === winnerId) || state.players.find(p => p.id === winnerId);
   if (!winner) { banner.classList.remove('visible'); return; }
 
   const diff = bestScore - par;
@@ -5460,7 +5595,17 @@ async function preloadDataIfEmpty() {
   try {
     await loadState();
 
-    // Firebase is always the source of truth for the player roster
+    // Firebase is always the source of truth for thisWeek and the player roster
+    try {
+      const twSnap = await db.ref('thisWeek').once('value');
+      const fbThisWeek = twSnap.val();
+      if (fbThisWeek && fbThisWeek.weekNum) {
+        state.thisWeek = fbThisWeek;
+      }
+    } catch(e) {
+      console.warn('Firebase thisWeek sync error:', e);
+    }
+
     try {
       const playersSnap = await db.ref('players').once('value');
       const fbPlayers = playersSnap.val();
@@ -5488,7 +5633,9 @@ async function preloadDataIfEmpty() {
 
   // ALWAYS start Firebase listeners — even if loadState or renderAll had issues
   try {
+    listenToThisWeek();
     listenToRSVPs();
+    listenToGuests();
     listenToPayments();
     listenToLiveScores();
     listenToRoundStatus();
