@@ -9,9 +9,6 @@ jobs:
 
     env:
       KEY_PATH: /Users/runner/private_keys/AuthKey.p8
-      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
 
     steps:
       - uses: actions/checkout@v4
@@ -27,12 +24,18 @@ jobs:
       - name: Build web assets and sync to iOS
         run: npm run build && npx cap sync ios
 
+      - name: Sanitize and export secrets
+        run: |
+          echo "ASC_KEY_ID=$(echo '${{ secrets.ASC_KEY_ID }}' | tr -d '[:space:]')" >> $GITHUB_ENV
+          echo "ASC_ISSUER_ID=$(echo '${{ secrets.ASC_ISSUER_ID }}' | tr -d '\n\r ')" >> $GITHUB_ENV
+          echo "DEVELOPMENT_TEAM=$(echo '${{ secrets.DEVELOPMENT_TEAM }}' | tr -d '[:space:]')" >> $GITHUB_ENV
+
       - name: Setup App Store Connect API Key
         env:
           API_KEY_CONTENT: ${{ secrets.ASC_API_KEY }}
         run: |
           mkdir -p /Users/runner/private_keys
-          echo "$API_KEY_CONTENT" > /Users/runner/private_keys/AuthKey.p8
+          printf '%s\n' "$API_KEY_CONTENT" > /Users/runner/private_keys/AuthKey.p8
 
       - name: Set up keychain
         run: |
