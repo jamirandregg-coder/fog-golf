@@ -9,6 +9,9 @@ jobs:
 
     env:
       KEY_PATH: /Users/runner/private_keys/AuthKey.p8
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
 
     steps:
       - uses: actions/checkout@v4
@@ -57,11 +60,11 @@ jobs:
             -configuration Release \
             -archivePath $RUNNER_TEMP/App.xcarchive \
             -clonedSourcePackagesDirPath $RUNNER_TEMP/spm-cache \
-            -authenticationKeyPath $KEY_PATH \
-            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             -allowProvisioningUpdates \
-            DEVELOPMENT_TEAM=${{ secrets.DEVELOPMENT_TEAM }} \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             CODE_SIGN_STYLE=Automatic \
             archive
 
@@ -90,9 +93,9 @@ jobs:
             -archivePath $RUNNER_TEMP/App.xcarchive \
             -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
             -exportPath $RUNNER_TEMP/output \
-            -authenticationKeyPath $KEY_PATH \
-            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             -allowProvisioningUpdates
 
       - name: Upload to TestFlight
@@ -101,8 +104,8 @@ jobs:
           xcrun altool --upload-app \
             -f $RUNNER_TEMP/output/*.ipa \
             -t ios \
-            --apiKey ${{ secrets.ASC_KEY_ID }} \
-            --apiIssuer ${{ secrets.ASC_ISSUER_ID }}
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
 
       - name: Clean up
         if: always()
