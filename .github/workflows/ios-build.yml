@@ -1,14 +1,7 @@
 name: iOS Build & TestFlight
 
 on:
-  # Only trigger manually or when native config changes
-  push:
-    branches: [main]
-    paths:
-      - 'ios/**'
-      - 'capacitor.config.json'
-      - 'package.json'
-  workflow_dispatch:
+  workflow_dispatch:  # Manual trigger only — no auto-build on push
 
 jobs:
   build:
@@ -28,49 +21,99 @@ jobs:
       - name: Build web assets and sync to iOS
         run: npm run build && npx cap sync ios
 
-      - name: Setup Ruby & CocoaPods
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
+      - name: Setup App Store Connect API Key
+        run: |
+          mkdir -p ~/private_keys
+          echo "${{ secrets.ASC_API_KEY }}" > ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
 
-      - name: Install CocoaPods
-        run: cd ios/App && pod install
+      - name: Install CocoaPods dependencies
+        run: cd ios/App && pod install --repo-update
 
-      - name: Build iOS App
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY: ${{ secrets.ASC_API_KEY }}
+      - name: Set up code signing
+        run: |
+          # Create a temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychains -d user -s $KEYCHAIN_PATH
+
+          # Use xcodebuild to resolve signing with App Store Connect API
+          cd ios/App
+          xcodebuild -resolvePackageDependencies \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
+            -allowProvisioningUpdates
+
+      - name: Build and Archive
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace \
             -scheme App \
             -sdk iphoneos \
             -configuration Release \
-            -archivePath build/App.xcarchive \
-            archive \
-            CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY }}" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ secrets.PROVISIONING_PROFILE }}" \
-            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}"
+            -archivePath $RUNNER_TEMP/App.xcarchive \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM=${{ secrets.DEVELOPMENT_TEAM }} \
+            CODE_SIGN_STYLE=Automatic \
+            archive
+
+      - name: Create ExportOptions.plist
+        run: |
+          cat > $RUNNER_TEMP/ExportOptions.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>LTXMK3QZY6</string>
+            <key>destination</key>
+            <string>upload</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+          </dict>
+          </plist>
+          PLIST
 
       - name: Export IPA
         run: |
-          cd ios/App
           xcodebuild -exportArchive \
-            -archivePath build/App.xcarchive \
-            -exportOptionsPlist exportOptions.plist \
-            -exportPath build/output
+            -archivePath $RUNNER_TEMP/App.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/output \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
+            -allowProvisioningUpdates
 
       - name: Upload to TestFlight
         if: success()
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY: ${{ secrets.ASC_API_KEY }}
         run: |
+          xcrun notarytool submit $RUNNER_TEMP/output/*.ipa \
+            --key ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            --key-id ${{ secrets.ASC_KEY_ID }} \
+            --issuer ${{ secrets.ASC_ISSUER_ID }} \
+            --wait 2>/dev/null || true
+
+          # Use altool as primary upload method
           xcrun altool --upload-app \
-            -f ios/App/build/output/*.ipa \
+            -f $RUNNER_TEMP/output/*.ipa \
             -t ios \
-            --apiKey $APP_STORE_CONNECT_API_KEY_ID \
-            --apiIssuer $APP_STORE_CONNECT_API_ISSUER_ID
+            --apiKey ${{ secrets.ASC_KEY_ID }} \
+            --apiIssuer ${{ secrets.ASC_ISSUER_ID }}
+
+      - name: Clean up
+        if: always()
+        run: |
+          rm -rf ~/private_keys
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db 2>/dev/null || true
