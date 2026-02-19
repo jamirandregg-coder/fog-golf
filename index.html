@@ -2030,8 +2030,16 @@ async function loadState() {
     if (raw) {
       const loaded = JSON.parse(raw);
       state.players = loaded.players || [];
-      state.weeks = loaded.weeks || {};
       state.thisWeek = loaded.thisWeek || { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
+      // 2026 season reset: clear cached weeks data so all devices start fresh
+      // (Firebase is the source of truth — weekResults listener will repopulate)
+      if (!localStorage.getItem('fog-2026-reset')) {
+        state.weeks = {};
+        state.thisWeek = { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
+        localStorage.setItem('fog-2026-reset', 'true');
+      } else {
+        state.weeks = loaded.weeks || {};
+      }
     }
   } catch(e) { console.warn('No saved data yet.'); }
   setLoading(false);
