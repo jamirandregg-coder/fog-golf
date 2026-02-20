@@ -94,10 +94,6 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath $RUNNER_TEMP/App.xcarchive \
             -clonedSourcePackagesDirPath $RUNNER_TEMP/spm-cache \
-            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE="$PP_UUID" \
             archive
 
       - name: Create ExportOptions.plist
