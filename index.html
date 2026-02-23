@@ -2030,9 +2030,8 @@ async function loadState() {
     if (raw) {
       const loaded = JSON.parse(raw);
       state.players = loaded.players || [];
-      // 2026 season reset: clear ALL cached weeks data so all devices start fresh
-      state.weeks = {};
-      state.thisWeek = { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
+      state.weeks = loaded.weeks || {};
+      state.thisWeek = loaded.thisWeek || { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
     }
   } catch(e) { console.warn('No saved data yet.'); }
   setLoading(false);
