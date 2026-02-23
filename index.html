@@ -5085,9 +5085,16 @@ function listenToWeekResults() {
     const results = snap.val() || {};
     let changed = false;
 
-    // On first load: skip local-to-Firebase sync (Firebase is source of truth)
+    // On first load: Firebase is source of truth — replace local weeks entirely
     if (firstLoad) {
       firstLoad = false;
+      // Remove local weeks that no longer exist in Firebase
+      Object.keys(state.weeks).forEach(wn => {
+        if (!results[wn]) {
+          delete state.weeks[wn];
+          changed = true;
+        }
+      });
     }
 
     // Merge Firebase week results into local state
