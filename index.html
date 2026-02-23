@@ -572,6 +572,18 @@
     font-weight: 600;
   }
 
+  /* HANDICAP */
+  .hcp-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: rgba(255,61,167,0.1);
+    color: var(--pink-hot);
+  }
+  .hcp-override { color: var(--gold); font-style: italic; }
+
   /* WEEK PILLS */
   .week-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
   .week-pill {
@@ -1196,7 +1208,96 @@
     .group-scorecard th, .group-scorecard td { padding: 4px 2px; }
     .group-scorecard th { font-size: 0.62rem; }
     .group-scorecard { min-width: 440px; }
+    #panel-live-scoring.sunlight-mode .hole-input-group input { width: 42px; height: 40px; font-size: 1.05rem; }
   }
+
+  /* ─── SUNLIGHT MODE — Live Scoring Only ─── */
+  .sunlight-toggle {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid rgba(255,61,167,0.3);
+    background: transparent; color: var(--gray);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.72rem; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; letter-spacing: 0.05em;
+  }
+  .sunlight-toggle:hover { border-color: var(--pink-hot); color: var(--pink-light); }
+  .sunlight-toggle.active { background: #ffffff; color: #1a1a1a; border-color: #333; }
+
+  #panel-live-scoring.sunlight-mode { background: #ffffff; border-radius: 16px; padding: 8px; }
+  #panel-live-scoring.sunlight-mode .card { background: #ffffff; border: 2px solid #333; box-shadow: none; }
+  #panel-live-scoring.sunlight-mode .card-title { color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .card-title::before { background: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode,
+  #panel-live-scoring.sunlight-mode * { color: #1a1a1a; }
+
+  /* Sunlight: form elements */
+  #panel-live-scoring.sunlight-mode select,
+  #panel-live-scoring.sunlight-mode .form-group label { color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode select { background: #f5f5f5; border: 2px solid #333; color: #1a1a1a; }
+
+  /* Sunlight: hole inputs */
+  #panel-live-scoring.sunlight-mode .hole-input-group input {
+    background: #f5f5f5; border: 2px solid #444; color: #1a1a1a;
+    font-size: 1.15rem; font-weight: 800; width: 48px; height: 44px;
+  }
+  #panel-live-scoring.sunlight-mode .hole-input-group input:focus {
+    border-color: #0066cc; background: #e8f0ff; box-shadow: 0 0 0 3px rgba(0,102,204,0.3);
+  }
+  #panel-live-scoring.sunlight-mode .hole-input-group input.input-birdie {
+    border-color: #006622; background: #d4f5d4; color: #004411;
+  }
+  #panel-live-scoring.sunlight-mode .hole-input-group input.input-bogey {
+    border-color: #990000; background: #ffd4d4; color: #660000;
+  }
+  #panel-live-scoring.sunlight-mode .hole-input-group .hole-label { color: #1a1a1a; font-weight: 800; font-size: 0.72rem; }
+  #panel-live-scoring.sunlight-mode .hole-input-group .par-label { color: #555; font-weight: 600; }
+
+  /* Sunlight: scoring total bar */
+  #panel-live-scoring.sunlight-mode .scoring-total { background: #f0f0f0; border: 2px solid #ccc; }
+  #panel-live-scoring.sunlight-mode .scoring-total .st-label { color: #555; }
+  #panel-live-scoring.sunlight-mode .scoring-total .st-value { color: #1a1a1a; }
+
+  /* Sunlight: score pills */
+  #panel-live-scoring.sunlight-mode .score-pill.score-under { background: #006622; color: #fff; }
+  #panel-live-scoring.sunlight-mode .score-pill.score-even { background: #555; color: #fff; }
+  #panel-live-scoring.sunlight-mode .score-pill.score-over { background: #cc0000; color: #fff; }
+
+  /* Sunlight: scorecard table */
+  #panel-live-scoring.sunlight-mode .scorecard th { background: #e0e0e0; color: #1a1a1a; border-color: #aaa; }
+  #panel-live-scoring.sunlight-mode .scorecard td { border-color: #ccc; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .scorecard td.player-name { background: #fff; color: #1a1a1a; border-right: 2px solid #aaa; }
+  #panel-live-scoring.sunlight-mode .scorecard td.score-birdie { background: #d4f5d4; color: #004411; text-shadow: none; }
+  #panel-live-scoring.sunlight-mode .scorecard td.score-eagle { background: #a8e6a8; color: #003300; }
+  #panel-live-scoring.sunlight-mode .scorecard td.score-bogey { color: #990000; }
+  #panel-live-scoring.sunlight-mode .scorecard td.score-dbl { color: #cc0000; }
+  #panel-live-scoring.sunlight-mode .scorecard td.score-par { color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .scorecard td.total-cell { border-left: 2px solid #aaa; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .scorecard th.hole-par { color: #555; }
+
+  /* Sunlight: group scorecard */
+  #panel-live-scoring.sunlight-mode .group-scorecard th { background: #e0e0e0; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .group-scorecard td { border-color: #ccc; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .group-scorecard input.gs-score-input { background: #f5f5f5; border: 2px solid #444; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .group-scorecard input.gs-score-input.gs-birdie { border-color: #006622; background: #d4f5d4; color: #004411; }
+  #panel-live-scoring.sunlight-mode .group-scorecard input.gs-score-input.gs-bogey { border-color: #990000; background: #ffd4d4; color: #660000; }
+  #panel-live-scoring.sunlight-mode .group-scorecard .gs-score-display.gs-birdie { color: #006622; }
+  #panel-live-scoring.sunlight-mode .group-scorecard .gs-score-display.gs-bogey { color: #990000; }
+  #panel-live-scoring.sunlight-mode .group-scorecard td.gs-player-name { background: #fff; color: #1a1a1a; }
+
+  /* Sunlight: buttons */
+  #panel-live-scoring.sunlight-mode .btn-pink { background: #0066cc; color: #fff; border: none; box-shadow: none; }
+  #panel-live-scoring.sunlight-mode .btn-outline { border-color: #333; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .empty-state { color: #555; }
+  #panel-live-scoring.sunlight-mode .payout-card { background: #fff; border: 2px solid #333; }
+
+  /* Sunlight: toggle button override inside sunlight panel */
+  #panel-live-scoring.sunlight-mode .sunlight-toggle { background: #333; color: #fff; border-color: #333; }
+
+  /* Sunlight: round status badges */
+  #panel-live-scoring.sunlight-mode .round-status-open { background: #00aa55; color: #fff; }
+  #panel-live-scoring.sunlight-mode .round-status-closed { background: #cc0000; color: #fff; }
+  #panel-live-scoring.sunlight-mode .round-status-setup { background: #666; color: #fff; }
 </style>
 </head>
 <body>
@@ -1348,7 +1449,10 @@
     <div class="card">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>Live Scoring</span>
-        <span id="round-status-badge" class="round-status-badge round-status-setup">Setup</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="sunlight-toggle" id="sunlight-toggle" onclick="toggleSunlightMode()" title="Sunlight-readable mode">&#9728;&#65039; Sun</button>
+          <span id="round-status-badge" class="round-status-badge round-status-setup">Setup</span>
+        </div>
       </div>
       <!-- Round controls are in Manage Week panel -->
       <!-- Player score entry -->
@@ -1402,10 +1506,14 @@
       <div class="card-title">Season Standings</div>
       <div class="score-table-wrap">
         <table>
-          <thead><tr><th>#</th><th>Player</th><th>Rounds</th><th>Total</th><th>Avg</th><th>Best</th><th>vs Par</th></tr></thead>
+          <thead><tr><th>#</th><th>Player</th><th>HCP</th><th>Rounds</th><th>Total</th><th>Avg</th><th>Best</th><th>vs Par</th></tr></thead>
           <tbody id="standings-body"></tbody>
         </table>
       </div>
+    </div>
+    <div class="card" id="handicap-detail-card" style="display:none">
+      <div class="card-title">Handicap Details</div>
+      <div id="handicap-detail-content"></div>
     </div>
   </div>
 
@@ -1894,6 +2002,8 @@ let pendingSyncs = {};           // { weekNum: weekResult } — queued writes th
 let selectedNine = 'front';  // 'front' or 'back'
 let guestData = {};          // { weekNum: { guestId: guestObj } }
 let guestListener = null;
+let handicapData = {};       // { playerId: { current, overrideActive, overrideValue, history, updatedAt } }
+let handicapListener = null;
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
@@ -3089,10 +3199,28 @@ async function editPlayer(id) {
   const newName = prompt('Player name:', p.name);
   if (newName === null) return; // cancelled
   if (!newName.trim()) return toast('Name cannot be empty.');
-  const newHcp = prompt('Handicap:', p.handicap || 0);
-  if (newHcp === null) return; // cancelled
   p.name = newName.trim();
-  p.handicap = parseInt(newHcp) || 0;
+  // Handicap: show calculated value and allow override
+  const hd = handicapData[p.id] || {};
+  const calcHcp = hd.current ?? 0;
+  const isOverrideActive = hd.overrideActive;
+  const newHcp = prompt(
+    'Handicap for ' + p.name + ' (auto-calculated: ' + calcHcp + ').\nEnter value to override, or leave blank to use calculated:',
+    isOverrideActive ? (hd.overrideValue || 0) : ''
+  );
+  if (newHcp === null) {
+    // Cancelled handicap prompt, but still save the name change
+    await saveState();
+    syncPlayersToFirebase();
+    renderPlayers(); renderScoreEntry(); renderRSVP(); renderStandings();
+    toast(p.name + ' updated!');
+    return;
+  }
+  if (newHcp.trim() === '') {
+    await overrideHandicap(p.id, null);
+  } else {
+    await overrideHandicap(p.id, parseInt(newHcp));
+  }
   await saveState();
   syncPlayersToFirebase();
   renderPlayers(); renderScoreEntry(); renderRSVP(); renderStandings();
@@ -3219,6 +3347,7 @@ async function saveScores() {
   renderHistory(curHistoryWeek);
   toast('Week ' + week + ' scores saved!');
   renderWinnerBanner();
+  recalculateAllHandicaps();
 }
 
 /* ─── Standings ─── */
@@ -3226,7 +3355,7 @@ function renderStandings() {
   const body = document.getElementById('standings-body');
   const meta = document.getElementById('standings-meta');
   if (!state.players.length) {
-    body.innerHTML = '<tr><td colspan="7" class="empty-state">No players added yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" class="empty-state">No players added yet.</td></tr>';
     meta.innerHTML = ''; return;
   }
   const weeksPlayed = Object.keys(state.weeks).filter(w => Object.keys(state.weeks[w].scores || {}).length > 0).length;
@@ -3266,9 +3395,11 @@ function renderStandings() {
       const cls = p.vsPar < 0 ? 'score-under' : p.vsPar === 0 ? 'score-even' : 'score-over';
       vph = `<span class="score-pill ${cls}">${p.vsPar > 0 ? '+' : ''}${p.vsPar}</span>`;
     }
+    const hcpCls = (handicapData[p.id] || {}).overrideActive ? 'hcp-override' : '';
     return `<tr class="${lc}">
       <td><span class="rank-badge ${rc}">${i + 1}</span></td>
-      <td><strong>${escHtml(p.name)}</strong>${p.handicap ? `<span class="flag"> HCP ${p.handicap}</span>` : ''}</td>
+      <td><strong><a href="#" onclick="event.preventDefault();showHandicapDetail('${p.id}')" style="color:inherit;text-decoration:none">${escHtml(p.name)}</a></strong></td>
+      <td class="${hcpCls}" style="color:var(--pink-light);font-weight:600">${p.handicap || '0'}${hcpCls ? ' *' : ''}</td>
       <td>${p.rounds}</td><td>${p.total ?? '—'}</td><td>${p.avg ?? '—'}</td><td>${p.best ?? '—'}</td><td>${vph}</td>
     </tr>`;
   }).join('');
@@ -3318,6 +3449,163 @@ function renderHistory(sel) {
       </table>
     </div>
   `;
+}
+
+/* ─── Handicap Calculator ─── */
+function calculateHandicap(playerId) {
+  const diffs = [];
+  Object.entries(state.weeks).forEach(([weekNum, wd]) => {
+    const score = (wd.scores || {})[playerId];
+    if (score !== undefined && score !== null) {
+      const par = wd.par || 36;
+      diffs.push({ weekNum: parseInt(weekNum), gross: score, par, diff: score - par, course: wd.course || '' });
+    }
+  });
+  diffs.sort((a, b) => a.weekNum - b.weekNum);
+  if (!diffs.length) return { handicap: 0, history: diffs };
+
+  const n = diffs.length;
+  let recentCount, bestCount;
+  if (n <= 3)       { recentCount = n; bestCount = 1; }
+  else if (n === 4) { recentCount = 4; bestCount = 2; }
+  else if (n <= 7)  { recentCount = 5; bestCount = 2; }
+  else if (n <= 10) { recentCount = 7; bestCount = 3; }
+  else              { recentCount = 10; bestCount = 4; }
+
+  const recent = diffs.slice(-recentCount);
+  const sorted = [...recent].sort((a, b) => a.diff - b.diff);
+  const bestDiffs = sorted.slice(0, bestCount);
+  const avg = bestDiffs.reduce((s, d) => s + d.diff, 0) / bestDiffs.length;
+  const handicap = Math.max(0, Math.min(36, Math.round(avg * 0.96)));
+  return { handicap, history: diffs };
+}
+
+async function recalculateAllHandicaps() {
+  if (!state.players.length) return;
+  const updates = {};
+  state.players.forEach(p => {
+    const result = calculateHandicap(p.id);
+    const existing = handicapData[p.id] || {};
+    if (existing.overrideActive && existing.overrideValue !== null) {
+      p.handicap = existing.overrideValue;
+    } else {
+      p.handicap = result.handicap;
+    }
+    updates['handicaps/' + p.id] = {
+      current: result.handicap,
+      overrideActive: existing.overrideActive || false,
+      overrideValue: existing.overrideValue ?? null,
+      history: result.history,
+      updatedAt: Date.now()
+    };
+  });
+  try {
+    await db.ref().update(updates);
+    await saveState();
+    syncPlayersToFirebase();
+  } catch (e) {
+    console.error('Handicap recalc error:', e);
+  }
+}
+
+async function overrideHandicap(playerId, value) {
+  if (!isEditor) return;
+  const p = state.players.find(pl => pl.id === playerId);
+  if (!p) return;
+  if (value === null || value === undefined) {
+    const result = calculateHandicap(playerId);
+    p.handicap = result.handicap;
+    await db.ref('handicaps/' + playerId + '/overrideActive').set(false);
+    await db.ref('handicaps/' + playerId + '/overrideValue').set(null);
+  } else {
+    p.handicap = parseInt(value) || 0;
+    await db.ref('handicaps/' + playerId + '/overrideActive').set(true);
+    await db.ref('handicaps/' + playerId + '/overrideValue').set(p.handicap);
+  }
+  await saveState();
+  syncPlayersToFirebase();
+  renderStandings();
+  try { renderPlayers(); } catch(e) {}
+  toast(p.name + ' handicap ' + (value === null ? 'reset to calculated' : 'set to ' + p.handicap));
+}
+
+function listenToHandicaps() {
+  const ref = db.ref('handicaps');
+  if (handicapListener) handicapListener.off();
+  handicapListener = ref;
+  ref.on('value', (snap) => {
+    handicapData = snap.val() || {};
+    state.players.forEach(p => {
+      const hd = handicapData[p.id];
+      if (hd) {
+        p.handicap = hd.overrideActive ? (hd.overrideValue || 0) : (hd.current || 0);
+      }
+    });
+    try { renderStandings(); } catch(e) {}
+    try { renderPlayers(); } catch(e) {}
+  });
+}
+
+function showHandicapDetail(playerId) {
+  const card = document.getElementById('handicap-detail-card');
+  const content = document.getElementById('handicap-detail-content');
+  if (!card || !content) return;
+  const p = state.players.find(pl => pl.id === playerId);
+  if (!p) return;
+  const hd = handicapData[playerId] || {};
+  const result = calculateHandicap(playerId);
+  const history = result.history;
+  card.style.display = 'block';
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  content.innerHTML = `
+    <div style="margin-bottom:16px">
+      <strong style="font-size:1.1rem;color:var(--pink-hot)">${escHtml(p.name)}</strong>
+      <span style="font-size:0.85rem;color:var(--gray);margin-left:8px">
+        Current HCP: <strong style="color:var(--white)">${p.handicap}</strong>
+        ${hd.overrideActive ? '<span style="color:var(--gold);font-size:0.7rem"> (admin override)</span>' : ''}
+      </span>
+      ${isEditor ? `<button class="btn btn-outline" style="font-size:0.65rem;padding:3px 10px;margin-left:8px" onclick="editPlayerHandicap('${p.id}')">Adjust</button>` : ''}
+    </div>
+    ${!history.length ? '<div class="empty-state">No rounds played yet.</div>' : `
+    <div class="score-table-wrap">
+      <table>
+        <thead><tr><th>Week</th><th>Course</th><th>Gross</th><th>Par</th><th>Diff</th></tr></thead>
+        <tbody>
+          ${history.map(h => {
+            const dc = h.diff < 0 ? 'score-under' : h.diff === 0 ? 'score-even' : 'score-over';
+            return `<tr>
+              <td>Wk ${h.weekNum}</td>
+              <td style="color:var(--gray);font-size:0.8rem">${escHtml(h.course || '\u2014')}</td>
+              <td style="font-weight:700">${h.gross}</td>
+              <td>${h.par}</td>
+              <td><span class="score-pill ${dc}">${h.diff > 0 ? '+' : ''}${h.diff}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:0.75rem;color:var(--gray)">
+      Calculated: best differentials from recent rounds &times; 0.96 &nbsp;|&nbsp; Capped 0\u201336
+    </div>`}
+  `;
+}
+
+function editPlayerHandicap(playerId) {
+  const p = state.players.find(pl => pl.id === playerId);
+  if (!p) return;
+  const hd = handicapData[playerId] || {};
+  const calcHcp = hd.current ?? 0;
+  const isOverride = hd.overrideActive;
+  const newHcp = prompt(
+    'Handicap for ' + p.name + ' (auto-calculated: ' + calcHcp + ').\nEnter value to override, or leave blank to use calculated:',
+    isOverride ? (hd.overrideValue || 0) : ''
+  );
+  if (newHcp === null) return;
+  if (newHcp.trim() === '') {
+    overrideHandicap(playerId, null);
+  } else {
+    overrideHandicap(playerId, parseInt(newHcp));
+  }
 }
 
 /* ─── Live Scoring Firebase Listeners ─── */
@@ -4142,6 +4430,27 @@ function renderLiveScoring() {
   updateScoringModeUI();
   renderLiveScoreInputs();
   renderLiveScorecardGrid();
+  applySunlightModeFromStorage();
+}
+
+/* ─── Sunlight Mode ─── */
+function toggleSunlightMode() {
+  const panel = document.getElementById('panel-live-scoring');
+  const btn = document.getElementById('sunlight-toggle');
+  if (!panel) return;
+  const isActive = panel.classList.toggle('sunlight-mode');
+  if (btn) btn.classList.toggle('active', isActive);
+  localStorage.setItem('fog-sunlight-mode', isActive ? 'true' : 'false');
+}
+
+function applySunlightModeFromStorage() {
+  const saved = localStorage.getItem('fog-sunlight-mode');
+  if (saved === 'true') {
+    const panel = document.getElementById('panel-live-scoring');
+    const btn = document.getElementById('sunlight-toggle');
+    if (panel) panel.classList.add('sunlight-mode');
+    if (btn) btn.classList.add('active');
+  }
 }
 
 function renderLiveScoreInputs() {
@@ -5053,7 +5362,9 @@ function saveHoleScoresToWeekTotals() {
     state.weeks[wn] = weekResult;
     saveState();
     // Sync to Firebase so all devices can see the results
-    db.ref('weekResults/' + wn).set(weekResult).catch(e => {
+    db.ref('weekResults/' + wn).set(weekResult).then(() => {
+      recalculateAllHandicaps();
+    }).catch(e => {
       console.error('Error saving week results to Firebase:', e);
       pendingSyncs[wn] = weekResult;
     });
@@ -5115,6 +5426,7 @@ function listenToWeekResults() {
       renderStandings();
       renderHistory(null);
       renderWinnerBanner();
+      recalculateAllHandicaps();
     }
   });
 }
@@ -5627,6 +5939,7 @@ async function preloadDataIfEmpty() {
     listenToGroupScorers();
     listenToMasterCourses();
     listenToWeekResults();
+    listenToHandicaps();
     listenToAnnouncement();
     loadEmailSentFlags();
     initFCM();
