@@ -9,6 +9,7 @@ on:
       - 'service-worker.js'
       - 'icon-192.png'
       - 'privacy-policy.html'
+      - 'FOG_Handicap_System.html'
 
 # Allow manual trigger
   workflow_dispatch:

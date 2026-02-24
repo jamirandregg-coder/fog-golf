@@ -1682,11 +1682,12 @@
       <!-- Hole-by-Hole Par Setup -->
       <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,61,167,0.15)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-          <label style="margin-bottom:0">Hole-by-Hole Pars (9 Holes)</label>
+          <label style="margin-bottom:0" id="pars-label">Hole-by-Hole Pars (9 Holes)</label>
         </div>
         <div class="nine-toggle" id="nine-toggle">
           <button type="button" class="nine-btn active" data-nine="front" onclick="selectNine('front')">Front 9</button>
           <button type="button" class="nine-btn" data-nine="back" onclick="selectNine('back')">Back 9</button>
+          <button type="button" class="nine-btn" data-nine="full" onclick="selectNine('full')">18 Holes</button>
         </div>
         <div class="par-inputs-row" id="par-holes-row"></div>
         <div style="margin-top:8px">
@@ -3342,7 +3343,8 @@ async function saveScores() {
     const v = document.getElementById('score-' + p.id)?.value;
     if (v !== '' && v !== undefined && !isNaN(parseInt(v))) scores[p.id] = parseInt(v);
   });
-  const weekResult = { par, course, scores };
+  const holes = getActiveHoleCount();
+  const weekResult = { par, course, scores, holes };
   state.weeks[week] = weekResult;
   await saveState();
   // Sync to Firebase so all devices see the scores
@@ -3500,24 +3502,27 @@ const COURSE_RATINGS = {
 /* Name aliases for matching PAST_SEASONS names to current roster */
 const NAME_ALIASES = { 'victoria': 'victoria braucher' };
 
-/* Get course rating info for a 9-hole round. Returns { rating9, slope } */
-function getCourseRating(courseName) {
+/* Get course rating info. Returns { rating, slope }
+   holes: 9 (default) or 18.  For 18-hole rounds, use the full rating. */
+function getCourseRating(courseName, holes) {
   if (!courseName) return null;
   const key = courseName.trim().toLowerCase();
   const cr = COURSE_RATINGS[key];
   if (!cr) return null;
+  holes = holes || 9;
   // For 9-hole courses (like Stony Creek), use rating directly
-  if (cr.is9hole) return { rating9: cr.rating, slope: cr.slope };
-  // For 18-hole courses, halve the rating for 9-hole play
-  return { rating9: cr.rating / 2, slope: cr.slope };
+  if (cr.is9hole) return { rating: cr.rating, slope: cr.slope };
+  // For 18-hole rounds, use full rating; for 9-hole, halve it
+  return { rating: holes === 18 ? cr.rating : cr.rating / 2, slope: cr.slope };
 }
 
-/* GHIN Score Differential = (Adjusted Gross - Course Rating) x (113 / Slope) */
-function scoreDifferential(gross, courseName, par) {
-  const cr = getCourseRating(courseName);
+/* GHIN Score Differential = (Adjusted Gross - Course Rating) x (113 / Slope)
+   holes: 9 (default) or 18 — determines whether to use full or half course rating */
+function scoreDifferential(gross, courseName, par, holes) {
+  const cr = getCourseRating(courseName, holes);
   if (cr) {
     // Real GHIN formula with course rating and slope
-    return (gross - cr.rating9) * (113 / cr.slope);
+    return (gross - cr.rating) * (113 / cr.slope);
   }
   // Fallback: use par if no rating available (neutral slope)
   return gross - par;
@@ -3544,8 +3549,10 @@ function calculateHandicap(playerId) {
           const gross = week.scores[matchedName];
           const par = week.par || 36;
           if (gross < 25) return; // exclude partial rounds / bad data
-          const diff = Math.min(scoreDifferential(gross, week.course, par), 40);
-          history.push({ weekNum: year + '-' + (wi + 1), gross, par, diff: Math.round(diff * 10) / 10, course: week.course || '', season: year });
+          // Detect 18-hole rounds: if par >= 54, it was an 18-hole week
+          const holes = (week.holes === 18 || par >= 54) ? 18 : 9;
+          const diff = Math.min(scoreDifferential(gross, week.course, par, holes), 40);
+          history.push({ weekNum: year + '-' + (wi + 1), gross, par, diff: Math.round(diff * 10) / 10, course: week.course || '', season: year, holes });
         }
       });
     });
@@ -3557,8 +3564,10 @@ function calculateHandicap(playerId) {
     if (score !== undefined && score !== null) {
       const par = wd.par || 36;
       if (score < 25) return; // exclude partial rounds
-      const diff = Math.min(scoreDifferential(score, wd.course, par), 40);
-      history.push({ weekNum: 'Wk ' + weekNum, gross: score, par, diff: Math.round(diff * 10) / 10, course: wd.course || '', season: 'current' });
+      // Use saved holes count, or detect from par
+      const holes = (wd.holes === 18 || par >= 54) ? 18 : 9;
+      const diff = Math.min(scoreDifferential(score, wd.course, par, holes), 40);
+      history.push({ weekNum: 'Wk ' + weekNum, gross: score, par, diff: Math.round(diff * 10) / 10, course: wd.course || '', season: 'current', holes });
     }
   });
 
@@ -4185,6 +4194,12 @@ function courseNameToId(name) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+/* Helper: get active hole count from courseSetupData or selectedNine */
+function getActiveHoleCount() {
+  const nine = courseSetupData.nine || selectedNine || 'front';
+  return nine === 'full' ? 18 : 9;
+}
+
 function listenToMasterCourses() {
   const ref = db.ref('courses');
   if (masterCoursesListener) masterCoursesListener.off();
@@ -4264,6 +4279,10 @@ function selectNine(which) {
   document.querySelectorAll('#nine-toggle .nine-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.nine === which);
   });
+  // Update label
+  const label = document.getElementById('pars-label');
+  if (label) label.textContent = which === 'full' ? 'Hole-by-Hole Pars (18 Holes)' : 'Hole-by-Hole Pars (9 Holes)';
+  renderCourseSetup();
   autoFillParsFromCourse();
 }
 
@@ -4274,17 +4293,29 @@ function autoFillParsFromCourse() {
   const course = masterCourses[courseId];
   if (!course || !course.pars || course.pars.length !== 18) return;
 
-  const offset = selectedNine === 'back' ? 9 : 0;
-  const ninePars = course.pars.slice(offset, offset + 9);
-
-  for (let i = 0; i < 9; i++) {
-    const input = document.getElementById('par-hole-' + i);
-    if (input) input.value = ninePars[i] || 4;
+  if (selectedNine === 'full') {
+    // 18-hole mode: fill all 18 par inputs
+    for (let i = 0; i < 18; i++) {
+      const input = document.getElementById('par-hole-' + i);
+      if (input) input.value = course.pars[i] || 4;
+    }
+    const totalPar = course.pars.reduce((sum, p) => sum + p, 0);
+    const parInput = document.getElementById('tw-par-input');
+    if (parInput) parInput.value = totalPar;
+    toast(courseName + ' (18 Holes) pars loaded!');
+  } else {
+    // 9-hole mode
+    const offset = selectedNine === 'back' ? 9 : 0;
+    const ninePars = course.pars.slice(offset, offset + 9);
+    for (let i = 0; i < 9; i++) {
+      const input = document.getElementById('par-hole-' + i);
+      if (input) input.value = ninePars[i] || 4;
+    }
+    const totalPar = ninePars.reduce((sum, p) => sum + p, 0);
+    const parInput = document.getElementById('tw-par-input');
+    if (parInput) parInput.value = totalPar;
+    toast(courseName + ' (' + (selectedNine === 'back' ? 'Back' : 'Front') + ' 9) pars loaded!');
   }
-  const totalPar = ninePars.reduce((sum, p) => sum + p, 0);
-  const parInput = document.getElementById('tw-par-input');
-  if (parInput) parInput.value = totalPar;
-  toast(courseName + ' (' + (selectedNine === 'back' ? 'Back' : 'Front') + ' 9) pars loaded!');
 }
 
 function autoFillSchedParFromCourse() {
@@ -4422,17 +4453,23 @@ function renderCourseSetup() {
   document.querySelectorAll('#nine-toggle .nine-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.nine === selectedNine);
   });
+  // Update label
+  const parsLabel = document.getElementById('pars-label');
+  if (parsLabel) parsLabel.textContent = selectedNine === 'full' ? 'Hole-by-Hole Pars (18 Holes)' : 'Hole-by-Hole Pars (9 Holes)';
 
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const holeCount = selectedNine === 'full' ? 18 : 9;
+  const defaultPars = selectedNine === 'full' ? [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4] : [4,4,4,4,4,4,4,4,4];
+  const pars = courseSetupData.pars || defaultPars;
   const ctpHoles = courseSetupData.ctpHoles || [];
   const longDriveHole = courseSetupData.longDriveHole;
 
   row.innerHTML = '';
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     const isCtpChecked = ctpHoles.includes(i) ? 'checked' : '';
+    const holeLabel = selectedNine === 'full' ? (i + 1) : (selectedNine === 'back' ? (i + 10) : (i + 1));
     row.innerHTML += `
       <div class="par-hole-group">
-        <span class="hole-num">H${i+1}</span>
+        <span class="hole-num">H${holeLabel}</span>
         <input type="number" id="par-hole-${i}" value="${pars[i] || 4}" min="3" max="6" ${!isEditor ? 'disabled' : ''}>
         <label class="ctp-label"><input type="checkbox" id="ctp-hole-${i}" ${isCtpChecked} ${!isEditor ? 'disabled' : ''}> CTP</label>
       </div>
@@ -4440,7 +4477,7 @@ function renderCourseSetup() {
   }
 
   ldSel.innerHTML = '<option value="">None</option>';
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     const sel = longDriveHole === i ? 'selected' : '';
     ldSel.innerHTML += `<option value="${i}" ${sel}>Hole ${i+1}</option>`;
   }
@@ -4448,9 +4485,10 @@ function renderCourseSetup() {
 }
 
 function getCourseSetupFromInputs() {
+  const holeCount = selectedNine === 'full' ? 18 : 9;
   const pars = [];
   const ctpHoles = [];
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     pars.push(parseInt(document.getElementById('par-hole-' + i)?.value) || 4);
     if (document.getElementById('ctp-hole-' + i)?.checked) ctpHoles.push(i);
   }
@@ -4617,12 +4655,14 @@ function renderLiveScoreInputs() {
   }
 
   // ── INDIVIDUAL MODE (existing logic) ──
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const holeCount = getActiveHoleCount();
+  const defaultPars = new Array(holeCount).fill(4);
+  const pars = courseSetupData.pars || defaultPars;
   const scores = liveScoresData[playerId] || [];
   const isLocked = roundStatus === 'closed' && !isEditor;
 
   let html = '<div class="score-entry-row">';
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : '';
     const par = pars[i] || 4;
     let inputClass = '';
@@ -4657,7 +4697,7 @@ function renderLiveScoreInputs() {
 function updateLiveScoreStyle(holeIdx) {
   const input = document.getElementById('live-hole-' + holeIdx);
   if (!input) return;
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const pars = courseSetupData.pars || [];
   const par = pars[holeIdx] || 4;
   const val = parseInt(input.value);
   input.className = '';
@@ -4669,7 +4709,8 @@ function updateLiveScoreStyle(holeIdx) {
 }
 
 function focusNextLive(holeIdx) {
-  if (holeIdx < 8) {
+  const maxHole = getActiveHoleCount() - 1;
+  if (holeIdx < maxHole) {
     const next = document.getElementById('live-hole-' + (holeIdx + 1));
     if (next) next.focus();
   } else {
@@ -4682,9 +4723,11 @@ function renderLiveScoreTotal() {
   const playerId = document.getElementById('live-player-select')?.value;
   if (!totalDiv || !playerId) { if(totalDiv) totalDiv.style.display = 'none'; return; }
 
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const holeCount = getActiveHoleCount();
+  const defaultPars = new Array(holeCount).fill(4);
+  const pars = courseSetupData.pars || defaultPars;
   let total = 0, totalPar = 0, holes = 0;
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     const el = document.getElementById('live-hole-' + i);
     if (el) {
       const val = parseInt(el.value);
@@ -4702,7 +4745,7 @@ function renderLiveScoreTotal() {
   const diffClass = diff < 0 ? 'score-under' : diff === 0 ? 'score-even' : 'score-over';
   totalDiv.style.display = 'flex';
   totalDiv.innerHTML = `
-    <div><span class="st-label">Holes</span><br><span class="st-value">${holes}/9</span></div>
+    <div><span class="st-label">Holes</span><br><span class="st-value">${holes}/${holeCount}</span></div>
     <div><span class="st-label">Total</span><br><span class="st-value">${total}</span></div>
     <div><span class="st-label">vs Par</span><br><span class="score-pill ${diffClass}" style="font-size:1rem">${diffStr}</span></div>
   `;
@@ -4714,8 +4757,9 @@ async function saveLiveScores() {
   if (roundStatus !== 'open' && !isEditor) return toast('Scoring is not open.');
 
   const wn = state.thisWeek.weekNum || 1;
+  const holeCount = getActiveHoleCount();
   const scores = [];
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     const val = document.getElementById('live-hole-' + i)?.value;
     scores.push(val !== '' && val !== undefined ? parseInt(val) : null);
   }
@@ -4734,7 +4778,9 @@ function renderLiveScorecardGrid() {
   const grid = document.getElementById('live-scorecard-grid');
   if (!grid) return;
 
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const holeCount = getActiveHoleCount();
+  const defaultPars = new Array(holeCount).fill(4);
+  const pars = courseSetupData.pars || defaultPars;
   const ctpHoles = courseSetupData.ctpHoles || [];
   const longDriveHole = courseSetupData.longDriveHole;
   const wn = state.thisWeek.weekNum || 1;
@@ -4754,7 +4800,7 @@ function renderLiveScorecardGrid() {
   // Build scorecard table
   let html = '<table class="scorecard"><thead><tr>';
   html += '<th style="text-align:left;position:sticky;left:0;background:rgba(255,61,167,0.12);z-index:3">Player</th>';
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     let hLabel = 'H' + (i+1);
     if (ctpHoles.includes(i)) hLabel += ' ⛳';
     if (longDriveHole === i) hLabel += ' 💪';
@@ -4764,7 +4810,7 @@ function renderLiveScorecardGrid() {
   // Par row
   html += '<tr style="background:rgba(255,255,255,0.02)"><td class="player-name" style="font-weight:400;color:var(--gray);font-size:0.75rem">PAR</td>';
   let totalPar = 0;
-  for (let i = 0; i < 9; i++) { totalPar += (pars[i]||4); html += `<td style="color:var(--gray);font-size:0.75rem">${pars[i]||4}</td>`; }
+  for (let i = 0; i < holeCount; i++) { totalPar += (pars[i]||4); html += `<td style="color:var(--gray);font-size:0.75rem">${pars[i]||4}</td>`; }
   html += `<td style="color:var(--gray);font-size:0.75rem;font-weight:700">${totalPar}</td><td></td></tr>`;
   html += '</thead><tbody>';
 
@@ -4772,7 +4818,7 @@ function renderLiveScorecardGrid() {
   const rows = yesPlayers.map(p => {
     const scores = liveScoresData[p.id] || [];
     let total = 0, parPlayed = 0, holesPlayed = 0;
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < holeCount; i++) {
       if (scores[i] !== null && scores[i] !== undefined) {
         total += scores[i]; parPlayed += (pars[i]||4); holesPlayed++;
       }
@@ -4782,8 +4828,8 @@ function renderLiveScorecardGrid() {
     if (a.holesPlayed === 0 && b.holesPlayed === 0) return 0;
     if (a.holesPlayed === 0) return 1;
     if (b.holesPlayed === 0) return -1;
-    if (a.holesPlayed === 9 && b.holesPlayed < 9) return -1;
-    if (b.holesPlayed === 9 && a.holesPlayed < 9) return 1;
+    if (a.holesPlayed === holeCount && b.holesPlayed < holeCount) return -1;
+    if (b.holesPlayed === holeCount && a.holesPlayed < holeCount) return 1;
     return a.total - b.total;
   });
 
@@ -4792,7 +4838,7 @@ function renderLiveScorecardGrid() {
     html += `<tr>`;
     const gBadge = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
     html += `<td class="player-name">${escHtml(player.name)}${gBadge}${canEdit ? ` <button style="font-size:0.55rem;background:none;border:1px solid rgba(255,61,167,0.3);color:var(--pink-light);padding:1px 5px;border-radius:4px;cursor:pointer" onclick="editLiveScores('${player.id}')">✏️</button>` : ''}</td>`;
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < holeCount; i++) {
       const s = scores[i];
       const par = pars[i] || 4;
       if (s === null || s === undefined) {
@@ -4918,23 +4964,26 @@ function getPlayerGroupInfo(playerId) {
 }
 
 function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const holeCount = getActiveHoleCount();
+  const defaultPars = new Array(holeCount).fill(4);
+  const pars = courseSetupData.pars || defaultPars;
   const isScorer = groupInfo.isScorer;
   const isLocked = roundStatus === 'closed' && !isEditor;
   const courseName = courseSetupData.name || state.thisWeek.course || 'Course';
   const nine = courseSetupData.nine || 'front';
   const totalPar = pars.reduce((s, p) => s + (p || 4), 0);
+  const nineLabel = nine === 'full' ? '18 Holes' : (nine === 'back' ? 'Back 9' : 'Front 9');
 
-  // Build header row: Player | H1 | H2 | ... | H9 | TOT | +/-
+  // Build header row
   let headerRow = '<tr><th style="text-align:left;min-width:80px">Player</th>';
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     headerRow += `<th>H${i + 1}</th>`;
   }
   headerRow += '<th>TOT</th><th>+/−</th></tr>';
 
   // Par row
   let parRow = '<tr><td class="gs-player-name" style="font-size:0.68rem;color:var(--gray);font-weight:400">Par</td>';
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     parRow += `<td class="gs-par-header" style="font-size:0.7rem;color:var(--gray);background:rgba(255,61,167,0.04)">${pars[i] || 4}</td>`;
   }
   parRow += `<td style="font-size:0.75rem;font-weight:700;color:var(--gray);border-left:2px solid rgba(255,61,167,0.2)">${totalPar}</td>`;
@@ -4956,7 +5005,7 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
     const gsBadge = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
     playerRows += `<td class="gs-player-name ${isGroupScorer ? 'gs-scorer' : ''}" title="${escHtml(player.name)}">${escHtml(firstName)}${gsBadge}${isGroupScorer ? ' ✎' : ''}</td>`;
 
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < holeCount; i++) {
       const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : '';
       const par = pars[i] || 4;
       let cellClass = '';
@@ -4980,7 +5029,7 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
     }
 
     // Total
-    const diff = holesPlayed > 0 ? total - pars.slice(0, 9).reduce((s, p, idx) => {
+    const diff = holesPlayed > 0 ? total - pars.slice(0, holeCount).reduce((s, p, idx) => {
       const sc = (scores[idx] !== null && scores[idx] !== undefined) ? 1 : 0;
       return s + (sc ? (p || 4) : 0);
     }, 0) : 0;
@@ -5016,7 +5065,7 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
   container.innerHTML = `
     <div class="group-scoring-header">
       <span class="group-scoring-badge">GROUP SCORING</span>
-      Group ${groupInfo.groupIndex + 1} — ${escHtml(courseName)} (${nine === 'front' ? 'Front' : 'Back'} 9)
+      Group ${groupInfo.groupIndex + 1} — ${escHtml(courseName)} (${nineLabel})
     </div>
     ${scorerPickerHtml}
     <div style="font-size:0.72rem;color:var(--gray);margin-bottom:10px;font-style:italic">${roleHint}</div>
@@ -5035,7 +5084,7 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
 function updateGroupScoreCardStyle(playerId, holeIdx) {
   const input = document.getElementById('gs-' + playerId + '-hole-' + holeIdx);
   if (!input) return;
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const pars = courseSetupData.pars || [];
   const par = pars[holeIdx] || 4;
   const val = parseInt(input.value);
   input.classList.remove('gs-birdie', 'gs-bogey');
@@ -5048,9 +5097,10 @@ function updateGroupScoreCardStyle(playerId, holeIdx) {
 }
 
 function groupScorecardKeyNav(event, playerId, holeIdx) {
+  const maxHole = getActiveHoleCount() - 1;
   if (event.key === 'Enter') {
     event.preventDefault();
-    if (holeIdx < 8) {
+    if (holeIdx < maxHole) {
       const next = document.getElementById('gs-' + playerId + '-hole-' + (holeIdx + 1));
       if (next) next.focus();
     } else {
@@ -5105,8 +5155,9 @@ function autoSaveGroupPlayer(playerId) {
 async function saveGroupPlayerScores(playerId) {
   if (roundStatus !== 'open' && !isEditor) return;
   const wn = state.thisWeek.weekNum || 1;
+  const holeCount = getActiveHoleCount();
   const scores = [];
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < holeCount; i++) {
     const input = document.getElementById('gs-' + playerId + '-hole-' + i);
     if (input) {
       const val = input.value;
@@ -5132,13 +5183,14 @@ async function saveGroupScores() {
   if (!groupInfo) return toast('No group found.');
 
   const wn = state.thisWeek.weekNum || 1;
+  const holeCount = getActiveHoleCount();
   let savedCount = 0;
   for (const pid of groupInfo.players) {
     // Only save players whose inputs exist (editable)
     const firstInput = document.getElementById('gs-' + pid + '-hole-0');
     if (!firstInput) continue;
     const scores = [];
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < holeCount; i++) {
       const input = document.getElementById('gs-' + pid + '-hole-' + i);
       if (input) {
         const val = input.value;
@@ -5160,7 +5212,9 @@ async function saveGroupScores() {
 
 /* ─── Skins Calculation ─── */
 function calculateSkins() {
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const holeCount = getActiveHoleCount();
+  const defaultPars = new Array(holeCount).fill(4);
+  const pars = courseSetupData.pars || defaultPars;
   const wn = state.thisWeek.weekNum || 1;
   const rsvps = rsvpData[wn] || {};
 
@@ -5175,7 +5229,7 @@ function calculateSkins() {
 
   const skinResults = [];
 
-  for (let hole = 0; hole < 9; hole++) {
+  for (let hole = 0; hole < holeCount; hole++) {
     const par = pars[hole] || 4;
     const holePot = numPlayers * 1; // $1 per player per hole from skins pot
 
@@ -5227,9 +5281,10 @@ function calculateSkins() {
 
 /* ─── Low Gross Calculation ─── */
 function calculateLowGross() {
+  const holeCount = getActiveHoleCount();
   const activePlayers = getActivePlayers().filter(p => {
     const scores = liveScoresData[p.id];
-    return scores && scores.filter(s => s !== null && s !== undefined).length === 9;
+    return scores && scores.filter(s => s !== null && s !== undefined).length === holeCount;
   });
 
   if (activePlayers.length === 0) return [];
@@ -5462,7 +5517,7 @@ async function saveContestWinner(type, holeIdx) {
 /* ─── Save Hole Scores to Week Totals (for standings compatibility) ─── */
 function saveHoleScoresToWeekTotals() {
   const wn = state.thisWeek.weekNum || 1;
-  const pars = courseSetupData.pars || [4,4,4,4,4,4,4,4,4];
+  const pars = courseSetupData.pars || [];
   const totalPar = pars.reduce((s, p) => s + p, 0);
   const scores = {};
 
@@ -5475,10 +5530,12 @@ function saveHoleScoresToWeekTotals() {
   });
 
   if (Object.keys(scores).length > 0) {
+    const holes = getActiveHoleCount();
     const weekResult = {
       par: totalPar,
       course: state.thisWeek.course || '',
-      scores
+      scores,
+      holes
     };
     state.weeks[wn] = weekResult;
     saveState();
