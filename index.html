@@ -4282,7 +4282,7 @@ function selectNine(which) {
   // Update label
   const label = document.getElementById('pars-label');
   if (label) label.textContent = which === 'full' ? 'Hole-by-Hole Pars (18 Holes)' : 'Hole-by-Hole Pars (9 Holes)';
-  renderCourseSetup();
+  renderCourseSetup(false);
   autoFillParsFromCourse();
 }
 
@@ -4443,13 +4443,13 @@ async function deleteMasterCourse(id) {
 }
 
 /* ─── Course Setup in Manage Week ─── */
-function renderCourseSetup() {
+function renderCourseSetup(restoreFromSaved) {
   const row = document.getElementById('par-holes-row');
   const ldSel = document.getElementById('long-drive-select');
   if (!row || !ldSel) return;
 
-  // Restore nine selection from saved data
-  if (courseSetupData.nine) selectedNine = courseSetupData.nine;
+  // Only restore nine selection from saved data on initial load, not user changes
+  if (restoreFromSaved !== false && courseSetupData.nine) selectedNine = courseSetupData.nine;
   document.querySelectorAll('#nine-toggle .nine-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.nine === selectedNine);
   });
