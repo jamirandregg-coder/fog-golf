@@ -2655,6 +2655,15 @@ async function saveAnnouncement() {
     await db.ref('announcement').set({ text, timestamp: Date.now(), author: 'admin' });
     toast('Announcement posted!');
     document.getElementById('announcement-text').value = '';
+    // Also send push notification so users get alerted
+    if (CLOUD_FUNCTION_URL) {
+      try {
+        await fetch(CLOUD_FUNCTION_URL, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: '📢 FOG Announcement', body: text })
+        });
+      } catch (pushErr) { console.warn('Push notification failed:', pushErr); }
+    }
   } catch (e) { toast('Failed to post announcement.'); console.warn(e); }
 }
 
@@ -2901,6 +2910,8 @@ function renderManageWeek() {
   if (courseInput) {
     courseInput.removeEventListener('change', autoFillParsFromCourse);
     courseInput.addEventListener('change', autoFillParsFromCourse);
+    courseInput.removeEventListener('input', autoFillParsFromCourse);
+    courseInput.addEventListener('input', autoFillParsFromCourse);
   }
   // Wire up schedule course input to auto-fill par total
   const schedCourseInput = document.getElementById('sched-course-input');
@@ -4428,7 +4439,9 @@ function updateRoundStatusUI() {
 async function openScoring() {
   if (!isEditor) return;
   const wn = state.thisWeek.weekNum || 1;
-  // Save course setup first
+  // Auto-fill pars from master course list if inputs are still default
+  autoFillParsFromCourse();
+  // Save course setup
   const setup = getCourseSetupFromInputs();
   await db.ref('courseSetup/' + wn).set(setup);
   await db.ref('roundStatus/' + wn).set('open');
