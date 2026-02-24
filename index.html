@@ -3462,9 +3462,66 @@ function renderHistory(sel) {
   `;
 }
 
-/* ─── Handicap Calculator ─── */
+/* ─── Handicap Calculator (GHIN/WHS Formula) ─── */
+
+/* USGA Course Ratings & Slope for league courses (18-hole values, men's regular tees)
+   For 9-hole play: rating is halved, slope used as-is per USGA guidelines */
+const COURSE_RATINGS = {
+  'broken tee':       { rating: 69.2, slope: 125 },
+  'aurora hills':     { rating: 69.3, slope: 116 },
+  'overland':         { rating: 67.7, slope: 116 },
+  'overland park':    { rating: 67.7, slope: 116 },
+  'kennedy':          { rating: 69.3, slope: 111 },
+  'kennedy west':     { rating: 68.6, slope: 111 },
+  'kennedy babe lind':{ rating: 70.1, slope: 109 },
+  'kennedy creek':    { rating: 69.3, slope: 112 },
+  'foothills':        { rating: 67.9, slope: 119 },
+  'murphy creek':     { rating: 69.4, slope: 126 },
+  'meadows':          { rating: 64.9, slope: 114 },
+  'meadow hills':     { rating: 64.9, slope: 114 },
+  'indian tree':      { rating: 68.0, slope: 116 },
+  'riverdale':        { rating: 69.5, slope: 120 },
+  'riverdale knolls': { rating: 69.5, slope: 120 },
+  'riverdale dunes':  { rating: 68.6, slope: 116 },
+  'willis case':      { rating: 67.6, slope: 116 },
+  'common ground':    { rating: 68.9, slope: 119 },
+  'commonground':     { rating: 68.9, slope: 119 },
+  'city park':        { rating: 67.8, slope: 116 },
+  'westwoods':        { rating: 69.6, slope: 127 },
+  'walnut creek':     { rating: 67.1, slope: 115 },
+  'saddle rock':      { rating: 68.4, slope: 121 },
+  'saddleback':       { rating: 65.6, slope: 111 },
+  'wellshire':        { rating: 69.9, slope: 124 },
+  'springhill':       { rating: 63.0, slope: 108 },
+  'evergreen':        { rating: 65.8, slope: 119 },
+  'stony creek':      { rating: 29.0, slope: 85, is9hole: true }
+};
+
 /* Name aliases for matching PAST_SEASONS names to current roster */
 const NAME_ALIASES = { 'victoria': 'victoria braucher' };
+
+/* Get course rating info for a 9-hole round. Returns { rating9, slope } */
+function getCourseRating(courseName) {
+  if (!courseName) return null;
+  const key = courseName.trim().toLowerCase();
+  const cr = COURSE_RATINGS[key];
+  if (!cr) return null;
+  // For 9-hole courses (like Stony Creek), use rating directly
+  if (cr.is9hole) return { rating9: cr.rating, slope: cr.slope };
+  // For 18-hole courses, halve the rating for 9-hole play
+  return { rating9: cr.rating / 2, slope: cr.slope };
+}
+
+/* GHIN Score Differential = (Adjusted Gross - Course Rating) x (113 / Slope) */
+function scoreDifferential(gross, courseName, par) {
+  const cr = getCourseRating(courseName);
+  if (cr) {
+    // Real GHIN formula with course rating and slope
+    return (gross - cr.rating9) * (113 / cr.slope);
+  }
+  // Fallback: use par if no rating available (neutral slope)
+  return gross - par;
+}
 
 function calculateHandicap(playerId) {
   const player = state.players.find(p => p.id === playerId);
@@ -3487,8 +3544,8 @@ function calculateHandicap(playerId) {
           const gross = week.scores[matchedName];
           const par = week.par || 36;
           if (gross < 25) return; // exclude partial rounds / bad data
-          const diff = Math.min(gross - par, 40); // cap max differential at 40
-          history.push({ weekNum: year + '-' + (wi + 1), gross, par, diff, course: week.course || '', season: year });
+          const diff = Math.min(scoreDifferential(gross, week.course, par), 40);
+          history.push({ weekNum: year + '-' + (wi + 1), gross, par, diff: Math.round(diff * 10) / 10, course: week.course || '', season: year });
         }
       });
     });
@@ -3500,8 +3557,8 @@ function calculateHandicap(playerId) {
     if (score !== undefined && score !== null) {
       const par = wd.par || 36;
       if (score < 25) return; // exclude partial rounds
-      const diff = Math.min(score - par, 40); // cap max differential at 40
-      history.push({ weekNum: 'Wk ' + weekNum, gross: score, par, diff, course: wd.course || '', season: 'current' });
+      const diff = Math.min(scoreDifferential(score, wd.course, par), 40);
+      history.push({ weekNum: 'Wk ' + weekNum, gross: score, par, diff: Math.round(diff * 10) / 10, course: wd.course || '', season: 'current' });
     }
   });
 
@@ -3646,7 +3703,7 @@ function showHandicapDetail(playerId) {
       </table>
     </div>
     <div style="margin-top:10px;font-size:0.75rem;color:var(--gray)">
-      GHIN-style: best differentials from last 2 seasons &nbsp;|&nbsp; Min 5 rounds &nbsp;|&nbsp; Capped 0\u201354
+      GHIN formula: (Score &minus; Course Rating) &times; 113/Slope &nbsp;|&nbsp; Best of last 2 seasons &nbsp;|&nbsp; Min 5 rounds
     </div>`}
   `;
 }
