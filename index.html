@@ -1504,10 +1504,6 @@
           <label>Player Name</label>
           <input type="text" id="player-name-input" placeholder="Enter name..." onkeydown="if(event.key==='Enter')addPlayer()">
         </div>
-        <div class="form-group">
-          <label>Handicap</label>
-          <input type="number" id="player-handicap-input" placeholder="0" min="0" max="54" style="width:100px" onkeydown="if(event.key==='Enter')addPlayer()">
-        </div>
         <div style="padding-bottom:1px">
           <button class="btn btn-pink" onclick="addPlayer()">+ Add Player</button>
         </div>
@@ -2074,7 +2070,7 @@ function applyMode() {
     lockBtn.textContent = 'Admin Login';
     document.body.classList.remove('editor-mode');
   }
-  ['player-name-input','player-handicap-input','week-select','par-input','course-input','save-scores-btn',
+  ['player-name-input','week-select','par-input','course-input','save-scores-btn',
    'tw-course-input','tw-date-input','tw-par-input','tw-notes-input','current-week-select']
     .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !isEditor; });
   // Also disable/enable tee time inputs in manage week
@@ -2897,12 +2893,12 @@ function syncPlayersToFirebase() {
 async function addPlayer() {
   if (!isEditor) return;
   const nameEl = document.getElementById('player-name-input');
-  const hcpEl = document.getElementById('player-handicap-input');
   const name = nameEl.value.trim();
   if (!name) return toast('Enter a player name.');
   if (state.players.find(p => p.name.toLowerCase() === name.toLowerCase())) return toast('Player already exists.');
-  state.players.push({ id: generatePlayerId(name), name, handicap: parseInt(hcpEl.value) || 0 });
-  nameEl.value = ''; hcpEl.value = '';
+  state.players.push({ id: generatePlayerId(name), name, handicap: 0 });
+  nameEl.value = '';
+  recalcAllHandicaps(); // player may have history in PAST_SEASONS
   await saveState();
   syncPlayersToFirebase();
   renderPlayers(); renderScoreEntry(); renderRSVP();
@@ -2929,10 +2925,8 @@ async function editPlayer(id) {
   const newName = prompt('Player name:', p.name);
   if (newName === null) return; // cancelled
   if (!newName.trim()) return toast('Name cannot be empty.');
-  const newHcp = prompt('Handicap:', p.handicap || 0);
-  if (newHcp === null) return; // cancelled
   p.name = newName.trim();
-  p.handicap = parseInt(newHcp) || 0;
+  recalcAllHandicaps(); // name change may affect PAST_SEASONS matching
   await saveState();
   syncPlayersToFirebase();
   renderPlayers(); renderScoreEntry(); renderRSVP(); renderStandings();
@@ -3045,6 +3039,7 @@ async function saveScores() {
   });
   const weekResult = { par, course, scores };
   state.weeks[week] = weekResult;
+  recalcAllHandicaps(); // recalculate with new scores
   await saveState();
   // Sync to Firebase so all devices see the scores
   try {
@@ -4903,6 +4898,7 @@ function listenToWeekResults() {
       }
     });
     if (changed) {
+      recalcAllHandicaps(); // recalculate with synced scores
       saveState();
       renderStandings();
       renderHistory(null);
@@ -5020,6 +5016,7 @@ function renderSeasonChampBanner() {
 
 /* ─── Render All ─── */
 function renderAll() {
+  recalcAllHandicaps(); // auto-calculate handicaps on every full render
   renderPlayers();
   populateWeekSelect();
   renderScoreEntry();
@@ -5031,6 +5028,104 @@ function renderAll() {
   renderLiveScoring();
   renderWinnerBanner();
   renderSeasonChampBanner();
+}
+
+/* ─── Handicap Engine (GHIN/WHS-style auto-calculation) ─── */
+
+const NAME_ALIASES = {
+  'victoria': 'victoria braucher'
+};
+
+function collectAllRounds(playerId) {
+  const player = state.players.find(p => p.id === playerId);
+  if (!player) return [];
+
+  const rounds = [];
+  const nameLower = player.name.toLowerCase();
+  const aliasedName = NAME_ALIASES[nameLower] || nameLower;
+
+  // Collect from PAST_SEASONS (keyed by player name)
+  if (typeof PAST_SEASONS !== 'undefined') {
+    Object.entries(PAST_SEASONS).forEach(([year, season]) => {
+      (season.weeks || []).forEach(week => {
+        const matchedName = Object.keys(week.scores).find(n => {
+          const nLower = n.toLowerCase();
+          return nLower === nameLower || nLower === aliasedName ||
+                 (NAME_ALIASES[nLower] || nLower) === aliasedName;
+        });
+        if (matchedName !== undefined) {
+          const gross = week.scores[matchedName];
+          const par = week.par || 36;
+          if (gross < 25) return; // exclude partial rounds / bad data
+          const diff = gross - par;
+          rounds.push(Math.min(diff, 40)); // cap max differential at 40
+        }
+      });
+    });
+  }
+
+  // Collect from state.weeks (current season, keyed by player ID)
+  Object.values(state.weeks).forEach(week => {
+    const score = week.scores?.[playerId];
+    if (score !== undefined) {
+      const par = week.par || 36;
+      if (score < 25) return; // exclude partial rounds
+      const diff = score - par;
+      rounds.push(Math.min(diff, 40));
+    }
+  });
+
+  return rounds;
+}
+
+function calculateHandicap(playerId) {
+  const diffs = collectAllRounds(playerId);
+  const n = diffs.length;
+  if (n < 5) return null; // minimum 5 rounds required
+
+  // Sort ascending (best/lowest first)
+  diffs.sort((a, b) => a - b);
+
+  // USGA differential count table
+  let count, adjustment = 0;
+  if (n === 5)       { count = 1; }
+  else if (n === 6)  { count = 2; adjustment = -1.0; }
+  else if (n <= 8)   { count = 2; }
+  else if (n <= 11)  { count = 3; }
+  else if (n <= 14)  { count = 4; }
+  else if (n <= 16)  { count = 5; }
+  else if (n <= 18)  { count = 6; }
+  else if (n === 19) { count = 7; }
+  else               { count = 8; } // 20+
+
+  const selected = diffs.slice(0, count);
+  const avg = selected.reduce((sum, d) => sum + d, 0) / count;
+  let index = avg + adjustment;
+
+  // Truncate to 1 decimal (GHIN truncates, doesn't round)
+  index = Math.floor(index * 10) / 10;
+
+  // Cap at 54.0 max, floor at 0
+  if (index > 54.0) index = 54.0;
+  if (index < 0) index = 0;
+
+  return index;
+}
+
+function recalcAllHandicaps() {
+  let changed = false;
+  state.players.forEach(p => {
+    const newHcp = calculateHandicap(p.id);
+    const hcpValue = newHcp !== null ? newHcp : 0;
+    if (p.handicap !== hcpValue) {
+      p.handicap = hcpValue;
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveState();
+    syncPlayersToFirebase();
+  }
 }
 
 /* ─── Past Seasons Data ─── */
