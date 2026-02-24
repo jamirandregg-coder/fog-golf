@@ -1690,11 +1690,19 @@
           <button type="button" class="nine-btn" data-nine="full" onclick="selectNine('full')">18 Holes</button>
         </div>
         <div class="par-inputs-row" id="par-holes-row"></div>
-        <div style="margin-top:8px">
-          <label style="margin-bottom:6px;display:block">Long Drive Hole</label>
-          <select id="long-drive-select" style="width:140px">
-            <option value="">None</option>
-          </select>
+        <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+          <div>
+            <label style="margin-bottom:6px;display:block">Long Drive Hole</label>
+            <select id="long-drive-select" style="width:140px">
+              <option value="">None</option>
+            </select>
+          </div>
+          <div id="long-drive-2-wrap" style="display:none">
+            <label style="margin-bottom:6px;display:block">Long Drive Hole 2</label>
+            <select id="long-drive-select-2" style="width:140px">
+              <option value="">None</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -4496,6 +4504,22 @@ function renderCourseSetup(restoreFromSaved) {
     ldSel.innerHTML += `<option value="${i}" ${sel}>Hole ${i+1}</option>`;
   }
   ldSel.disabled = !isEditor;
+
+  // Second long drive hole (18-hole mode only)
+  const ld2Wrap = document.getElementById('long-drive-2-wrap');
+  const ldSel2 = document.getElementById('long-drive-select-2');
+  if (ld2Wrap && ldSel2) {
+    ld2Wrap.style.display = holeCount === 18 ? '' : 'none';
+    if (holeCount === 18) {
+      const longDriveHole2 = courseSetupData.longDriveHole2;
+      ldSel2.innerHTML = '<option value="">None</option>';
+      for (let i = 0; i < holeCount; i++) {
+        const sel = longDriveHole2 === i ? 'selected' : '';
+        ldSel2.innerHTML += `<option value="${i}" ${sel}>Hole ${i+1}</option>`;
+      }
+      ldSel2.disabled = !isEditor;
+    }
+  }
 }
 
 function getCourseSetupFromInputs() {
@@ -4508,7 +4532,9 @@ function getCourseSetupFromInputs() {
   }
   const ldVal = document.getElementById('long-drive-select')?.value;
   const longDriveHole = ldVal !== '' && ldVal !== undefined ? parseInt(ldVal) : null;
-  return { pars, ctpHoles, longDriveHole, nine: selectedNine };
+  const ldVal2 = document.getElementById('long-drive-select-2')?.value;
+  const longDriveHole2 = (selectedNine === 'full' && ldVal2 !== '' && ldVal2 !== undefined) ? parseInt(ldVal2) : null;
+  return { pars, ctpHoles, longDriveHole, longDriveHole2, nine: selectedNine };
 }
 
 /* ─── Round Status UI ─── */
@@ -4797,6 +4823,7 @@ function renderLiveScorecardGrid() {
   const pars = courseSetupData.pars || defaultPars;
   const ctpHoles = courseSetupData.ctpHoles || [];
   const longDriveHole = courseSetupData.longDriveHole;
+  const longDriveHole2 = courseSetupData.longDriveHole2;
   const wn = state.thisWeek.weekNum || 1;
   const rsvps = rsvpData[wn] || {};
 
@@ -4817,7 +4844,7 @@ function renderLiveScorecardGrid() {
   for (let i = 0; i < holeCount; i++) {
     let hLabel = 'H' + (i+1);
     if (ctpHoles.includes(i)) hLabel += ' ⛳';
-    if (longDriveHole === i) hLabel += ' 💪';
+    if (longDriveHole === i || longDriveHole2 === i) hLabel += ' 💪';
     html += `<th>${hLabel}</th>`;
   }
   html += '<th>Tot</th><th>+/-</th></tr>';
@@ -5390,17 +5417,23 @@ function renderPayouts() {
 
   // === LONG DRIVE ===
   const longDriveHole = courseSetupData.longDriveHole;
-  if (longDriveHole !== null && longDriveHole !== undefined) {
+  const longDriveHole2 = courseSetupData.longDriveHole2;
+  const ldHoles = [longDriveHole, longDriveHole2].filter(h => h !== null && h !== undefined);
+  if (ldHoles.length > 0) {
+    const perLdHole = ldPot / ldHoles.length;
     html += '<div class="payout-section">';
     html += `<div class="payout-section-title">💪 Long Drive <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${ldPot} pot)</span></div>`;
-    const winnerId = contestsData.longDrive;
-    const winner = winnerId ? getActivePlayers().find(p => p.id === winnerId) : null;
-    if (winner) {
-      addEarnings(winner.id, ldPot);
-      html += `<div class="payout-row"><span><strong>Hole ${longDriveHole+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${ldPot.toFixed(2)}</span></div>`;
-    } else {
-      html += `<div class="payout-row"><span><strong>Hole ${longDriveHole+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
-    }
+    ldHoles.forEach((ldh, idx) => {
+      const ldKey = idx === 0 ? 'longDrive' : 'longDrive2';
+      const winnerId = contestsData[ldKey];
+      const winner = winnerId ? getActivePlayers().find(p => p.id === winnerId) : null;
+      if (winner) {
+        addEarnings(winner.id, perLdHole);
+        html += `<div class="payout-row"><span><strong>Hole ${ldh+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perLdHole.toFixed(2)}</span></div>`;
+      } else {
+        html += `<div class="payout-row"><span><strong>Hole ${ldh+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+      }
+    });
     html += '</div>';
   }
 
@@ -5493,19 +5526,27 @@ function renderContestSelection() {
     html += '</div></div>';
   }
 
-  // Long drive selection
+  // Long drive selection (supports 2 holes for 18-hole rounds)
   const longDriveHole = courseSetupData.longDriveHole;
-  if (longDriveHole !== null && longDriveHole !== undefined) {
-    const curWinner = contestsData.longDrive || '';
-    html += '<div style="margin-bottom:16px"><label style="margin-bottom:8px;display:block">💪 Long Drive Winner</label>';
+  const longDriveHole2 = courseSetupData.longDriveHole2;
+  const ldContestHoles = [
+    { hole: longDriveHole, key: 'longDrive', id: 'ld-winner' },
+    { hole: longDriveHole2, key: 'longDrive2', id: 'ld-winner-2' }
+  ].filter(h => h.hole !== null && h.hole !== undefined);
+
+  if (ldContestHoles.length > 0) {
+    html += '<div style="margin-bottom:16px"><label style="margin-bottom:8px;display:block">💪 Long Drive Winner' + (ldContestHoles.length > 1 ? 's' : '') + '</label>';
     html += '<div class="contest-select-row">';
-    html += `<div class="form-group">
-      <label>Hole ${longDriveHole+1}</label>
-      <select id="ld-winner" onchange="saveContestWinner('longDrive')">
-        <option value="">— Select —</option>
-        ${activePlayers.map(p => `<option value="${p.id}" ${p.id === curWinner ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('')}
-      </select>
-    </div>`;
+    ldContestHoles.forEach(ld => {
+      const curWinner = contestsData[ld.key] || '';
+      html += `<div class="form-group">
+        <label>Hole ${ld.hole+1}</label>
+        <select id="${ld.id}" onchange="saveContestWinner('${ld.key}')">
+          <option value="">— Select —</option>
+          ${activePlayers.map(p => `<option value="${p.id}" ${p.id === curWinner ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('')}
+        </select>
+      </div>`;
+    });
     html += '</div></div>';
   }
 
@@ -5525,6 +5566,10 @@ async function saveContestWinner(type, holeIdx) {
     const val = document.getElementById('ld-winner')?.value || null;
     await db.ref('contests/' + wn + '/longDrive').set(val);
     toast('Long drive winner saved');
+  } else if (type === 'longDrive2') {
+    const val = document.getElementById('ld-winner-2')?.value || null;
+    await db.ref('contests/' + wn + '/longDrive2').set(val);
+    toast('Long drive 2 winner saved');
   }
 }
 
