@@ -5490,8 +5490,9 @@ function listenToWeekResults() {
       renderStandings();
       renderHistory(null);
       renderWinnerBanner();
-      recalculateAllHandicaps();
     }
+    // Always recalculate handicaps when week results load (needs PAST_SEASONS + state.weeks)
+    recalculateAllHandicaps();
   });
 }
 
@@ -5604,6 +5605,7 @@ function renderSeasonChampBanner() {
 
 /* ─── Render All ─── */
 function renderAll() {
+  recalculateAllHandicaps(); // auto-calculate handicaps on every full render
   renderPlayers();
   populateWeekSelect();
   renderScoreEntry();
