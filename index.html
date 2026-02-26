@@ -743,10 +743,15 @@
   .scorecard td.score-bogey { color: rgba(255,82,82,0.7); }
   .scorecard td.score-dbl { color: rgba(255,82,82,0.5); }
   .scorecard td.total-cell { font-weight: 800; font-family: 'Outfit', sans-serif; font-size: 1rem; border-left: 2px solid rgba(255,61,167,0.2); }
+  .scorecard th.subtotal-header { background: rgba(255,61,167,0.18); font-size: 0.68rem; border-left: 2px solid rgba(255,61,167,0.25); border-right: 2px solid rgba(255,61,167,0.25); }
+  .scorecard td.subtotal-cell { font-weight: 700; font-family: 'Outfit', sans-serif; font-size: 0.9rem; border-left: 2px solid rgba(255,61,167,0.25); border-right: 2px solid rgba(255,61,167,0.25); color: var(--pink-light); }
   .scorecard tr:hover td { background: rgba(255,61,167,0.04); }
   .scorecard tr:hover td.player-name { background: rgba(255,61,167,0.06); }
 
   .score-entry-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .turn-separator { display: flex; align-items: center; gap: 10px; margin: 10px 0 14px; width: 100%; }
+  .turn-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,61,167,0.4), transparent); }
+  .turn-label { font-size: 0.75rem; color: var(--pink-light); font-weight: 600; letter-spacing: 0.05em; white-space: nowrap; }
   .hole-input-group { display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .hole-input-group .hole-label { font-size: 0.65rem; color: var(--pink-hot); font-weight: 700; letter-spacing: 0.05em; }
   .hole-input-group .par-label { font-size: 0.6rem; color: var(--gray); }
@@ -1273,6 +1278,8 @@
   #panel-live-scoring.sunlight-mode .scorecard td.score-dbl { color: #cc0000; }
   #panel-live-scoring.sunlight-mode .scorecard td.score-par { color: #1a1a1a; }
   #panel-live-scoring.sunlight-mode .scorecard td.total-cell { border-left: 2px solid #aaa; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .scorecard th.subtotal-header { background: #d0d0d0; border-left: 2px solid #999; border-right: 2px solid #999; }
+  #panel-live-scoring.sunlight-mode .scorecard td.subtotal-cell { border-left: 2px solid #999; border-right: 2px solid #999; color: #333; }
   #panel-live-scoring.sunlight-mode .scorecard th.hole-par { color: #555; }
 
   /* Sunlight: group scorecard */
@@ -4703,6 +4710,23 @@ function renderLiveScoreInputs() {
 
   let html = '<div class="score-entry-row">';
   for (let i = 0; i < holeCount; i++) {
+    // Insert turn separator between front 9 and back 9 for 18-hole rounds
+    if (holeCount === 18 && i === 9) {
+      // Calculate front 9 subtotal
+      let front9 = 0, front9Count = 0, front9Par = 0;
+      for (let f = 0; f < 9; f++) {
+        const fv = (scores[f] !== null && scores[f] !== undefined) ? scores[f] : null;
+        if (fv !== null) { front9 += fv; front9Count++; front9Par += (pars[f] || 4); }
+      }
+      const front9Str = front9Count === 9 ? front9 : (front9Count > 0 ? front9 + '*' : '—');
+      html += `</div>
+        <div class="turn-separator">
+          <div class="turn-line"></div>
+          <div class="turn-label">FRONT 9: <strong>${front9Str}</strong></div>
+          <div class="turn-line"></div>
+        </div>
+        <div class="score-entry-row">`;
+    }
     const val = (scores[i] !== null && scores[i] !== undefined) ? scores[i] : '';
     const par = pars[i] || 4;
     let inputClass = '';
@@ -4720,7 +4744,23 @@ function renderLiveScoreInputs() {
       </div>
     `;
   }
-  html += '</div>';
+  // Add back 9 subtotal after the last hole for 18-hole rounds
+  if (holeCount === 18) {
+    let back9 = 0, back9Count = 0;
+    for (let b = 9; b < 18; b++) {
+      const bv = (scores[b] !== null && scores[b] !== undefined) ? scores[b] : null;
+      if (bv !== null) { back9 += bv; back9Count++; }
+    }
+    const back9Str = back9Count === 9 ? back9 : (back9Count > 0 ? back9 + '*' : '—');
+    html += `</div>
+      <div class="turn-separator">
+        <div class="turn-line"></div>
+        <div class="turn-label">BACK 9: <strong>${back9Str}</strong></div>
+        <div class="turn-line"></div>
+      </div>`;
+  } else {
+    html += '</div>';
+  }
   // If group scorecard was rendered above, append individual below it; otherwise replace
   if (scoringMode === 'group' && container.children.length > 0) {
     const indivDiv = document.createElement('div');
@@ -4767,15 +4807,22 @@ function renderLiveScoreTotal() {
   const defaultPars = new Array(holeCount).fill(4);
   const pars = courseSetupData.pars || defaultPars;
   let total = 0, totalPar = 0, holes = 0;
+  // Track front 9 and back 9 separately for 18-hole rounds
+  let frontTotal = 0, frontPar = 0, frontHoles = 0;
+  let backTotal = 0, backPar = 0, backHoles = 0;
   for (let i = 0; i < holeCount; i++) {
     const el = document.getElementById('live-hole-' + i);
+    let val = NaN;
     if (el) {
-      const val = parseInt(el.value);
-      if (!isNaN(val)) { total += val; totalPar += (pars[i] || 4); holes++; }
+      val = parseInt(el.value);
     } else {
-      // Use Firebase data
       const scores = liveScoresData[playerId] || [];
-      if (scores[i] !== null && scores[i] !== undefined) { total += scores[i]; totalPar += (pars[i] || 4); holes++; }
+      if (scores[i] !== null && scores[i] !== undefined) val = scores[i];
+    }
+    if (!isNaN(val)) {
+      total += val; totalPar += (pars[i] || 4); holes++;
+      if (i < 9) { frontTotal += val; frontPar += (pars[i] || 4); frontHoles++; }
+      else { backTotal += val; backPar += (pars[i] || 4); backHoles++; }
     }
   }
 
@@ -4784,11 +4831,24 @@ function renderLiveScoreTotal() {
   const diffStr = diff > 0 ? '+' + diff : diff === 0 ? 'E' : diff;
   const diffClass = diff < 0 ? 'score-under' : diff === 0 ? 'score-even' : 'score-over';
   totalDiv.style.display = 'flex';
-  totalDiv.innerHTML = `
-    <div><span class="st-label">Holes</span><br><span class="st-value">${holes}/${holeCount}</span></div>
-    <div><span class="st-label">Total</span><br><span class="st-value">${total}</span></div>
-    <div><span class="st-label">vs Par</span><br><span class="score-pill ${diffClass}" style="font-size:1rem">${diffStr}</span></div>
-  `;
+
+  if (holeCount === 18) {
+    // Show Front 9, Back 9, and Total like a real scorecard
+    const frontStr = frontHoles > 0 ? frontTotal : '—';
+    const backStr = backHoles > 0 ? backTotal : '—';
+    totalDiv.innerHTML = `
+      <div><span class="st-label">Front 9</span><br><span class="st-value">${frontStr}</span></div>
+      <div><span class="st-label">Back 9</span><br><span class="st-value">${backStr}</span></div>
+      <div><span class="st-label">Total</span><br><span class="st-value">${total}</span></div>
+      <div><span class="st-label">vs Par</span><br><span class="score-pill ${diffClass}" style="font-size:1rem">${diffStr}</span></div>
+    `;
+  } else {
+    totalDiv.innerHTML = `
+      <div><span class="st-label">Holes</span><br><span class="st-value">${holes}/${holeCount}</span></div>
+      <div><span class="st-label">Total</span><br><span class="st-value">${total}</span></div>
+      <div><span class="st-label">vs Par</span><br><span class="score-pill ${diffClass}" style="font-size:1rem">${diffStr}</span></div>
+    `;
+  }
 }
 
 async function saveLiveScores() {
@@ -4839,6 +4899,10 @@ function renderLiveScorecardGrid() {
   }
 
   // Build scorecard table
+  const is18 = holeCount === 18;
+  let frontPar = 0, backPar = 0;
+  if (is18) { for (let i = 0; i < 9; i++) frontPar += (pars[i]||4); for (let i = 9; i < 18; i++) backPar += (pars[i]||4); }
+
   let html = '<table class="scorecard"><thead><tr>';
   html += '<th style="text-align:left;position:sticky;left:0;background:rgba(255,61,167,0.12);z-index:3">Player</th>';
   for (let i = 0; i < holeCount; i++) {
@@ -4846,12 +4910,20 @@ function renderLiveScorecardGrid() {
     if (ctpHoles.includes(i)) hLabel += ' ⛳';
     if (longDriveHole === i || longDriveHole2 === i) hLabel += ' 💪';
     html += `<th>${hLabel}</th>`;
+    // Insert OUT column after hole 9 for 18-hole rounds
+    if (is18 && i === 8) html += '<th class="subtotal-header">OUT</th>';
   }
+  if (is18) html += '<th class="subtotal-header">IN</th>';
   html += '<th>Tot</th><th>+/-</th></tr>';
   // Par row
   html += '<tr style="background:rgba(255,255,255,0.02)"><td class="player-name" style="font-weight:400;color:var(--gray);font-size:0.75rem">PAR</td>';
   let totalPar = 0;
-  for (let i = 0; i < holeCount; i++) { totalPar += (pars[i]||4); html += `<td style="color:var(--gray);font-size:0.75rem">${pars[i]||4}</td>`; }
+  for (let i = 0; i < holeCount; i++) {
+    totalPar += (pars[i]||4);
+    html += `<td style="color:var(--gray);font-size:0.75rem">${pars[i]||4}</td>`;
+    if (is18 && i === 8) html += `<td class="subtotal-cell" style="color:var(--gray);font-size:0.75rem;font-weight:700">${frontPar}</td>`;
+  }
+  if (is18) html += `<td class="subtotal-cell" style="color:var(--gray);font-size:0.75rem;font-weight:700">${backPar}</td>`;
   html += `<td style="color:var(--gray);font-size:0.75rem;font-weight:700">${totalPar}</td><td></td></tr>`;
   html += '</thead><tbody>';
 
@@ -4859,12 +4931,15 @@ function renderLiveScorecardGrid() {
   const rows = yesPlayers.map(p => {
     const scores = liveScoresData[p.id] || [];
     let total = 0, parPlayed = 0, holesPlayed = 0;
+    let frontTotal = 0, frontHoles = 0, backTotal = 0, backHoles = 0;
     for (let i = 0; i < holeCount; i++) {
       if (scores[i] !== null && scores[i] !== undefined) {
         total += scores[i]; parPlayed += (pars[i]||4); holesPlayed++;
+        if (i < 9) { frontTotal += scores[i]; frontHoles++; }
+        else { backTotal += scores[i]; backHoles++; }
       }
     }
-    return { player: p, scores, total, parPlayed, holesPlayed };
+    return { player: p, scores, total, parPlayed, holesPlayed, frontTotal, frontHoles, backTotal, backHoles };
   }).sort((a, b) => {
     if (a.holesPlayed === 0 && b.holesPlayed === 0) return 0;
     if (a.holesPlayed === 0) return 1;
@@ -4874,7 +4949,7 @@ function renderLiveScorecardGrid() {
     return a.total - b.total;
   });
 
-  rows.forEach(({ player, scores, total, parPlayed, holesPlayed }) => {
+  rows.forEach(({ player, scores, total, parPlayed, holesPlayed, frontTotal, frontHoles, backTotal, backHoles }) => {
     const canEdit = isEditor && roundStatus === 'open';
     html += `<tr>`;
     const gBadge = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
@@ -4892,6 +4967,14 @@ function renderLiveScorecardGrid() {
         else if (s >= par + 2) cls = 'score-cell score-dbl';
         html += `<td class="${cls}">${s}</td>`;
       }
+      // Insert OUT subtotal after hole 9 for 18-hole rounds
+      if (is18 && i === 8) {
+        html += `<td class="subtotal-cell">${frontHoles > 0 ? frontTotal : '—'}</td>`;
+      }
+    }
+    // Insert IN subtotal for 18-hole rounds
+    if (is18) {
+      html += `<td class="subtotal-cell">${backHoles > 0 ? backTotal : '—'}</td>`;
     }
     if (holesPlayed > 0) {
       const diff = total - parPlayed;
@@ -5015,18 +5098,26 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
   const totalPar = pars.reduce((s, p) => s + (p || 4), 0);
   const nineLabel = nine === 'full' ? '18 Holes' : (nine === 'back' ? 'Back 9' : 'Front 9');
 
+  const is18 = holeCount === 18;
+  let gsFrontPar = 0, gsBackPar = 0;
+  if (is18) { for (let i = 0; i < 9; i++) gsFrontPar += (pars[i]||4); for (let i = 9; i < 18; i++) gsBackPar += (pars[i]||4); }
+
   // Build header row
   let headerRow = '<tr><th style="text-align:left;min-width:80px">Player</th>';
   for (let i = 0; i < holeCount; i++) {
     headerRow += `<th>H${i + 1}</th>`;
+    if (is18 && i === 8) headerRow += '<th class="subtotal-header" style="font-size:0.65rem">OUT</th>';
   }
+  if (is18) headerRow += '<th class="subtotal-header" style="font-size:0.65rem">IN</th>';
   headerRow += '<th>TOT</th><th>+/−</th></tr>';
 
   // Par row
   let parRow = '<tr><td class="gs-player-name" style="font-size:0.68rem;color:var(--gray);font-weight:400">Par</td>';
   for (let i = 0; i < holeCount; i++) {
     parRow += `<td class="gs-par-header" style="font-size:0.7rem;color:var(--gray);background:rgba(255,61,167,0.04)">${pars[i] || 4}</td>`;
+    if (is18 && i === 8) parRow += `<td style="font-size:0.72rem;font-weight:700;color:var(--gray);border-left:2px solid rgba(255,61,167,0.25);border-right:2px solid rgba(255,61,167,0.25)">${gsFrontPar}</td>`;
   }
+  if (is18) parRow += `<td style="font-size:0.72rem;font-weight:700;color:var(--gray);border-left:2px solid rgba(255,61,167,0.25);border-right:2px solid rgba(255,61,167,0.25)">${gsBackPar}</td>`;
   parRow += `<td style="font-size:0.75rem;font-weight:700;color:var(--gray);border-left:2px solid rgba(255,61,167,0.2)">${totalPar}</td>`;
   parRow += '<td></td></tr>';
 
@@ -5041,7 +5132,7 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
     // Scorer can edit all rows; non-scorers can edit only their own row
     const canEdit = (isScorer || pid === selectedPlayerId) && !isLocked;
 
-    let total = 0, holesPlayed = 0;
+    let total = 0, holesPlayed = 0, frontTotal = 0, frontHoles = 0, backTotal = 0, backHoles = 0;
     playerRows += `<tr>`;
     const gsBadge = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
     playerRows += `<td class="gs-player-name ${isGroupScorer ? 'gs-scorer' : ''}" title="${escHtml(player.name)}">${escHtml(firstName)}${gsBadge}${isGroupScorer ? ' ✎' : ''}</td>`;
@@ -5055,6 +5146,8 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
         else if (val > par) cellClass = 'gs-bogey';
         total += Number(val);
         holesPlayed++;
+        if (i < 9) { frontTotal += Number(val); frontHoles++; }
+        else { backTotal += Number(val); backHoles++; }
       }
 
       if (canEdit) {
@@ -5067,6 +5160,14 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
       } else {
         playerRows += `<td><span class="gs-score-display ${cellClass}">${val !== '' ? val : '–'}</span></td>`;
       }
+      // Insert OUT subtotal after hole 9 for 18-hole rounds
+      if (is18 && i === 8) {
+        playerRows += `<td class="subtotal-cell" style="font-size:0.82rem">${frontHoles > 0 ? frontTotal : '–'}</td>`;
+      }
+    }
+    // Insert IN subtotal for 18-hole rounds
+    if (is18) {
+      playerRows += `<td class="subtotal-cell" style="font-size:0.82rem">${backHoles > 0 ? backTotal : '–'}</td>`;
     }
 
     // Total
