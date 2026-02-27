@@ -1,0 +1,156 @@
+{
+  "rules": {
+    "admins": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": false
+    },
+
+    "thisWeek": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "players": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "weekResults": {
+      ".read": "auth != null",
+      "$week": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "schedule": {
+      ".read": "auth != null",
+      "$weekNum": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "pairings": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "announcement": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "roundStatus": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "courseSetup": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "payments": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "paymentEnforced": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "rsvpOverride": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "handicaps": {
+      ".read": "auth != null",
+      "$playerId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "scoringMode": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "groupScorers": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "contests": {
+      ".read": "auth != null",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "courses": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "rsvps": {
+      ".read": "auth != null",
+      "$weekNum": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+        "$playerId": {
+          ".write": "auth != null",
+          ".validate": "newData.isString() && (newData.val() === 'yes' || newData.val() === 'no' || newData.val() === 'pending')"
+        }
+      }
+    },
+
+    "liveScores": {
+      ".read": "auth != null",
+      "$wn": {
+        "$playerId": {
+          ".write": "auth != null && (root.child('roundStatus').child($wn).val() === 'open' || root.child('admins').child(auth.uid).val() === true)"
+        }
+      }
+    },
+
+    "guests": {
+      ".read": "auth != null",
+      "$wn": {
+        "$guestId": {
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    "fcmTokens": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$hash": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChild('token')"
+      }
+    },
+
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

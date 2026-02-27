@@ -1816,6 +1816,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <!-- EmailJS SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -1948,9 +1950,9 @@ setTimeout(() => {
 }, 3000);
 
 /* ─── App Constants ─── */
-const ADMIN_PASSWORD = 'golf2025';
 const TOTAL_WEEKS    = 20;
 const STORAGE_KEY    = 'fog-league-v2';
+const ADMIN_EMAIL    = 'admin@foggolf.app';
 
 /* ─── Firebase Init ─── */
 const firebaseConfig = {
@@ -1964,10 +1966,11 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 // ── FCM / Push Notification Config ──
 const FCM_VAPID_KEY = 'BLt-nddGQquAs8gM9EVd5NRFNQ7WszqVMkQhbE3gPxZzE7VZH5UMAJ1OCIDNLn2KHrcsWW2--N7lR8SPfUgwvKQ';
-const CLOUD_FUNCTION_URL = 'https://us-central1-fog-golf.cloudfunctions.net/sendNotification';
 let messaging = null;
 let currentFCMToken = null;
 let announcementListener = null;
@@ -2165,6 +2168,45 @@ async function loadState() {
 }
 
 /* ─── Auth ─── */
+let authReady = false;
+
+auth.onAuthStateChanged(async (user) => {
+  if (user && !user.isAnonymous) {
+    // Email/password user — check if admin
+    try {
+      const snap = await db.ref('admins/' + user.uid).once('value');
+      if (snap.val() === true) {
+        isEditor = true;
+        applyMode();
+        if (authReady) toast('Editor mode unlocked!');
+      } else {
+        await auth.signOut();
+      }
+    } catch (e) {
+      console.warn('Admin check failed:', e);
+    }
+  } else if (user && user.isAnonymous) {
+    isEditor = false;
+    applyMode();
+  } else {
+    // Not signed in — sign in anonymously
+    try {
+      await auth.signInAnonymously();
+    } catch (e) {
+      console.warn('Anonymous sign-in failed:', e);
+    }
+  }
+
+  if (!authReady) {
+    authReady = true;
+    try {
+      await preloadDataIfEmpty();
+    } catch (e) {
+      console.error('Fatal init error:', e);
+    }
+  }
+});
+
 function handleLockBtn() { isEditor ? logout() : openModal(); }
 function openModal() {
   document.getElementById('modal-overlay').classList.add('open');
@@ -2173,23 +2215,24 @@ function openModal() {
   setTimeout(() => document.getElementById('modal-pw').focus(), 200);
 }
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
-function submitPassword() {
+async function submitPassword() {
   const pw = document.getElementById('modal-pw').value;
-  if (pw === ADMIN_PASSWORD) {
-    isEditor = true;
+  const errorEl = document.getElementById('modal-error');
+  errorEl.textContent = '';
+  try {
+    await auth.signInWithEmailAndPassword(ADMIN_EMAIL, pw);
     closeModal();
-    applyMode();
-    toast('Editor mode unlocked!');
-  } else {
-    document.getElementById('modal-error').textContent = 'Incorrect password. Try again.';
+    // onAuthStateChanged handles the rest
+  } catch (e) {
+    errorEl.textContent = 'Incorrect password. Try again.';
     document.getElementById('modal-pw').value = '';
     document.getElementById('modal-pw').focus();
   }
 }
-function logout() {
+async function logout() {
   if (!confirm('Log out of editor mode?')) return;
-  isEditor = false;
-  applyMode();
+  await auth.signOut();
+  // onAuthStateChanged handles resetting to anonymous + view-only
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-home').classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -2672,14 +2715,10 @@ async function saveAnnouncement() {
     toast('Announcement posted!');
     document.getElementById('announcement-text').value = '';
     // Also send push notification so users get alerted
-    if (CLOUD_FUNCTION_URL) {
-      try {
-        await fetch(CLOUD_FUNCTION_URL, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: '📢 FOG Announcement', body: text })
-        });
-      } catch (pushErr) { console.warn('Push notification failed:', pushErr); }
-    }
+    try {
+      const sendNotification = firebase.functions().httpsCallable('sendNotification');
+      await sendNotification({ title: '📢 FOG Announcement', body: text });
+    } catch (pushErr) { console.warn('Push notification failed:', pushErr); }
   } catch (e) { toast('Failed to post announcement.'); console.warn(e); }
 }
 
@@ -2869,20 +2908,14 @@ async function sendPushNotification() {
   const message = document.getElementById('notif-message')?.value.trim();
   const statusEl = document.getElementById('notif-status');
   if (!title || !message) return toast('Enter both title and message.');
-  if (!CLOUD_FUNCTION_URL) return toast('Cloud Function URL not configured yet. See setup instructions.');
   if (statusEl) statusEl.textContent = 'Sending...';
   try {
-    const resp = await fetch(CLOUD_FUNCTION_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body: message })
-    });
-    const result = await resp.json();
-    if (resp.ok) {
-      toast('Notification sent!');
-      if (statusEl) statusEl.textContent = '✓ Sent to ' + (result.successCount || 0) + ' devices';
-      document.getElementById('notif-title').value = '';
-      document.getElementById('notif-message').value = '';
-    } else { throw new Error(result.error || 'Failed'); }
+    const sendNotification = firebase.functions().httpsCallable('sendNotification');
+    const result = await sendNotification({ title, body: message });
+    toast('Notification sent!');
+    if (statusEl) statusEl.textContent = '✓ Sent to ' + (result.data.successCount || 0) + ' devices';
+    document.getElementById('notif-title').value = '';
+    document.getElementById('notif-message').value = '';
   } catch (e) {
     toast('Failed to send notification.');
     if (statusEl) statusEl.textContent = '✗ Send failed';
@@ -3635,6 +3668,7 @@ function calculateHandicap(playerId) {
 }
 
 async function recalculateAllHandicaps() {
+  if (!isEditor) return; // only admin writes handicap data
   if (!state.players.length) return;
   const updates = {};
   state.players.forEach(p => {
@@ -4071,6 +4105,7 @@ function formatTeeTime(timeStr) {
 
 /* ─── Sync Pairings with RSVPs ─── */
 async function syncPairingsWithRSVPs() {
+  if (!isEditor) return; // only admin writes pairings
   const wn = state.thisWeek.weekNum || 1;
   const pairings = pairingsData[wn];
   if (!pairings || !pairings.length) return; // no pairings to sync
@@ -5676,6 +5711,7 @@ async function saveContestWinner(type, holeIdx) {
 
 /* ─── Save Hole Scores to Week Totals (for standings compatibility) ─── */
 function saveHoleScoresToWeekTotals() {
+  if (!isEditor) return; // only admin writes week results
   const wn = state.thisWeek.weekNum || 1;
   const pars = courseSetupData.pars || [];
   const totalPar = pars.reduce((s, p) => s + p, 0);
@@ -6340,8 +6376,7 @@ async function autoGeneratePairingsIfNeeded() {
   await generatePairings();
 }
 
-// Override the original load
-preloadDataIfEmpty().catch(e => console.error('Fatal init error:', e));
+// App initialization is handled by auth.onAuthStateChanged() above
 </script>
 
 <!-- WhatsApp Floating Button -->

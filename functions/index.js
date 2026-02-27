@@ -51,28 +51,33 @@ async function sendNotificationToAll(title, body) {
 }
 
 // ── Manual Push Notification (called by admin from UI) ──
-exports.sendNotification = functions.https.onRequest(async (req, res) => {
-  // CORS
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.sendNotification = functions.https.onCall(async (data, context) => {
+  // Verify the caller is authenticated
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
 
-  if (req.method === 'OPTIONS') return res.status(204).send('');
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // Verify the caller is an admin
+  const adminSnap = await admin.database().ref('admins/' + context.auth.uid).once('value');
+  if (adminSnap.val() !== true) {
+    throw new functions.https.HttpsError('permission-denied', 'Must be an admin.');
+  }
 
-  const { title, body } = req.body;
-  if (!title || !body) return res.status(400).json({ error: 'Missing title or body' });
+  const { title, body } = data;
+  if (!title || !body) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing title or body.');
+  }
 
   try {
     const result = await sendNotificationToAll(title, body);
-    return res.json({
+    return {
       message: 'Notification sent',
       successCount: result.successCount,
       failureCount: result.failureCount
-    });
+    };
   } catch (error) {
     console.error('Error sending notification:', error);
-    return res.status(500).json({ error: error.message });
+    throw new functions.https.HttpsError('internal', error.message);
   }
 });
 
