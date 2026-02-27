@@ -2028,7 +2028,7 @@ let handicapListener = null;
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
 const EMAILJS_SERVICE_ID  = 'service_snxugu5';
 const EMAILJS_TEMPLATE_ID = 'template_tcwdgrp';
-const ADMIN_EMAIL = 'jamirandregg@gmail.com';
+const ADMIN_CONTACT_EMAIL = 'jamirandregg@gmail.com';
 
 /* ─── Helpers ─── */
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -2623,7 +2623,7 @@ async function sendRSVPEmail(subject) {
   }
   try {
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      to_email: ADMIN_EMAIL,
+      to_email: ADMIN_CONTACT_EMAIL,
       subject: subject || 'FOG RSVP Summary - Week ' + (state.thisWeek.weekNum || 1),
       rsvp_summary: buildRSVPSummaryText()
     }, EMAILJS_PUBLIC_KEY);
