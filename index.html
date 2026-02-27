@@ -25,7 +25,7 @@
     --dark-mid: #2d1228;
     --white: #ffffff;
     --white-soft: #fff0f7;
-    --gray: #c090ad;
+    --gray: #d4a8c4;
     --green-good: #00e676;
     --red-bad: #ff5252;
     --gold: #ffd700;
@@ -1298,17 +1298,96 @@
   #panel-live-scoring.sunlight-mode .round-status-open { background: #00aa55; color: #fff; }
   #panel-live-scoring.sunlight-mode .round-status-closed { background: #cc0000; color: #fff; }
   #panel-live-scoring.sunlight-mode .round-status-setup { background: #666; color: #fff; }
+
+  /* OFFLINE INDICATOR */
+  .offline-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: linear-gradient(135deg, #ff5252, #d32f2f);
+    color: #fff; text-align: center; padding: 8px 16px;
+    font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em;
+    transform: translateY(-100%); transition: transform 0.3s ease;
+  }
+  .offline-bar.show { transform: translateY(0); }
+
+  /* PLAYER STATS CARD */
+  .player-stats-card { display: none; }
+  .player-stats-card.open { display: block; }
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px; margin-bottom: 16px;
+  }
+  .stat-box {
+    background: var(--dark); border-radius: 10px; padding: 12px 8px;
+    text-align: center; border: 1px solid rgba(255,61,167,0.15);
+  }
+  .stat-box .stat-val {
+    font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800;
+    color: var(--pink-hot); line-height: 1;
+  }
+  .stat-box .stat-lbl {
+    font-size: 0.62rem; color: var(--gray); text-transform: uppercase;
+    letter-spacing: 0.1em; margin-top: 4px;
+  }
+  .trend-row {
+    display: flex; gap: 4px; align-items: flex-end; height: 48px;
+    padding: 0 4px; margin-top: 8px;
+  }
+  .trend-bar {
+    flex: 1; border-radius: 3px 3px 0 0; min-width: 6px;
+    background: linear-gradient(180deg, var(--pink-hot), var(--pink-deep));
+    transition: height 0.3s;
+  }
+  .trend-label {
+    font-size: 0.62rem; color: var(--gray); text-align: center; margin-top: 4px;
+  }
+
+  /* APP FOOTER */
+  .app-footer {
+    text-align: center; padding: 40px 20px 100px; margin-top: 20px;
+    border-top: 1px solid rgba(255,61,167,0.1);
+  }
+  .app-footer .footer-links {
+    display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .app-footer .footer-links a {
+    color: var(--gray); font-size: 0.72rem; text-decoration: none;
+    letter-spacing: 0.05em; transition: color 0.2s;
+  }
+  .app-footer .footer-links a:hover { color: var(--pink-light); }
+  .app-footer .footer-copy {
+    font-size: 0.65rem; color: rgba(255,255,255,0.25); letter-spacing: 0.05em;
+  }
+
+  /* DELETE ACCOUNT MODAL */
+  .delete-modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10000;
+    background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .delete-modal-overlay.show { display: flex; }
+  .delete-modal {
+    background: var(--dark-card); border: 1px solid rgba(255,82,82,0.4);
+    border-radius: 16px; padding: 28px; max-width: 400px; width: 100%; text-align: center;
+  }
+  .delete-modal h3 { color: var(--red-bad); margin-bottom: 12px; font-family: 'Outfit', sans-serif; }
+  .delete-modal p { font-size: 0.85rem; color: var(--gray); margin-bottom: 16px; line-height: 1.5; }
+  .delete-modal .btn-danger {
+    background: linear-gradient(135deg, #ff5252, #d32f2f); color: #fff;
+    border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.85rem;
+  }
 </style>
 </head>
 <body>
 
+<div class="offline-bar" id="offline-bar" role="alert">You are offline — data may not be up to date</div>
 <div class="loading-bar" id="loading-bar"></div>
 
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <h2>Editor Access</h2>
     <p>Enter the league admin password to manage players, scores, and schedule.</p>
-    <input type="password" id="modal-pw" placeholder="Password" onkeydown="if(event.key==='Enter')submitPassword()">
+    <input type="password" id="modal-pw" placeholder="Password" aria-label="Admin password" onkeydown="if(event.key==='Enter')submitPassword()">
     <div class="modal-error" id="modal-error"></div>
     <div class="modal-actions">
       <button class="btn btn-pink" onclick="submitPassword()">Unlock</button>
@@ -1384,18 +1463,18 @@
   <button class="lock-btn" id="lock-btn" onclick="handleLockBtn()">Admin Login</button>
 </div>
 
-<div class="nav-tabs">
-  <button class="nav-tab active"       onclick="showPanel('home',this)">This Week</button>
-  <button class="nav-tab"              onclick="showPanel('live-scoring',this)">Live Scoring</button>
-  <button class="nav-tab"              onclick="showPanel('pairings',this)">Pairings</button>
-  <button class="nav-tab"              onclick="showPanel('standings',this)">Standings</button>
-  <button class="nav-tab"              onclick="showPanel('history',this)">Scores</button>
-  <button class="nav-tab"              onclick="showPanel('schedule',this)">Schedule</button>
-  <button class="nav-tab"              onclick="showPanel('past-seasons',this)">Past Seasons</button>
-  <button class="nav-tab editor-only"  onclick="showPanel('scores',this)">Enter Scores</button>
-  <button class="nav-tab editor-only"  onclick="showPanel('players',this)">Players</button>
-  <button class="nav-tab editor-only"  onclick="showPanel('manage-week',this)">Manage Week</button>
-</div>
+<nav class="nav-tabs" role="tablist" aria-label="League navigation">
+  <button class="nav-tab active" role="tab" aria-selected="true"  onclick="showPanel('home',this)">This Week</button>
+  <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('live-scoring',this)">Live Scoring</button>
+  <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('pairings',this)">Pairings</button>
+  <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('standings',this)">Standings</button>
+  <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('history',this)">Scores</button>
+  <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('schedule',this)">Schedule</button>
+  <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('past-seasons',this)">Past Seasons</button>
+  <button class="nav-tab editor-only" role="tab" aria-selected="false" onclick="showPanel('scores',this)">Enter Scores</button>
+  <button class="nav-tab editor-only" role="tab" aria-selected="false" onclick="showPanel('players',this)">Players</button>
+  <button class="nav-tab editor-only" role="tab" aria-selected="false" onclick="showPanel('manage-week',this)">Manage Week</button>
+</nav>
 
 <div class="container">
 
@@ -1413,7 +1492,7 @@
       <div class="card-title">RSVP for This Week</div>
       <p style="font-size:0.85rem;color:var(--gray);margin-bottom:12px">Tap your name to toggle your RSVP status.</p>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
-        <input type="text" id="guest-name-input" placeholder="Guest name..." style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,61,167,0.3);background:rgba(255,255,255,0.05);color:var(--white);font-family:'Space Grotesk',sans-serif;font-size:0.85rem" onkeydown="if(event.key==='Enter')addGuest()">
+        <input type="text" id="guest-name-input" placeholder="Guest name..." aria-label="Guest player name" style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,61,167,0.3);background:rgba(255,255,255,0.05);color:var(--white);font-family:'Space Grotesk',sans-serif;font-size:0.85rem" onkeydown="if(event.key==='Enter')addGuest()">
         <button class="btn btn-outline" style="font-size:0.78rem;padding:8px 16px" onclick="addGuest()">+ Add Guest</button>
       </div>
       <div class="rsvp-grid" id="rsvp-list">
@@ -1511,6 +1590,13 @@
         </table>
       </div>
     </div>
+    <div class="card player-stats-card" id="player-stats-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="card-title" id="player-stats-title" style="margin-bottom:0">Player Stats</div>
+        <button onclick="document.getElementById('player-stats-card').classList.remove('open');document.getElementById('handicap-detail-card').style.display='none'" style="background:none;border:none;color:var(--gray);font-size:1.3rem;cursor:pointer;padding:4px 8px" aria-label="Close player stats">&times;</button>
+      </div>
+      <div id="player-stats-content"></div>
+    </div>
     <div class="card" id="handicap-detail-card" style="display:none">
       <div class="card-title">Handicap Details</div>
       <div id="handicap-detail-content"></div>
@@ -1533,22 +1619,22 @@
       <div class="card-title">Add to Schedule</div>
       <div class="form-row">
         <div class="form-group">
-          <label>Week #</label>
+          <label for="sched-week-select">Week #</label>
           <select id="sched-week-select"></select>
         </div>
         <div class="form-group wide">
-          <label>Course</label>
+          <label for="sched-course-input">Course</label>
           <input type="text" id="sched-course-input" list="sched-course-datalist" placeholder="e.g. Kennedy..." autocomplete="off">
           <datalist id="sched-course-datalist"></datalist>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Date</label>
+          <label for="sched-date-input">Date</label>
           <input type="date" id="sched-date-input">
         </div>
         <div class="form-group">
-          <label>Par</label>
+          <label for="sched-par-input">Par</label>
           <input type="number" id="sched-par-input" value="36" min="27" max="80" style="width:80px">
         </div>
       </div>
@@ -1589,15 +1675,15 @@
       <div class="card-title">Select Week &amp; Course</div>
       <div class="form-row">
         <div class="form-group">
-          <label>Week</label>
+          <label for="week-select">Week</label>
           <select id="week-select" onchange="renderScoreEntry()"></select>
         </div>
         <div class="form-group">
-          <label>Par</label>
+          <label for="par-input">Par</label>
           <input type="number" id="par-input" value="72" min="60" max="80" style="width:90px">
         </div>
         <div class="form-group wide">
-          <label>Course Name</label>
+          <label for="course-input">Course Name</label>
           <input type="text" id="course-input" placeholder="e.g. Pebble Beach...">
         </div>
         <div style="padding-bottom:1px">
@@ -1617,11 +1703,11 @@
       <div class="card-title">Add Players</div>
       <div class="form-row">
         <div class="form-group wide">
-          <label>Player Name</label>
+          <label for="player-name-input">Player Name</label>
           <input type="text" id="player-name-input" placeholder="Enter name..." onkeydown="if(event.key==='Enter')addPlayer()">
         </div>
         <div class="form-group">
-          <label>Handicap</label>
+          <label for="player-handicap-input">Handicap</label>
           <input type="number" id="player-handicap-input" placeholder="0" min="0" max="54" style="width:100px" onkeydown="if(event.key==='Enter')addPlayer()">
         </div>
         <div style="padding-bottom:1px">
@@ -1644,22 +1730,22 @@
       <p style="font-size:0.85rem;color:var(--gray);margin-bottom:16px">This info shows on the "This Week" tab for all players.</p>
       <div class="form-row">
         <div class="form-group">
-          <label>Current Week #</label>
+          <label for="current-week-select">Current Week #</label>
           <select id="current-week-select"></select>
         </div>
         <div class="form-group wide">
-          <label>Course Name</label>
+          <label for="tw-course-input">Course Name</label>
           <input type="text" id="tw-course-input" list="course-datalist" placeholder="e.g. Kennedy..." autocomplete="off">
           <datalist id="course-datalist"></datalist>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Date</label>
+          <label for="tw-date-input">Date</label>
           <input type="date" id="tw-date-input">
         </div>
         <div class="form-group">
-          <label>Par</label>
+          <label for="tw-par-input">Par</label>
           <input type="number" id="tw-par-input" value="72" min="60" max="80" style="width:90px">
         </div>
       </div>
@@ -1675,7 +1761,7 @@
       </div>
       <div class="form-row">
         <div class="form-group wide">
-          <label>Notes (optional)</label>
+          <label for="tw-notes-input">Notes (optional)</label>
           <textarea id="tw-notes-input" rows="2" placeholder="e.g. Bring cash for skins..."></textarea>
         </div>
       </div>
@@ -1757,11 +1843,11 @@
         <h3 style="font-size:0.9rem;color:var(--pink-light);margin-bottom:8px">📲 Push Notification</h3>
         <p style="font-size:0.78rem;color:var(--gray);margin-bottom:8px">Send a push notification to all subscribed devices.</p>
         <div class="form-group wide" style="margin-bottom:6px">
-          <label>Title</label>
+          <label for="notif-title">Title</label>
           <input type="text" id="notif-title" placeholder="e.g. FOG Update" maxlength="50">
         </div>
         <div class="form-group wide" style="margin-bottom:8px">
-          <label>Message</label>
+          <label for="notif-message">Message</label>
           <textarea id="notif-message" rows="2" placeholder="e.g. Don't forget to RSVP!" maxlength="200" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,61,167,0.3);background:var(--dark-card);color:var(--white);font-family:'Space Grotesk',sans-serif;font-size:0.85rem;resize:vertical"></textarea>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1781,7 +1867,7 @@
         <p style="font-size:0.85rem;color:var(--gray);margin-bottom:12px">Save courses with 18-hole pars. When you select a course above and pick Front/Back 9, pars auto-fill.</p>
         <div class="form-row">
           <div class="form-group wide">
-            <label>Course Name</label>
+            <label for="cm-course-name">Course Name</label>
             <input type="text" id="cm-course-name" placeholder="e.g. Kennedy Golf Course">
           </div>
         </div>
@@ -2263,9 +2349,9 @@ function applyMode() {
 /* ─── Navigation ─── */
 function showPanel(name, btn) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
   document.getElementById('panel-' + name).classList.add('active');
-  if (btn) btn.classList.add('active');
+  if (btn) { btn.classList.add('active'); btn.setAttribute('aria-selected', 'true'); }
   if (name === 'home')           renderThisWeek();
   if (name === 'live-scoring')   renderLiveScoring();
   if (name === 'pairings')      renderPairingsTab();
@@ -3455,7 +3541,7 @@ function renderStandings() {
     const hcpCls = (handicapData[p.id] || {}).overrideActive ? 'hcp-override' : '';
     return `<tr class="${lc}">
       <td><span class="rank-badge ${rc}">${i + 1}</span></td>
-      <td><strong><a href="#" onclick="event.preventDefault();showHandicapDetail('${p.id}')" style="color:inherit;text-decoration:none">${escHtml(p.name)}</a></strong></td>
+      <td><strong><a href="#" onclick="event.preventDefault();showPlayerStats('${p.id}')" style="color:inherit;text-decoration:none">${escHtml(p.name)}</a></strong></td>
       <td class="${hcpCls}" style="color:var(--pink-light);font-weight:600">${p.handicap || '0'}${hcpCls ? ' *' : ''}</td>
       <td>${p.rounds}</td><td>${p.total ?? '—'}</td><td>${p.avg ?? '—'}</td><td>${p.best ?? '—'}</td><td>${vph}</td>
     </tr>`;
@@ -3728,6 +3814,159 @@ function listenToHandicaps() {
     try { renderStandings(); } catch(e) {}
     try { renderPlayers(); } catch(e) {}
   });
+}
+
+/* ─── Player Stats Dashboard ─── */
+function showPlayerStats(playerId) {
+  renderPlayerStats(playerId);
+  showHandicapDetail(playerId);
+}
+
+function renderPlayerStats(playerId) {
+  const card = document.getElementById('player-stats-card');
+  const titleEl = document.getElementById('player-stats-title');
+  const content = document.getElementById('player-stats-content');
+  if (!card || !content) return;
+
+  const p = state.players.find(pl => pl.id === playerId);
+  if (!p) return;
+
+  // Gather per-week scores for this player
+  const weekNums = Object.keys(state.weeks)
+    .filter(w => state.weeks[w].scores && state.weeks[w].scores[playerId] !== undefined)
+    .sort((a, b) => +a - +b);
+
+  if (!weekNums.length) {
+    titleEl.textContent = escHtml(p.name) + ' — Stats';
+    content.innerHTML = '<div class="empty-state">No rounds played yet.</div>';
+    card.classList.add('open');
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  const scores = weekNums.map(w => state.weeks[w].scores[playerId]);
+  const pars = weekNums.map(w => state.weeks[w].par || 72);
+  const courses = weekNums.map(w => state.weeks[w].course || '');
+  const rounds = scores.length;
+  const total = scores.reduce((s, v) => s + v, 0);
+  const avg = (total / rounds).toFixed(1);
+  const best = Math.min(...scores);
+  const worst = Math.max(...scores);
+  const totalPar = pars.reduce((s, v) => s + v, 0);
+  const vsPar = total - totalPar;
+
+  // Scoring trend: last 5 rounds
+  const recentN = Math.min(rounds, 8);
+  const recentScores = scores.slice(-recentN);
+  const recentPars = pars.slice(-recentN);
+  const recentWeeks = weekNums.slice(-recentN);
+
+  // Calculate consistency (std deviation)
+  const mean = total / rounds;
+  const variance = scores.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / rounds;
+  const stdDev = Math.sqrt(variance).toFixed(1);
+
+  // Improvement: compare first half avg vs second half avg
+  let improvementHtml = '';
+  if (rounds >= 4) {
+    const half = Math.floor(rounds / 2);
+    const firstHalfAvg = scores.slice(0, half).reduce((s, v) => s + v, 0) / half;
+    const secondHalfAvg = scores.slice(half).reduce((s, v) => s + v, 0) / (rounds - half);
+    const diff = secondHalfAvg - firstHalfAvg;
+    const cls = diff < 0 ? 'score-under' : diff === 0 ? 'score-even' : 'score-over';
+    improvementHtml = `<div class="stat-box">
+      <div class="stat-val"><span class="score-pill ${cls}" style="font-size:1rem;padding:2px 10px">${diff > 0 ? '+' : ''}${diff.toFixed(1)}</span></div>
+      <div class="stat-lbl">Trend</div>
+    </div>`;
+  }
+
+  // Vs par coloring
+  const vpCls = vsPar < 0 ? 'score-under' : vsPar === 0 ? 'score-even' : 'score-over';
+
+  // Build trend bars (normalize scores to bar heights)
+  const minBar = Math.min(...recentScores) - 3;
+  const maxBar = Math.max(...recentScores) + 3;
+  const range = maxBar - minBar || 1;
+  const barsHtml = recentScores.map((s, i) => {
+    const pct = ((s - minBar) / range) * 100;
+    // Invert: lower score = taller bar (better)
+    const h = 100 - pct;
+    const vpDiff = s - recentPars[i];
+    const barColor = vpDiff <= 0 ? 'var(--green-good)' : vpDiff <= 3 ? 'var(--pink-hot)' : 'var(--red-bad)';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <span style="font-size:0.55rem;color:var(--gray)">${s}</span>
+      <div style="flex:1;width:100%;display:flex;align-items:flex-end">
+        <div style="width:100%;border-radius:3px 3px 0 0;background:${barColor};height:${Math.max(h, 8)}%;min-height:4px;transition:height 0.3s"></div>
+      </div>
+      <span style="font-size:0.5rem;color:var(--gray)">W${recentWeeks[i]}</span>
+    </div>`;
+  }).join('');
+
+  titleEl.innerHTML = `${escHtml(p.name)} <span style="font-size:0.75rem;color:var(--gray);font-weight:400">— Season Stats</span>`;
+  content.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-val">${rounds}</div>
+        <div class="stat-lbl">Rounds</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">${avg}</div>
+        <div class="stat-lbl">Average</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" style="color:var(--green-good)">${best}</div>
+        <div class="stat-lbl">Best</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" style="color:var(--red-bad)">${worst}</div>
+        <div class="stat-lbl">Worst</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val"><span class="score-pill ${vpCls}" style="font-size:1rem;padding:2px 10px">${vsPar > 0 ? '+' : ''}${vsPar}</span></div>
+        <div class="stat-lbl">vs Par</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">${stdDev}</div>
+        <div class="stat-lbl">Std Dev</div>
+      </div>
+      ${improvementHtml}
+    </div>
+    ${recentScores.length >= 2 ? `
+    <div style="margin-top:12px">
+      <div style="font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Recent Rounds</div>
+      <div style="display:flex;gap:4px;align-items:flex-end;height:64px;padding:0 4px">
+        ${barsHtml}
+      </div>
+      <div style="font-size:0.55rem;color:var(--gray);margin-top:6px;text-align:center">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--green-good);margin-right:3px"></span>At/Under Par
+        <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--pink-hot);margin:0 3px 0 10px"></span>1-3 Over
+        <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--red-bad);margin:0 3px 0 10px"></span>4+ Over
+      </div>
+    </div>` : ''}
+    <div style="margin-top:14px">
+      <div style="font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Round History</div>
+      <div class="score-table-wrap">
+        <table>
+          <thead><tr><th>Week</th><th>Course</th><th>Gross</th><th>Par</th><th>vs Par</th></tr></thead>
+          <tbody>
+            ${weekNums.map((w, i) => {
+              const vpd = scores[i] - pars[i];
+              const dc = vpd < 0 ? 'score-under' : vpd === 0 ? 'score-even' : 'score-over';
+              return `<tr>
+                <td style="font-size:0.75rem">Week ${w}</td>
+                <td style="color:var(--gray);font-size:0.8rem">${courses[i] ? escHtml(courses[i]) : '—'}</td>
+                <td style="font-weight:700">${scores[i]}</td>
+                <td>${pars[i]}</td>
+                <td><span class="score-pill ${dc}">${vpd > 0 ? '+' : ''}${vpd}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+  card.classList.add('open');
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function showHandicapDetail(playerId) {
@@ -6278,8 +6517,151 @@ async function autoGeneratePairingsIfNeeded() {
   await generatePairings();
 }
 
+/* ─── Delete My Data ─── */
+function openDeleteModal() {
+  document.getElementById('delete-modal-overlay').classList.add('show');
+}
+function closeDeleteModal() {
+  document.getElementById('delete-modal-overlay').classList.remove('show');
+}
+async function confirmDeleteMyData() {
+  const user = firebase.auth().currentUser;
+  if (!user) { toast('Not signed in.'); closeDeleteModal(); return; }
+
+  try {
+    // Remove FCM tokens for this session
+    const tokensSnap = await db.ref('fcmTokens').once('value');
+    const tokensData = tokensSnap.val() || {};
+    for (const [key, data] of Object.entries(tokensData)) {
+      if (data.uid === user.uid) {
+        await db.ref('fcmTokens/' + key).remove();
+      }
+    }
+
+    // Remove guest entries created by this user
+    const wn = state.thisWeek.weekNum || 1;
+    const guestsSnap = await db.ref('guests/' + wn).once('value');
+    const guests = guestsSnap.val() || {};
+    for (const [gid, g] of Object.entries(guests)) {
+      if (g.addedBy === user.uid) {
+        await db.ref('guests/' + wn + '/' + gid).remove();
+      }
+    }
+
+    // Clear localStorage
+    localStorage.removeItem(STORAGE_KEY);
+
+    toast('Your data has been deleted.');
+    closeDeleteModal();
+  } catch (e) {
+    console.error('Delete error:', e);
+    toast('Error deleting data. Please try again.');
+  }
+}
+
+/* ─── Terms of Service & Privacy ─── */
+function showTerms() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--dark-card);border:1px solid rgba(255,61,167,0.2);border-radius:16px;padding:28px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="font-family:'Outfit',sans-serif;color:var(--pink-hot)">Terms of Service</h3>
+        <button onclick="this.closest('div[style]').parentElement.remove()" style="background:none;border:none;color:var(--gray);font-size:1.5rem;cursor:pointer">&times;</button>
+      </div>
+      <div style="font-size:0.82rem;color:var(--gray);line-height:1.7">
+        <p style="margin-bottom:12px"><strong style="color:var(--white)">Last updated:</strong> February 2025</p>
+        <p style="margin-bottom:12px">FOG (Friends of Golf) is a recreational golf league management app. By using this app, you agree to the following terms:</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">1. Use</strong><br>This app is provided for personal, non-commercial use by FOG league members and guests. It is used to track weekly golf scores, standings, RSVP status, and league scheduling.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">2. Accounts</strong><br>Users access the app via anonymous authentication. No personal accounts are created. Admin access is restricted to league organizers.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">3. Payments</strong><br>Any league dues or skins payments referenced in the app are handled externally via Venmo or cash. FOG does not process payments within the app.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">4. Data</strong><br>We collect player names and golf scores as entered by the league admin. Push notification tokens are stored if you opt in. You can delete your data at any time using the "Delete My Data" option.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">5. Disclaimer</strong><br>Scores, handicaps, standings, and payouts are for recreational purposes only. FOG is not affiliated with any official golf organization.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">6. Contact</strong><br>For questions or concerns, email <a href="mailto:jamirandregg@gmail.com" style="color:var(--pink-light)">jamirandregg@gmail.com</a>.</p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+function showPrivacy() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--dark-card);border:1px solid rgba(255,61,167,0.2);border-radius:16px;padding:28px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="font-family:'Outfit',sans-serif;color:var(--pink-hot)">Privacy Policy</h3>
+        <button onclick="this.closest('div[style]').parentElement.remove()" style="background:none;border:none;color:var(--gray);font-size:1.5rem;cursor:pointer">&times;</button>
+      </div>
+      <div style="font-size:0.82rem;color:var(--gray);line-height:1.7">
+        <p style="margin-bottom:12px"><strong style="color:var(--white)">Last updated:</strong> February 2025</p>
+        <p style="margin-bottom:12px">FOG respects your privacy. This policy explains what data we collect and how it is used.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">Data We Collect</strong></p>
+        <ul style="margin-bottom:12px;padding-left:20px">
+          <li>Player names and golf scores (entered by the league admin)</li>
+          <li>RSVP responses (yes/no for weekly rounds)</li>
+          <li>Push notification tokens (if you opt in to notifications)</li>
+          <li>Anonymous authentication session (no personal info required)</li>
+        </ul>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">How We Use Data</strong><br>All data is used solely for league management: tracking scores, standings, handicaps, scheduling, and sending optional push notifications about league events.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">Data Storage</strong><br>Data is stored in Firebase Realtime Database (Google Cloud). We do not sell, share, or transfer your data to third parties.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">Data Deletion</strong><br>You can delete your session data at any time by tapping "Delete My Data" in the app footer. To request removal of your name/scores from league records, contact the league admin.</p>
+        <p style="margin-bottom:8px"><strong style="color:var(--white)">Third-Party Services</strong></p>
+        <ul style="margin-bottom:12px;padding-left:20px">
+          <li>Firebase (authentication, database, hosting, push notifications)</li>
+          <li>Venmo links (external payment, not processed by the app)</li>
+        </ul>
+        <p><strong style="color:var(--white)">Contact</strong><br>For privacy questions, email <a href="mailto:jamirandregg@gmail.com" style="color:var(--pink-light)">jamirandregg@gmail.com</a>.</p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+/* ─── Offline/Online Indicator ─── */
+(function() {
+  const bar = document.getElementById('offline-bar');
+  if (!bar) return;
+  function updateOnlineStatus() {
+    if (navigator.onLine) {
+      bar.classList.remove('show');
+    } else {
+      bar.classList.add('show');
+    }
+  }
+  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+  updateOnlineStatus(); // check on load
+})();
+
 // App initialization is handled by auth.onAuthStateChanged() above
 </script>
+
+<!-- Delete Account Modal -->
+<div class="delete-modal-overlay" id="delete-modal-overlay">
+  <div class="delete-modal">
+    <h3>Delete My Data</h3>
+    <p>This will remove your RSVP history, live scores, push notification subscription, and any guest entries associated with your session. Your league stats (entered by the admin) will remain for league records.</p>
+    <p style="font-size:0.78rem;color:var(--pink-light)">This action cannot be undone.</p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
+      <button class="btn-danger" onclick="confirmDeleteMyData()">Delete My Data</button>
+      <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- App Footer -->
+<footer class="app-footer">
+  <div class="footer-links">
+    <a href="mailto:jamirandregg@gmail.com" aria-label="Email support">Support</a>
+    <a href="#" onclick="event.preventDefault();showTerms()">Terms of Service</a>
+    <a href="#" onclick="event.preventDefault();showPrivacy()">Privacy</a>
+    <a href="#" onclick="event.preventDefault();openDeleteModal()">Delete My Data</a>
+  </div>
+  <div class="footer-copy">&copy; 2025 FOG — Friends of Golf</div>
+</footer>
 
 <!-- WhatsApp Floating Button -->
 <a href="https://chat.whatsapp.com/F69LUEKZSOSEcHPk6jAje7" target="_blank" rel="noopener noreferrer" class="whatsapp-float" title="FOG WhatsApp Group">
