@@ -1960,7 +1960,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn('Auth persistence error:', e));
 
 // ── FCM / Push Notification Config ──
 const FCM_VAPID_KEY = 'BLt-nddGQquAs8gM9EVd5NRFNQ7WszqVMkQhbE3gPxZzE7VZH5UMAJ1OCIDNLn2KHrcsWW2--N7lR8SPfUgwvKQ';
@@ -2174,6 +2174,7 @@ auth.onAuthStateChanged(async (user) => {
         if (authReady) toast('Editor mode unlocked!');
       } else {
         await auth.signOut();
+        return; // signOut triggers another onAuthStateChanged
       }
     } catch (e) {
       console.warn('Admin check failed:', e);
@@ -2182,15 +2183,17 @@ auth.onAuthStateChanged(async (user) => {
     isEditor = false;
     applyMode();
   } else {
-    // Not signed in — sign in anonymously
+    // Not signed in — sign in anonymously (triggers another onAuthStateChanged)
     try {
       await auth.signInAnonymously();
     } catch (e) {
       console.warn('Anonymous sign-in failed:', e);
     }
+    return; // wait for the next onAuthStateChanged with the anonymous user
   }
 
-  if (!authReady) {
+  // Only load data once we have a valid auth session
+  if (!authReady && user) {
     authReady = true;
     try {
       await preloadDataIfEmpty();
