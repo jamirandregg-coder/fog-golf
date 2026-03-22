@@ -25,7 +25,7 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
-const CACHE_NAME = 'fog-golf-v16';
+const CACHE_NAME = 'fog-golf-v17';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/index.html'
