@@ -6725,13 +6725,30 @@ function showPrivacy() {
 (function() {
   const bar = document.getElementById('offline-bar');
   if (!bar) return;
-  function updateOnlineStatus() {
-    if (navigator.onLine) {
+
+  async function isActuallyOnline() {
+    // navigator.onLine is unreliable on mobile — verify with a real network request
+    if (navigator.onLine) return true;
+    try {
+      const resp = await fetch('https://www.gstatic.com/generate_204', {
+        method: 'HEAD', mode: 'no-cors', cache: 'no-store'
+      });
+      return true; // fetch succeeded, we're actually online
+    } catch {
+      return false; // genuinely offline
+    }
+  }
+
+  async function updateOnlineStatus() {
+    if (await isActuallyOnline()) {
       bar.classList.remove('show');
     } else {
       bar.classList.add('show');
+      // Re-check every 5s while offline in case connectivity returns silently
+      setTimeout(updateOnlineStatus, 5000);
     }
   }
+
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
   updateOnlineStatus(); // check on load
