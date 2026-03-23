@@ -1892,6 +1892,13 @@
         </div>
       </div>
     </div>
+
+    <!-- Season Reset Card (admin only) -->
+    <div class="card editor-only-card" style="border:1px solid rgba(255,80,80,0.4);margin-top:24px">
+      <div class="card-title" style="color:#ff5050">⚠️ Season Reset</div>
+      <p style="font-size:0.82rem;color:var(--gray);margin-bottom:12px">Wipe all scores, pairings, live scores, contests, and round data for the current season. <strong>Players and courses are kept.</strong></p>
+      <button class="btn" style="background:#ff5050;color:#fff;font-size:0.82rem;padding:10px 20px" onclick="resetSeason()">Reset Season</button>
+    </div>
   </div>
 
 </div>
@@ -2595,6 +2602,49 @@ async function resetPayments() {
   await db.ref('payments/' + wn).remove();
   await db.ref('paymentEnforced/' + wn).remove();
   toast('Payments reset');
+}
+
+async function resetSeason() {
+  if (!isEditor) return;
+  if (!confirm('⚠️ This will DELETE all scores, pairings, live scores, contests, RSVPs, payments, and round data for the current season.\n\nPlayers and courses will be KEPT.\n\nAre you sure?')) return;
+  if (!confirm('FINAL WARNING: This cannot be undone. Type OK to confirm you want to wipe the 2026 season.')) return;
+  try {
+    // Wipe all season data from Firebase
+    const updates = {
+      'weekResults': null,
+      'liveScores': null,
+      'roundStatus': null,
+      'contests': null,
+      'pairings': null,
+      'rsvps': null,
+      'payments': null,
+      'paymentEnforced': null,
+      'guests': null,
+      'courseSetup': null,
+      'scoringMode': null,
+      'groupScorers': null,
+      'schedule': null,
+      'rsvpOverride': null,
+      'announcement': null,
+    };
+    await db.ref().update(updates);
+    // Reset thisWeek to week 1
+    const freshWeek = { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
+    await db.ref('thisWeek').set(freshWeek);
+    // Reset local state
+    state.weeks = {};
+    state.thisWeek = freshWeek;
+    await saveState();
+    // Re-render everything
+    renderStandings();
+    renderHistory(null);
+    renderWinnerBanner();
+    renderThisWeek();
+    toast('🎉 Season reset! Fresh start for 2026.');
+  } catch (e) {
+    console.error('Season reset error:', e);
+    toast('Error resetting season: ' + e.message);
+  }
 }
 
 async function enforcePaymentCutoff() {
