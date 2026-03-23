@@ -2631,15 +2631,22 @@ async function resetSeason() {
     // Reset thisWeek to week 1
     const freshWeek = { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
     await db.ref('thisWeek').set(freshWeek);
-    // Reset local state
+    // Reset local state completely
     state.weeks = {};
     state.thisWeek = freshWeek;
+    // Force clear localStorage so old data doesn't reload
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      if (window.storage && window.storage.remove) await window.storage.remove(STORAGE_KEY);
+    } catch(e) { console.warn('Storage clear error:', e); }
+    // Save fresh state
     await saveState();
     // Re-render everything
     renderStandings();
     renderHistory(null);
     renderWinnerBanner();
     renderThisWeek();
+    renderAll();
     toast('🎉 Season reset! Fresh start for 2026.');
   } catch (e) {
     console.error('Season reset error:', e);
