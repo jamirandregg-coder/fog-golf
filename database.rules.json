@@ -21,6 +21,7 @@
 
     "weekResults": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$week": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -28,6 +29,7 @@
 
     "schedule": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$weekNum": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -35,6 +37,7 @@
 
     "pairings": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -47,6 +50,7 @@
 
     "roundStatus": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -54,6 +58,7 @@
 
     "courseSetup": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -61,6 +66,7 @@
 
     "payments": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -68,6 +74,7 @@
 
     "paymentEnforced": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -75,6 +82,7 @@
 
     "rsvpOverride": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -89,6 +97,7 @@
 
     "scoringMode": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -96,6 +105,7 @@
 
     "groupScorers": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -103,6 +113,7 @@
 
     "contests": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
       }
@@ -117,6 +128,7 @@
 
     "rsvps": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$weekNum": {
         ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
         "$playerId": {
@@ -128,6 +140,7 @@
 
     "liveScores": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         "$playerId": {
           ".write": "auth != null && (root.child('roundStatus').child($wn).val() === 'open' || root.child('admins').child(auth.uid).val() === true)"
@@ -137,6 +150,7 @@
 
     "guests": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$wn": {
         "$guestId": {
           ".write": "auth != null"
