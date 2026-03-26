@@ -11,6 +11,15 @@ DerivedData/
 build/
 *.xcworkspace/xcuserdata/
 
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/app/fog-golf.keystore
+android/local.properties
+*.aab
+*.apk
+
 # macOS
 .DS_Store
 

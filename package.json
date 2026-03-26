@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node scripts/copy-web.js",
     "sync": "npm run build && npx cap sync",
-    "sync:ios": "npm run build && npx cap sync ios"
+    "sync:ios": "npm run build && npx cap sync ios",
+    "icons:android": "node scripts/generate-android-icons.js"
   },
   "keywords": [],
   "author": "Jami Andregg",

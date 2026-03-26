@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme for the TWA app -->
+    <style name="Theme.TWA" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/backgroundColor</item>
+        <item name="android:statusBarColor">@color/backgroundColor</item>
+        <item name="android:navigationBarColor">@color/backgroundColor</item>
+    </style>
+
+    <!-- Splash screen theme shown while TWA loads -->
+    <style name="Theme.TWA.Splash" parent="Theme.TWA">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+</resources>
