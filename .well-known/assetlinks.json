@@ -3,6 +3,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "golf.thefog.twa",
-    "sha256_cert_fingerprints": ["BC:0F:03:D7:FB:E9:EB:D6:E9:DD:4C:82:2F:87:4F:12:89:7E:F2:4C:CB:08:AD:58:6E:82:21:25:46:57:D0:9A"]
+    "sha256_cert_fingerprints": ["0B:04:9B:33:B6:E6:D7:98:4E:78:2F:FC:73:DD:77:38:D6:8E:C7:F3:C0:4B:2A:E5:F4:E2:DA:71:72:F7:31:A3"]
   }
 }]
