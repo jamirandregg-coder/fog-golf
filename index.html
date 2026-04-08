@@ -2106,6 +2106,8 @@ let guestData = {};          // { weekNum: { guestId: guestObj } }
 let guestListener = null;
 let handicapData = {};       // { playerId: { current, overrideActive, overrideValue, history, updatedAt } }
 let handicapListener = null;
+let playerClaims = {};       // { playerId: uid } — device claim for RSVP protection
+let playerClaimsListener = null;
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
@@ -2496,12 +2498,24 @@ function renderRSVP() {
     const guestBadge = p.isGuest ? ' <span class="guest-badge">GUEST</span>' : '';
     const guestRemoveBtn = p.isGuest && isEditor ? ` <button class="guest-remove-btn" onclick="removeGuest('${p.id}')" title="Remove guest">✕</button>` : '';
 
+    // Device claim indicator
+    const claimed = playerClaims[p.id];
+    const myUid = getMyUid();
+    const isMyPlayer = claimed && claimed === myUid;
+    const claimedByOther = claimed && claimed !== myUid && !isEditor;
+    const claimIcon = isMyPlayer ? ' <span title="Your device" style="font-size:0.6rem;opacity:0.6">🔒</span>' : '';
+    const unclaimBtn = isEditor && claimed ? ` <button onclick="adminUnclaimPlayer('${p.id}')" title="Remove device claim" style="font-size:0.55rem;background:none;border:1px solid rgba(255,61,167,0.3);color:var(--pink-light);padding:0 4px;border-radius:3px;cursor:pointer">🔓</button>` : '';
+
+    // If claimed by another device and not admin, disable the RSVP button
+    const rsvpDisabled = locked || claimedByOther;
+    const rsvpDisabledAttr = rsvpDisabled ? 'disabled style="opacity:0.5;cursor:not-allowed"' : '';
+
     return `
       <div class="rsvp-chip ${chipClass}">
-        <span style="font-weight:600">${escHtml(p.name)}${guestBadge}${guestRemoveBtn}</span>
+        <span style="font-weight:600">${escHtml(p.name)}${claimIcon}${guestBadge}${guestRemoveBtn}${unclaimBtn}</span>
         <span class="chip-actions">
           ${payHtml}
-          <button class="rsvp-status ${btnClass}" onclick="toggleRSVP('${p.id}')" ${disabledAttr}>${btnText}</button>
+          <button class="rsvp-status ${btnClass}" onclick="toggleRSVP('${p.id}')" ${rsvpDisabledAttr}>${btnText}</button>
         </span>
       </div>
     `;
@@ -2541,6 +2555,13 @@ async function toggleRSVP(playerId) {
     toast('RSVPs are locked! Deadline has passed.');
     return;
   }
+
+  // Device-claim check (admins bypass)
+  if (!isEditor) {
+    const ok = await claimAndRSVP(playerId);
+    if (!ok) return;
+  }
+
   const wn = state.thisWeek.weekNum || 1;
   const cur = (rsvpData[wn] && rsvpData[wn][playerId]) || 'pending';
   const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
@@ -2812,6 +2833,56 @@ function checkAutoEmailTriggers() {
       localStorage.setItem('emailSent_' + morningKey, 'true');
       sendRSVPEmail('FOG Game Day Reminder - Week ' + wn);
     }
+  }
+}
+
+/* ─── Player Device Claims ─── */
+function listenToPlayerClaims() {
+  const ref = db.ref('playerClaims');
+  if (playerClaimsListener) playerClaimsListener.off();
+  playerClaimsListener = ref;
+  ref.on('value', (snap) => {
+    playerClaims = snap.val() || {};
+    renderRSVP();
+  });
+}
+
+function getMyUid() {
+  const u = firebase.auth().currentUser;
+  return u ? u.uid : null;
+}
+
+async function claimAndRSVP(playerId) {
+  const uid = getMyUid();
+  if (!uid) { toast('Not signed in — try refreshing.'); return false; }
+
+  const claimedBy = playerClaims[playerId];
+  if (claimedBy && claimedBy !== uid && !isEditor) {
+    toast('This player is claimed on another device. Contact admin to reset.');
+    return false;
+  }
+
+  // Claim this player to this device (no-op if already claimed by us)
+  if (!claimedBy || claimedBy !== uid) {
+    try {
+      await db.ref('playerClaims/' + playerId).set(uid);
+    } catch (e) {
+      toast('Could not verify your device — try again.');
+      console.warn(e);
+      return false;
+    }
+  }
+  return true;
+}
+
+async function adminUnclaimPlayer(playerId) {
+  if (!isEditor) return;
+  try {
+    await db.ref('playerClaims/' + playerId).set(null);
+    toast('Device claim removed. Player can re-claim from any device.');
+  } catch (e) {
+    toast('Failed to unclaim player.');
+    console.warn(e);
   }
 }
 
@@ -3295,6 +3366,12 @@ function toggleScheduleRSVP(weekNum) {
 }
 
 async function toggleScheduleWeekRSVP(playerId, weekNum) {
+  // Device-claim check (admins bypass)
+  if (!isEditor) {
+    const ok = await claimAndRSVP(playerId);
+    if (!ok) return;
+  }
+
   const weekRsvps = scheduleRsvpData[weekNum] || rsvpData[weekNum] || {};
   const cur = weekRsvps[playerId] || 'pending';
   const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
@@ -6616,6 +6693,7 @@ async function preloadDataIfEmpty() {
     listenToWeekResults();
     listenToHandicaps();
     listenToAnnouncement();
+    listenToPlayerClaims();
     loadEmailSentFlags();
     initFCM();
     initCapacitorNative();
