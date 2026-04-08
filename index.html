@@ -6793,19 +6793,26 @@ function showPrivacy() {
   const bar = document.getElementById('offline-bar');
   if (!bar) return;
 
-  // Use Firebase's built-in connectivity detection — much more reliable than
-  // fetch-based checks in iOS PWAs / App Store wrappers where no-cors
-  // requests can be silently blocked by ATS or the service worker.
-  const connectedRef = firebase.database().ref('.info/connected');
-  connectedRef.on('value', snap => {
+  // Track connectivity with Firebase's built-in detection.
+  // .info/connected starts as false before the WebSocket opens,
+  // so we only show the banner after a generous grace period AND
+  // only if we never connected at all.
+  let hasEverConnected = false;
+  let offlineTimer = null;
+
+  firebase.database().ref('.info/connected').on('value', snap => {
     if (snap.val() === true) {
+      hasEverConnected = true;
+      if (offlineTimer) { clearTimeout(offlineTimer); offlineTimer = null; }
       bar.classList.remove('show');
-    } else {
-      // Small delay to avoid flashing on initial load before Firebase connects
-      setTimeout(() => {
-        if (snap.val() !== true) bar.classList.add('show');
-      }, 3000);
+    } else if (hasEverConnected) {
+      // We were online and lost connection — show after short delay
+      if (!offlineTimer) {
+        offlineTimer = setTimeout(() => { bar.classList.add('show'); }, 5000);
+      }
     }
+    // If we've NEVER connected, don't show the banner — the app is still
+    // loading and Firebase hasn't established its WebSocket yet.
   });
 })();
 
