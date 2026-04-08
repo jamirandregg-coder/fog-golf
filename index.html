@@ -2555,14 +2555,19 @@ async function toggleRSVP(playerId) {
   const cur = (rsvpData[wn] && rsvpData[wn][playerId]) || 'pending';
   const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
 
+  // Open Venmo BEFORE the async Firebase call — iOS blocks window.open()
+  // after an await because the user-gesture context is lost.
+  let venmoWindow = null;
+  if (next === 'yes') {
+    const venmoLink = document.getElementById('venmo-link');
+    if (venmoLink) venmoWindow = window.open(venmoLink.href, '_blank');
+  }
+
   try {
     await db.ref('rsvps/' + wn + '/' + playerId).set(next);
-    // Redirect to Venmo when player RSVPs "In"
-    if (next === 'yes') {
-      const venmoLink = document.getElementById('venmo-link');
-      if (venmoLink) window.open(venmoLink.href, '_blank');
-    }
   } catch (e) {
+    // If RSVP failed, close the Venmo window we opened
+    if (venmoWindow) try { venmoWindow.close(); } catch(_) {}
     toast('RSVP update failed - try again.');
     console.warn(e);
   }
@@ -3303,14 +3308,19 @@ async function toggleScheduleWeekRSVP(playerId, weekNum) {
   const weekRsvps = scheduleRsvpData[weekNum] || rsvpData[weekNum] || {};
   const cur = weekRsvps[playerId] || 'pending';
   const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
+
+  // Open Venmo BEFORE the async Firebase call — iOS blocks window.open()
+  // after an await because the user-gesture context is lost.
+  let venmoWindow = null;
+  if (next === 'yes') {
+    const venmoLink = document.getElementById('venmo-link');
+    if (venmoLink) venmoWindow = window.open(venmoLink.href, '_blank');
+  }
+
   try {
     await db.ref('rsvps/' + weekNum + '/' + playerId).set(next);
-    // Redirect to Venmo when player RSVPs "In"
-    if (next === 'yes') {
-      const venmoLink = document.getElementById('venmo-link');
-      if (venmoLink) window.open(venmoLink.href, '_blank');
-    }
   } catch (e) {
+    if (venmoWindow) try { venmoWindow.close(); } catch(_) {}
     toast('RSVP update failed');
     console.warn(e);
   }
@@ -6783,44 +6793,20 @@ function showPrivacy() {
   const bar = document.getElementById('offline-bar');
   if (!bar) return;
 
-  async function isActuallyOnline() {
-    // navigator.onLine is unreliable on iOS/PWA — ALWAYS verify with a real fetch
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      await fetch('https://www.gstatic.com/generate_204', {
-        method: 'HEAD', mode: 'no-cors', cache: 'no-store',
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  let offlineCheckInterval = null;
-
-  async function updateOnlineStatus() {
-    if (await isActuallyOnline()) {
+  // Use Firebase's built-in connectivity detection — much more reliable than
+  // fetch-based checks in iOS PWAs / App Store wrappers where no-cors
+  // requests can be silently blocked by ATS or the service worker.
+  const connectedRef = firebase.database().ref('.info/connected');
+  connectedRef.on('value', snap => {
+    if (snap.val() === true) {
       bar.classList.remove('show');
-      // Stop rapid polling once we're confirmed online
-      if (offlineCheckInterval) { clearInterval(offlineCheckInterval); offlineCheckInterval = null; }
     } else {
-      bar.classList.add('show');
-      // Poll every 5s while offline
-      if (!offlineCheckInterval) {
-        offlineCheckInterval = setInterval(updateOnlineStatus, 5000);
-      }
+      // Small delay to avoid flashing on initial load before Firebase connects
+      setTimeout(() => {
+        if (snap.val() !== true) bar.classList.add('show');
+      }, 3000);
     }
-  }
-
-  window.addEventListener('online', updateOnlineStatus);
-  window.addEventListener('offline', updateOnlineStatus);
-  // Check on load with a small delay to let network settle after app launch
-  setTimeout(updateOnlineStatus, 1500);
-  // Also re-check periodically in case iOS doesn't fire events
-  setInterval(updateOnlineStatus, 30000);
+  });
 })();
 
 // App initialization is handled by auth.onAuthStateChanged() above
