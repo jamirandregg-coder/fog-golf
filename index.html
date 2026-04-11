@@ -4555,23 +4555,16 @@ async function generatePairings() {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
 
-  // Create groups of 4
+  // Create balanced groups of 3-4 players
+  const numGroups = Math.ceil(shuffled.length / 4);
+  const baseSize = Math.floor(shuffled.length / numGroups);
+  const remainder = shuffled.length % numGroups;
   const groups = [];
-  for (let i = 0; i < shuffled.length; i += 4) {
-    groups.push(shuffled.slice(i, i + 4).map(p => p.id));
-  }
-
-  // If last group has fewer than 4 and there are multiple groups,
-  // distribute remainder: if 1-2 leftover, add to previous groups to make 5s
-  if (groups.length > 1) {
-    const lastGroup = groups[groups.length - 1];
-    if (lastGroup.length < 3) {
-      // Distribute leftover players to earlier groups
-      groups.pop();
-      lastGroup.forEach((pid, idx) => {
-        groups[idx % groups.length].push(pid);
-      });
-    }
+  let idx = 0;
+  for (let g = 0; g < numGroups; g++) {
+    const size = baseSize + (g < remainder ? 1 : 0);
+    groups.push(shuffled.slice(idx, idx + size).map(p => p.id));
+    idx += size;
   }
 
   // Assign tee times to groups
