@@ -1,7 +1,17 @@
 name: iOS Build & TestFlight
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'manifest.json'
+      - 'service-worker.js'
+      - 'ios/**'
+      - 'capacitor.config.json'
+
+  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   build:
