@@ -2131,22 +2131,17 @@ function toast(msg) {
 function getRSVPDeadline() {
   const tw = state.thisWeek;
   if (!tw.date) return null;
-  // RSVP deadline = noon the day BEFORE golf day (e.g. Monday noon for Tuesday golf)
-  const golfDay = new Date(tw.date + 'T12:00:00');
-  golfDay.setDate(golfDay.getDate() - 1); // day before golf
-  const year = golfDay.getFullYear();
-  const month = String(golfDay.getMonth() + 1).padStart(2, '0');
-  const day = String(golfDay.getDate()).padStart(2, '0');
-  const noonStr = `${year}-${month}-${day}T12:00:00`;
-  // Get the UTC offset for Denver on that date (handles MDT/MST)
-  const testDate = new Date(noonStr);
-  const utcStr = testDate.toLocaleString('en-US', { timeZone: 'UTC' });
-  const denStr = testDate.toLocaleString('en-US', { timeZone: 'America/Denver' });
-  const utcDate = new Date(utcStr);
-  const denDate = new Date(denStr);
-  const offsetMs = utcDate.getTime() - denDate.getTime();
-  // Deadline = Monday 12 PM (noon) Denver time in UTC
-  return new Date(testDate.getTime() + offsetMs);
+  // RSVP deadline = noon Denver time, the day BEFORE golf day
+  const golfDay = new Date(tw.date + 'T00:00:00');
+  golfDay.setDate(golfDay.getDate() - 1);
+  const y = golfDay.getFullYear();
+  const m = String(golfDay.getMonth() + 1).padStart(2, '0');
+  const d = String(golfDay.getDate()).padStart(2, '0');
+  // Noon Denver = 18:00 UTC (MDT/UTC-6) or 19:00 UTC (MST/UTC-7)
+  const tryMDT = new Date(`${y}-${m}-${d}T18:00:00Z`);
+  const h = parseInt(tryMDT.toLocaleString('en-US', { timeZone: 'America/Denver', hour12: false, hour: '2-digit' }));
+  if (h === 12) return tryMDT;
+  return new Date(`${y}-${m}-${d}T19:00:00Z`);
 }
 
 function isRSVPLocked() {
