@@ -3192,10 +3192,12 @@ async function saveThisWeek() {
     par: parseInt(document.getElementById('tw-par-input').value) || 72,
     notes: document.getElementById('tw-notes-input').value.trim()
   };
-  // If week changed, clear old week's RSVPs so everyone resets to "pending"
+  // If week changed, clear old week's RSVPs and RSVP lock so everyone resets
   const newWeekNum = state.thisWeek.weekNum;
   if (oldWeekNum && oldWeekNum !== newWeekNum) {
     await db.ref('rsvps/' + oldWeekNum).remove();
+    await db.ref('rsvpOverride/' + newWeekNum).set(false);
+    rsvpOverrideLocked = false;
   }
   await saveState();
   // Sync thisWeek to Firebase so all devices see it
@@ -3214,6 +3216,12 @@ async function saveThisWeek() {
   listenToPairings();
   listenToScoringMode();
   listenToGroupScorers();
+  // Re-listen to RSVP override for the (possibly new) week number
+  db.ref('rsvpOverride/' + wn).on('value', (snap) => {
+    rsvpOverrideLocked = snap.val() === true;
+    updateDeadlineDisplay();
+    renderThisWeek();
+  });
   toast('This week updated!');
   renderThisWeek();
 }
