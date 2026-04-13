@@ -2131,20 +2131,21 @@ function toast(msg) {
 function getRSVPDeadline() {
   const tw = state.thisWeek;
   if (!tw.date) return null;
-  // RSVP deadline = Monday 2:00 PM MDT (tee time)
-  const teeTimeLocal = new Date(tw.date + 'T14:00:00');
-  const year = teeTimeLocal.getFullYear();
-  const month = String(teeTimeLocal.getMonth() + 1).padStart(2, '0');
-  const day = String(teeTimeLocal.getDate()).padStart(2, '0');
-  const teeStr = `${year}-${month}-${day}T14:00:00`;
+  // RSVP deadline = noon the day BEFORE golf day (e.g. Monday noon for Tuesday golf)
+  const golfDay = new Date(tw.date + 'T12:00:00');
+  golfDay.setDate(golfDay.getDate() - 1); // day before golf
+  const year = golfDay.getFullYear();
+  const month = String(golfDay.getMonth() + 1).padStart(2, '0');
+  const day = String(golfDay.getDate()).padStart(2, '0');
+  const noonStr = `${year}-${month}-${day}T12:00:00`;
   // Get the UTC offset for Denver on that date (handles MDT/MST)
-  const testDate = new Date(teeStr);
+  const testDate = new Date(noonStr);
   const utcStr = testDate.toLocaleString('en-US', { timeZone: 'UTC' });
   const denStr = testDate.toLocaleString('en-US', { timeZone: 'America/Denver' });
   const utcDate = new Date(utcStr);
   const denDate = new Date(denStr);
   const offsetMs = utcDate.getTime() - denDate.getTime();
-  // Deadline = tee time (Monday 2 PM Denver time) in UTC
+  // Deadline = Monday 12 PM (noon) Denver time in UTC
   return new Date(testDate.getTime() + offsetMs);
 }
 
@@ -2812,7 +2813,7 @@ function checkAutoEmailTriggers() {
   if (!deadline || !state.thisWeek.date) return;
   const now = new Date();
 
-  // Trigger 1: At deadline (Monday 2 PM MDT = tee time)
+  // Trigger 1: At deadline (Monday 12 PM noon MDT)
   const deadlineKey = 'deadline-' + wn;
   if (!emailSentFlags[deadlineKey]) {
     const diffMs = now.getTime() - deadline.getTime();
@@ -2823,7 +2824,7 @@ function checkAutoEmailTriggers() {
     }
   }
 
-  // Trigger 2: Monday 8 AM MDT (6 hours before tee time)
+  // Trigger 2: Monday 6 AM MDT (6 hours before noon deadline)
   const mondayMorning = new Date(deadline.getTime() - 6 * 60 * 60 * 1000);
   const morningKey = 'morning-' + wn;
   if (!emailSentFlags[morningKey]) {
