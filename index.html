@@ -5531,7 +5531,8 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
 
   // Player rows
   let playerRows = '';
-  groupInfo.players.forEach(pid => {
+  const numPlayers = groupInfo.players.length;
+  groupInfo.players.forEach((pid, playerIdx) => {
     const player = getActivePlayers().find(p => p.id === pid);
     if (!player) return;
     const scores = liveScoresData[pid] || [];
@@ -5559,9 +5560,10 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
       }
 
       if (canEdit) {
+        const tabIdx = i * numPlayers + playerIdx + 1;
         playerRows += `<td><input type="number" class="gs-score-input ${cellClass}"
           id="gs-${pid}-hole-${i}" value="${val}" min="1" max="15"
-          data-player="${pid}" data-hole="${i}"
+          data-player="${pid}" data-hole="${i}" tabindex="${tabIdx}"
           oninput="updateGroupScoreCardStyle('${pid}',${i})"
           onkeydown="groupScorecardKeyNav(event,'${pid}',${i})"
           ></td>`;
@@ -5629,6 +5631,22 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
       </table>
     </div>
   `;
+
+  // Auto-focus the first empty input so the scorer can just start typing
+  if (!isLocked) {
+    setTimeout(() => {
+      for (let i = 0; i < holeCount; i++) {
+        for (const pid of groupInfo.players) {
+          const input = document.getElementById('gs-' + pid + '-hole-' + i);
+          if (input && !input.disabled && input.value === '') {
+            if (document.activeElement && document.activeElement.classList.contains('gs-score-input')) return;
+            input.focus();
+            return;
+          }
+        }
+      }
+    }, 50);
+  }
 }
 
 function updateGroupScoreCardStyle(playerId, holeIdx) {
@@ -5650,24 +5668,24 @@ function groupScorecardKeyNav(event, playerId, holeIdx) {
   const maxHole = getActiveHoleCount() - 1;
   if (event.key === 'Enter') {
     event.preventDefault();
-    if (holeIdx < maxHole) {
-      const next = document.getElementById('gs-' + playerId + '-hole-' + (holeIdx + 1));
-      if (next) next.focus();
+    const selectedPlayer = document.getElementById('live-player-select')?.value;
+    if (!selectedPlayer) return;
+    const groupInfo = getPlayerGroupInfo(selectedPlayer);
+    if (!groupInfo) return;
+    const idx = groupInfo.players.indexOf(playerId);
+    if (idx < groupInfo.players.length - 1) {
+      // Move down to next player, same hole
+      const nextPlayer = groupInfo.players[idx + 1];
+      const nextInput = document.getElementById('gs-' + nextPlayer + '-hole-' + holeIdx);
+      if (nextInput) { nextInput.focus(); nextInput.select(); }
+    } else if (holeIdx < maxHole) {
+      // Bottom of column — jump to first player of next hole
+      const firstPlayer = groupInfo.players[0];
+      const nextInput = document.getElementById('gs-' + firstPlayer + '-hole-' + (holeIdx + 1));
+      if (nextInput) { nextInput.focus(); nextInput.select(); }
     } else {
-      // Last hole — move to first hole of next player in the group
-      const selectedPlayer = document.getElementById('live-player-select')?.value;
-      if (!selectedPlayer) return;
-      const groupInfo = getPlayerGroupInfo(selectedPlayer);
-      if (!groupInfo) return;
-      const idx = groupInfo.players.indexOf(playerId);
-      if (idx < groupInfo.players.length - 1) {
-        const nextPlayer = groupInfo.players[idx + 1];
-        const nextInput = document.getElementById('gs-' + nextPlayer + '-hole-0');
-        if (nextInput) nextInput.focus();
-      } else {
-        // Last player, last hole — save all
-        saveGroupScores();
-      }
+      // Last player, last hole — save all
+      saveGroupScores();
     }
   } else if (event.key === 'ArrowDown') {
     event.preventDefault();
