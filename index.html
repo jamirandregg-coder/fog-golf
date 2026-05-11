@@ -4657,10 +4657,11 @@ function renderPairingsDisplay() {
 
   card.style.display = 'block';
   if (actions) {
-    actions.innerHTML = isEditor ? `
-      <button class="btn btn-outline" style="font-size:0.7rem;padding:6px 14px" onclick="startEditPairings()">&#9998; Edit</button>
-      <button class="btn btn-outline" style="font-size:0.7rem;padding:6px 14px" onclick="generatePairings()">Regenerate</button>
-    ` : '';
+    // editor-only-card hides via CSS for non-editors, so we always render
+    actions.innerHTML = `
+      <button class="btn btn-outline editor-only-card" style="font-size:0.7rem;padding:6px 14px" onclick="startEditPairings()">&#9998; Edit</button>
+      <button class="btn btn-outline editor-only-card" style="font-size:0.7rem;padding:6px 14px" onclick="generatePairings()">Regenerate</button>
+    `;
   }
 
   let html = '';
