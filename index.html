@@ -4647,10 +4647,54 @@ async function generatePairings() {
 
   try {
     await db.ref('pairings/' + wn).set(pairings);
+    await reconcileGroupScorers(wn, pairings);
     toast('Pairings generated! ' + groups.length + ' groups created.');
   } catch (e) {
     toast('Failed to save pairings');
     console.warn(e);
+  }
+}
+
+/* ─── Reconcile group scorers when pairings change ─── */
+async function reconcileGroupScorers(wn, newPairings) {
+  // Snapshot of current scorers (groupScorersData may be for any week,
+  // so re-read to be safe when editing a non-current week)
+  let current = {};
+  try {
+    const snap = await db.ref('groupScorers/' + wn).once('value');
+    current = snap.val() || {};
+  } catch (e) {
+    current = groupScorersData || {};
+  }
+
+  // Keep the scorer at index N if they're still in the new group at index N.
+  // Otherwise, if any previous scorer is now in this group, use them.
+  // Else fall back to the first player of the new group.
+  const previouslyScoring = new Set(Object.values(current));
+  const used = new Set();
+  const newScorers = {};
+  newPairings.forEach((group, idx) => {
+    if (!group.players || group.players.length === 0) return;
+    const existing = current[idx];
+    if (existing && group.players.includes(existing) && !used.has(existing)) {
+      newScorers[idx] = existing;
+      used.add(existing);
+      return;
+    }
+    const carriedOver = group.players.find(pid => previouslyScoring.has(pid) && !used.has(pid));
+    const chosen = carriedOver || group.players[0];
+    newScorers[idx] = chosen;
+    used.add(chosen);
+  });
+
+  try {
+    if (Object.keys(newScorers).length === 0) {
+      await db.ref('groupScorers/' + wn).remove();
+    } else {
+      await db.ref('groupScorers/' + wn).set(newScorers);
+    }
+  } catch (e) {
+    console.warn('Failed to reconcile group scorers:', e);
   }
 }
 
@@ -4833,8 +4877,10 @@ async function saveEditPairings() {
   try {
     if (cleaned.length === 0) {
       await db.ref('pairings/' + wn).remove();
+      await db.ref('groupScorers/' + wn).remove();
     } else {
       await db.ref('pairings/' + wn).set(cleaned);
+      await reconcileGroupScorers(wn, cleaned);
     }
     editingWeek = null;
     editingPairings = null;
