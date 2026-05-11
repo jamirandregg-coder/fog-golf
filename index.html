@@ -965,6 +965,44 @@
   }
   .pairing-player .pairing-num { font-size: 0.65rem; color: var(--pink-hot); font-weight: 800; }
 
+  /* PAIRINGS EDIT MODE */
+  .pairing-edit-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .pairing-group.editing { background: rgba(255,61,167,0.07); border-color: rgba(255,61,167,0.3); }
+  .pairing-group .pe-tee-input {
+    font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--pink-hot);
+    background: rgba(0,0,0,0.25); border: 1px solid rgba(255,61,167,0.3); border-radius: 6px;
+    padding: 4px 8px; width: 110px;
+  }
+  .pairing-group .pe-remove-group {
+    background: transparent; border: 1px solid rgba(255,61,167,0.3); color: var(--pink-light);
+    border-radius: 6px; font-size: 0.7rem; padding: 4px 10px; cursor: pointer; font-weight: 600;
+  }
+  .pairing-group .pe-remove-group:hover { color: var(--pink-hot); border-color: var(--pink-hot); }
+  .pe-player-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .pe-player-row .pe-player-name {
+    flex: 1; padding: 6px 10px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,61,167,0.2); border-radius: 18px;
+    font-size: 0.85rem; font-weight: 600;
+  }
+  .pe-player-row .pe-move-select {
+    font-size: 0.75rem; padding: 4px 6px; border-radius: 6px;
+    background: rgba(0,0,0,0.3); color: var(--white);
+    border: 1px solid rgba(255,61,167,0.3); cursor: pointer;
+  }
+  .pe-unassigned-section {
+    margin-top: 14px; padding: 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,61,167,0.3);
+  }
+  .pe-unassigned-title { font-size: 0.72rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 8px; }
+  .pe-unassigned-empty { font-size: 0.8rem; color: var(--gray); font-style: italic; }
+  .pe-add-group-btn {
+    width: 100%; padding: 10px; margin-top: 10px;
+    background: transparent; border: 1px dashed rgba(255,61,167,0.4);
+    color: var(--pink-light); border-radius: 10px; cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.85rem;
+  }
+  .pe-add-group-btn:hover { border-color: var(--pink-hot); color: var(--pink-hot); }
+
   /* PAIRINGS TAB - EXPANDABLE WEEKS */
   .pairings-week-section { margin-bottom: 10px; }
   .pairings-week-header {
@@ -1512,9 +1550,7 @@
     <div class="card" id="pairings-card" style="display:none">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>Tee Time Pairings</span>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-outline editor-only-card" style="font-size:0.7rem;padding:6px 14px" onclick="generatePairings()">Regenerate</button>
-        </div>
+        <div id="pairings-card-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       </div>
       <div id="pairings-content"></div>
     </div>
@@ -2090,6 +2126,8 @@ let expandedScheduleWeeks = {};  // track which weeks have RSVP expanded
 let pairingsData = {};       // { weekNum: [ { teeTime, players: [id,...] }, ... ] }
 let pairingsListener = null;
 let allPairingsListener = null;
+let pairingsEditMode = false;
+let editingPairings = null;  // working copy during edit
 let rsvpOverrideLocked = false;    // admin manual RSVP lock override
 let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
@@ -4286,6 +4324,8 @@ function listenToPairings() {
   pairingsListener = ref;
   ref.on('value', (snap) => {
     pairingsData[wn] = snap.val() || [];
+    // Don't rerender while admin is editing — would wipe their in-progress edits
+    if (pairingsEditMode) return;
     renderPairingsDisplay();
     renderPairingsTab();
   });
@@ -4486,6 +4526,7 @@ function formatTeeTime(timeStr) {
 /* ─── Sync Pairings with RSVPs ─── */
 async function syncPairingsWithRSVPs() {
   if (!isEditor) return; // only admin writes pairings
+  if (pairingsEditMode) return; // don't clobber an in-progress manual edit
   const wn = state.thisWeek.weekNum || 1;
   const pairings = pairingsData[wn];
   if (!pairings || !pairings.length) return; // no pairings to sync
@@ -4590,17 +4631,37 @@ async function generatePairings() {
 function renderPairingsDisplay() {
   const card = document.getElementById('pairings-card');
   const content = document.getElementById('pairings-content');
+  const actions = document.getElementById('pairings-card-actions');
   if (!card || !content) return;
 
   const wn = state.thisWeek.weekNum || 1;
   const pairings = pairingsData[wn];
 
+  if (pairingsEditMode) {
+    card.style.display = 'block';
+    if (actions) {
+      actions.innerHTML = `
+        <button class="btn btn-outline" style="font-size:0.7rem;padding:6px 14px" onclick="cancelEditPairings()">Cancel</button>
+        <button class="btn btn-pink" style="font-size:0.7rem;padding:6px 14px" onclick="saveEditPairings()">Save</button>
+      `;
+    }
+    content.innerHTML = renderPairingsEditHtml();
+    return;
+  }
+
   if (!pairings || !pairings.length) {
     card.style.display = 'none';
+    if (actions) actions.innerHTML = '';
     return;
   }
 
   card.style.display = 'block';
+  if (actions) {
+    actions.innerHTML = isEditor ? `
+      <button class="btn btn-outline" style="font-size:0.7rem;padding:6px 14px" onclick="startEditPairings()">&#9998; Edit</button>
+      <button class="btn btn-outline" style="font-size:0.7rem;padding:6px 14px" onclick="generatePairings()">Regenerate</button>
+    ` : '';
+  }
 
   let html = '';
   pairings.forEach((group, gi) => {
@@ -4624,6 +4685,183 @@ function renderPairingsDisplay() {
   });
 
   content.innerHTML = html;
+}
+
+/* ─── Pairings Edit Mode ─── */
+function renderPairingsEditHtml() {
+  const groups = editingPairings || [];
+  const activePlayers = getActivePlayers();
+  const wn = state.thisWeek.weekNum || 1;
+  const rsvps = rsvpData[wn] || {};
+
+  // Player ids currently in groups
+  const assignedIds = new Set();
+  groups.forEach(g => (g.players || []).forEach(id => assignedIds.add(id)));
+
+  // Unassigned = RSVP yes players not currently in any group
+  const unassigned = activePlayers.filter(p => rsvps[p.id] === 'yes' && !assignedIds.has(p.id));
+
+  // Build options string for the move dropdown (per player)
+  const groupOptions = (currentIdx) => {
+    let opts = '';
+    groups.forEach((g, gi) => {
+      if (gi === currentIdx) return;
+      opts += `<option value="move:${gi}">Move to Group ${gi + 1}</option>`;
+    });
+    opts += `<option value="remove">Remove from pairings</option>`;
+    return opts;
+  };
+
+  let html = '';
+  groups.forEach((group, gi) => {
+    html += `<div class="pairing-group editing">
+      <div class="pairing-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="time" class="pe-tee-input" value="${escHtml(group.teeTime || '')}"
+                 onchange="editSetTeeTime(${gi}, this.value)">
+          <span class="pairing-group-label">Group ${gi + 1}</span>
+        </div>
+        <button class="pe-remove-group" onclick="editRemoveGroup(${gi})">&times; Remove Group</button>
+      </div>
+      <div>`;
+
+    (group.players || []).forEach(pid => {
+      const player = activePlayers.find(p => p.id === pid);
+      const name = player ? player.name : '(unknown)';
+      const gb = player && player.isGuest ? ' <span class="guest-badge">G</span>' : '';
+      html += `<div class="pe-player-row">
+        <span class="pe-player-name">${escHtml(name)}${gb}</span>
+        <select class="pe-move-select" onchange="editPlayerAction('${escHtml(pid)}', ${gi}, this.value); this.value=''">
+          <option value="">Move…</option>
+          ${groupOptions(gi)}
+        </select>
+      </div>`;
+    });
+
+    if (!group.players || group.players.length === 0) {
+      html += `<div style="font-size:0.8rem;color:var(--gray);font-style:italic;padding:4px 0">No players in this group</div>`;
+    }
+
+    html += `</div></div>`;
+  });
+
+  html += `<button class="pe-add-group-btn" onclick="editAddGroup()">+ Add Group</button>`;
+
+  html += `<div class="pe-unassigned-section">
+    <div class="pe-unassigned-title">Unassigned RSVP Players</div>`;
+  if (unassigned.length === 0) {
+    html += `<div class="pe-unassigned-empty">Everyone is assigned to a group.</div>`;
+  } else if (groups.length === 0) {
+    html += `<div class="pe-unassigned-empty">Add a group above to assign players.</div>`;
+  } else {
+    unassigned.forEach(player => {
+      const gb = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
+      let opts = '';
+      groups.forEach((g, gi) => {
+        opts += `<option value="${gi}">Add to Group ${gi + 1}</option>`;
+      });
+      html += `<div class="pe-player-row">
+        <span class="pe-player-name">${escHtml(player.name)}${gb}</span>
+        <select class="pe-move-select" onchange="editAssignPlayer('${escHtml(player.id)}', this.value); this.value=''">
+          <option value="">Assign…</option>
+          ${opts}
+        </select>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  return html;
+}
+
+function startEditPairings() {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const current = pairingsData[wn] || [];
+  editingPairings = current.map(g => ({
+    teeTime: g.teeTime || '',
+    players: [...(g.players || [])]
+  }));
+  pairingsEditMode = true;
+  renderPairingsDisplay();
+}
+
+function cancelEditPairings() {
+  pairingsEditMode = false;
+  editingPairings = null;
+  renderPairingsDisplay();
+}
+
+async function saveEditPairings() {
+  if (!editingPairings) return;
+  const wn = state.thisWeek.weekNum || 1;
+  // Drop empty groups
+  const cleaned = editingPairings
+    .filter(g => g.players && g.players.length > 0)
+    .map(g => ({ teeTime: g.teeTime || '', players: g.players }));
+
+  try {
+    if (cleaned.length === 0) {
+      await db.ref('pairings/' + wn).remove();
+    } else {
+      await db.ref('pairings/' + wn).set(cleaned);
+    }
+    pairingsEditMode = false;
+    editingPairings = null;
+    toast('Pairings saved!');
+    renderPairingsDisplay();
+  } catch (e) {
+    toast('Failed to save pairings');
+    console.warn(e);
+  }
+}
+
+function editSetTeeTime(groupIdx, value) {
+  if (!editingPairings || !editingPairings[groupIdx]) return;
+  editingPairings[groupIdx].teeTime = value || '';
+}
+
+function editPlayerAction(playerId, fromIdx, action) {
+  if (!editingPairings || !action) return;
+  const from = editingPairings[fromIdx];
+  if (!from) return;
+  from.players = (from.players || []).filter(id => id !== playerId);
+  if (action.startsWith('move:')) {
+    const toIdx = parseInt(action.split(':')[1], 10);
+    if (editingPairings[toIdx]) {
+      editingPairings[toIdx].players.push(playerId);
+    }
+  }
+  // 'remove' just drops them; they'll appear in Unassigned if still RSVP'd yes
+  renderPairingsDisplay();
+}
+
+function editAssignPlayer(playerId, groupIdxStr) {
+  if (!editingPairings || groupIdxStr === '') return;
+  const idx = parseInt(groupIdxStr, 10);
+  if (!editingPairings[idx]) return;
+  // Defensive: remove from any other group first
+  editingPairings.forEach(g => { g.players = (g.players || []).filter(id => id !== playerId); });
+  editingPairings[idx].players.push(playerId);
+  renderPairingsDisplay();
+}
+
+function editAddGroup() {
+  if (!editingPairings) return;
+  // Default tee time: copy last group's tee time, or blank
+  const last = editingPairings[editingPairings.length - 1];
+  editingPairings.push({ teeTime: last ? last.teeTime : '', players: [] });
+  renderPairingsDisplay();
+}
+
+function editRemoveGroup(idx) {
+  if (!editingPairings || !editingPairings[idx]) return;
+  const g = editingPairings[idx];
+  if (g.players && g.players.length > 0) {
+    if (!confirm('This group has ' + g.players.length + ' player(s). Remove the group? Players will become unassigned.')) return;
+  }
+  editingPairings.splice(idx, 1);
+  renderPairingsDisplay();
 }
 
 /* ─── Master Course List ─── */
