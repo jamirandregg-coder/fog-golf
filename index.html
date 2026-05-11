@@ -1035,6 +1035,7 @@
     padding: 0 4px;
   }
   .pairings-week-body.pw-open { max-height: 1200px; padding: 10px 4px 4px; }
+  .pairings-week-body.pw-editing.pw-open { max-height: none; }
   .pairings-week-body .pairing-group { margin-bottom: 8px; }
   .pw-no-pairings { font-size: 0.82rem; color: var(--gray); padding: 8px 0; }
   .pw-player-count { font-size: 0.72rem; color: var(--gray); margin-left: 4px; }
@@ -2126,8 +2127,8 @@ let expandedScheduleWeeks = {};  // track which weeks have RSVP expanded
 let pairingsData = {};       // { weekNum: [ { teeTime, players: [id,...] }, ... ] }
 let pairingsListener = null;
 let allPairingsListener = null;
-let pairingsEditMode = false;
-let editingPairings = null;  // working copy during edit
+let editingWeek = null;       // week number currently being edited, or null
+let editingPairings = null;   // working copy during edit
 let rsvpOverrideLocked = false;    // admin manual RSVP lock override
 let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
@@ -4325,7 +4326,7 @@ function listenToPairings() {
   ref.on('value', (snap) => {
     pairingsData[wn] = snap.val() || [];
     // Don't rerender while admin is editing — would wipe their in-progress edits
-    if (pairingsEditMode) return;
+    if (editingWeek !== null) return;
     renderPairingsDisplay();
     renderPairingsTab();
   });
@@ -4340,6 +4341,8 @@ function listenToAllPairings() {
     Object.entries(all).forEach(([wn, data]) => {
       pairingsData[wn] = data || [];
     });
+    // Don't rerender while admin is editing — would wipe their in-progress edits
+    if (editingWeek !== null) return;
     renderPairingsTab();
   });
 }
@@ -4376,8 +4379,12 @@ function renderPairingsTab() {
     const formattedDate = dateStr ? new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
     const playerCount = pairings.reduce((sum, g) => sum + (g.players ? g.players.length : 0), 0);
 
+    const isEditing = editingWeek === wn;
+    // While editing, keep this week's section expanded
+    const expanded = isCurrent || isEditing;
+
     html += `<div class="pairings-week-section">`;
-    html += `<div class="pairings-week-header ${isCurrent ? 'pw-current' : ''} ${isCurrent ? 'pw-expanded' : ''}"
+    html += `<div class="pairings-week-header ${isCurrent ? 'pw-current' : ''} ${expanded ? 'pw-expanded' : ''}"
       onclick="togglePairingsWeek(${wn}, this)">
       <div class="pw-left">
         <span class="pw-week-num">Wk ${wn}</span>
@@ -4387,29 +4394,49 @@ function renderPairingsTab() {
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${isCurrent ? '<span class="pw-badge">This Week</span>' : ''}
-        <span class="pw-chevron">${isCurrent ? '▲' : '▼'}</span>
+        <span class="pw-chevron">${expanded ? '▲' : '▼'}</span>
       </div>
     </div>`;
 
     // Pairings body
-    html += `<div class="pairings-week-body ${isCurrent ? 'pw-open' : ''}" id="pw-body-${wn}">`;
-    pairings.forEach((group, gi) => {
-      const teeTimeStr = formatTeeTime(group.teeTime);
-      html += `<div class="pairing-group">
-        <div class="pairing-header">
-          <span class="pairing-tee-time">${teeTimeStr || 'TBD'}</span>
-          <span class="pairing-group-label">Group ${gi + 1}</span>
-        </div>
-        <div class="pairing-players">`;
-      (group.players || []).forEach((pid, pi) => {
-        const player = getActivePlayers().find(p => p.id === pid);
-        if (player) {
-          const gb = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
-          html += `<span class="pairing-player"><span class="pairing-num">${pi + 1}</span>${escHtml(player.name)}${gb}</span>`;
-        }
+    html += `<div class="pairings-week-body ${expanded ? 'pw-open' : ''} ${isEditing ? 'pw-editing' : ''}" id="pw-body-${wn}">`;
+
+    // Per-week edit controls (admin only)
+    html += `<div class="editor-only-card" onclick="event.stopPropagation()"><div class="pairing-edit-toolbar">`;
+    if (isEditing) {
+      html += `
+        <button class="btn btn-outline" style="font-size:0.7rem;padding:6px 14px" onclick="event.stopPropagation();cancelEditPairings()">Cancel</button>
+        <button class="btn btn-pink" style="font-size:0.7rem;padding:6px 14px" onclick="event.stopPropagation();saveEditPairings()">Save</button>
+      `;
+    } else {
+      const disableEdit = editingWeek !== null;
+      html += `
+        <button class="btn btn-outline" style="font-size:0.7rem;padding:6px 14px" ${disableEdit ? 'disabled' : ''} onclick="event.stopPropagation();startEditPairings(${wn})">&#9998; Edit</button>
+      `;
+    }
+    html += `</div></div>`;
+
+    if (isEditing) {
+      html += renderPairingsEditHtml();
+    } else {
+      pairings.forEach((group, gi) => {
+        const teeTimeStr = formatTeeTime(group.teeTime);
+        html += `<div class="pairing-group">
+          <div class="pairing-header">
+            <span class="pairing-tee-time">${teeTimeStr || 'TBD'}</span>
+            <span class="pairing-group-label">Group ${gi + 1}</span>
+          </div>
+          <div class="pairing-players">`;
+        (group.players || []).forEach((pid, pi) => {
+          const player = getActivePlayers().find(p => p.id === pid);
+          if (player) {
+            const gb = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
+            html += `<span class="pairing-player"><span class="pairing-num">${pi + 1}</span>${escHtml(player.name)}${gb}</span>`;
+          }
+        });
+        html += `</div></div>`;
       });
-      html += `</div></div>`;
-    });
+    }
     html += `</div></div>`;
   });
 
@@ -4637,7 +4664,7 @@ function renderPairingsDisplay() {
   const wn = state.thisWeek.weekNum || 1;
   const pairings = pairingsData[wn];
 
-  if (pairingsEditMode) {
+  if (editingWeek === wn) {
     card.style.display = 'block';
     if (actions) {
       actions.innerHTML = `
@@ -4659,7 +4686,7 @@ function renderPairingsDisplay() {
   if (actions) {
     // editor-only-card hides via CSS for non-editors, so we always render
     actions.innerHTML = `
-      <button class="btn btn-outline editor-only-card" style="font-size:0.7rem;padding:6px 14px" onclick="startEditPairings()">&#9998; Edit</button>
+      <button class="btn btn-outline editor-only-card" style="font-size:0.7rem;padding:6px 14px" onclick="startEditPairings(${wn})">&#9998; Edit</button>
       <button class="btn btn-outline editor-only-card" style="font-size:0.7rem;padding:6px 14px" onclick="generatePairings()">Regenerate</button>
     `;
   }
@@ -4692,7 +4719,7 @@ function renderPairingsDisplay() {
 function renderPairingsEditHtml() {
   const groups = editingPairings || [];
   const activePlayers = getActivePlayers();
-  const wn = state.thisWeek.weekNum || 1;
+  const wn = editingWeek != null ? editingWeek : (state.thisWeek.weekNum || 1);
   const rsvps = rsvpData[wn] || {};
 
   // Player ids currently in groups
@@ -4775,27 +4802,29 @@ function renderPairingsEditHtml() {
   return html;
 }
 
-function startEditPairings() {
+function startEditPairings(weekNum) {
   if (!isEditor) return;
-  const wn = state.thisWeek.weekNum || 1;
+  const wn = weekNum != null ? Number(weekNum) : (state.thisWeek.weekNum || 1);
   const current = pairingsData[wn] || [];
   editingPairings = current.map(g => ({
     teeTime: g.teeTime || '',
     players: [...(g.players || [])]
   }));
-  pairingsEditMode = true;
+  editingWeek = wn;
   renderPairingsDisplay();
+  renderPairingsTab();
 }
 
 function cancelEditPairings() {
-  pairingsEditMode = false;
+  editingWeek = null;
   editingPairings = null;
   renderPairingsDisplay();
+  renderPairingsTab();
 }
 
 async function saveEditPairings() {
-  if (!editingPairings) return;
-  const wn = state.thisWeek.weekNum || 1;
+  if (!editingPairings || editingWeek == null) return;
+  const wn = editingWeek;
   // Drop empty groups
   const cleaned = editingPairings
     .filter(g => g.players && g.players.length > 0)
@@ -4807,10 +4836,11 @@ async function saveEditPairings() {
     } else {
       await db.ref('pairings/' + wn).set(cleaned);
     }
-    pairingsEditMode = false;
+    editingWeek = null;
     editingPairings = null;
     toast('Pairings saved!');
     renderPairingsDisplay();
+    renderPairingsTab();
   } catch (e) {
     toast('Failed to save pairings');
     console.warn(e);
@@ -4835,6 +4865,7 @@ function editPlayerAction(playerId, fromIdx, action) {
   }
   // 'remove' just drops them; they'll appear in Unassigned if still RSVP'd yes
   renderPairingsDisplay();
+  renderPairingsTab();
 }
 
 function editAssignPlayer(playerId, groupIdxStr) {
@@ -4845,6 +4876,7 @@ function editAssignPlayer(playerId, groupIdxStr) {
   editingPairings.forEach(g => { g.players = (g.players || []).filter(id => id !== playerId); });
   editingPairings[idx].players.push(playerId);
   renderPairingsDisplay();
+  renderPairingsTab();
 }
 
 function editAddGroup() {
@@ -4853,6 +4885,7 @@ function editAddGroup() {
   const last = editingPairings[editingPairings.length - 1];
   editingPairings.push({ teeTime: last ? last.teeTime : '', players: [] });
   renderPairingsDisplay();
+  renderPairingsTab();
 }
 
 function editRemoveGroup(idx) {
@@ -4863,6 +4896,7 @@ function editRemoveGroup(idx) {
   }
   editingPairings.splice(idx, 1);
   renderPairingsDisplay();
+  renderPairingsTab();
 }
 
 /* ─── Master Course List ─── */
