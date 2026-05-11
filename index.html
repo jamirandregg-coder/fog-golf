@@ -3220,48 +3220,36 @@ function renderManageWeek() {
 
 async function saveThisWeek() {
   if (!isEditor) return;
-  const oldWeekNum = state.thisWeek.weekNum;
   const teeTimes = getTeeTimes('tw-tee-input');
-  state.thisWeek = {
-    weekNum: parseInt(document.getElementById('current-week-select').value),
+  const weekNum = parseInt(document.getElementById('current-week-select').value);
+  const weekData = {
     course: document.getElementById('tw-course-input').value.trim(),
     date: document.getElementById('tw-date-input').value,
-    time: teeTimes[0] || '',  // keep backward compat
-    teeTimes: teeTimes,
+    teeTimes: teeTimes.length > 0 ? teeTimes : [],
     par: parseInt(document.getElementById('tw-par-input').value) || 72,
     notes: document.getElementById('tw-notes-input').value.trim()
   };
-  // If week changed, clear old week's RSVPs and RSVP lock so everyone resets
-  const newWeekNum = state.thisWeek.weekNum;
-  if (oldWeekNum && oldWeekNum !== newWeekNum) {
-    await db.ref('rsvps/' + oldWeekNum).remove();
-    await db.ref('rsvpOverride/' + newWeekNum).set(false);
-    rsvpOverrideLocked = false;
-  }
-  await saveState();
-  // Sync thisWeek to Firebase so all devices see it
-  await db.ref('thisWeek').set(state.thisWeek);
-  // Save course setup to Firebase
-  const wn = state.thisWeek.weekNum;
+
+  // Write to schedule (source of truth per week) — does NOT change which
+  // week the homepage displays. Auto-rollover decides that based on dates.
+  await db.ref('schedule/' + weekNum).set(weekData);
+
+  // Save course setup for this week
   const setup = getCourseSetupFromInputs();
-  await db.ref('courseSetup/' + wn).set(setup);
-  listenToRSVPs();
-  listenToGuests();
-  listenToPayments();
-  listenToLiveScores();
-  listenToRoundStatus();
-  listenToCourseSetup();
-  listenToContests();
-  listenToPairings();
-  listenToScoringMode();
-  listenToGroupScorers();
-  // Re-listen to RSVP override for the (possibly new) week number
-  db.ref('rsvpOverride/' + wn).on('value', (snap) => {
+  await db.ref('courseSetup/' + weekNum).set(setup);
+
+  // If the saved week is (or just became) the current display week,
+  // applyAutoCurrentWeek will pick up the new data and refresh the UI.
+  await applyAutoCurrentWeek();
+
+  // Re-listen to RSVP override for the saved week so admin sees its lock state
+  db.ref('rsvpOverride/' + weekNum).on('value', (snap) => {
     rsvpOverrideLocked = snap.val() === true;
     updateDeadlineDisplay();
     renderThisWeek();
   });
-  toast('This week updated!');
+
+  toast('Week ' + weekNum + ' saved!');
   renderThisWeek();
 }
 
@@ -4244,6 +4232,8 @@ function listenToThisWeek() {
       renderThisWeek();
       try { renderAll(); } catch(e) {}
     }
+    // Reconcile with date-based auto-rollover
+    applyAutoCurrentWeek();
   });
 }
 
@@ -4305,7 +4295,106 @@ function listenToSchedule() {
     Object.keys(scheduleData).forEach(wn => {
       listenToScheduleRSVP(wn);
     });
+    // Schedule data drives the auto-rollover decision
+    applyAutoCurrentWeek();
   });
+}
+
+/* ─── Auto-rollover: compute which week the homepage should display ───
+   Rule: show the week that was just played until the Wednesday strictly
+   after its play date; then advance to the next scheduled week.
+   If today is before any scheduled play, show the soonest upcoming week. */
+function computeCurrentWeekNum() {
+  const scheduled = [];
+  Object.entries(scheduleData).forEach(([wn, data]) => {
+    if (data && data.date) scheduled.push({ weekNum: Number(wn), date: data.date });
+  });
+  // Include legacy state.thisWeek (pre-schedule data) so existing weeks aren't lost
+  if (state.thisWeek && state.thisWeek.weekNum && state.thisWeek.date) {
+    const wn = Number(state.thisWeek.weekNum);
+    if (!scheduled.some(s => s.weekNum === wn)) {
+      scheduled.push({ weekNum: wn, date: state.thisWeek.date });
+    }
+  }
+  if (scheduled.length === 0) return state.thisWeek?.weekNum || null;
+
+  scheduled.sort((a, b) => a.date.localeCompare(b.date));
+
+  const now = new Date();
+  const todayStr = now.getFullYear() + '-' +
+    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+    String(now.getDate()).padStart(2, '0');
+
+  let lastPlayed = null;
+  let nextPlay = null;
+  for (const w of scheduled) {
+    if (w.date <= todayStr) lastPlayed = w;
+    else if (!nextPlay) nextPlay = w;
+  }
+
+  if (lastPlayed) {
+    const playDate = new Date(lastPlayed.date + 'T00:00:00');
+    const dayOfWeek = playDate.getDay(); // 0=Sun..6=Sat
+    // Wednesday strictly after the play date — play on Wed means next Wed (7 days)
+    let daysToNextWed = (3 - dayOfWeek + 7) % 7;
+    if (daysToNextWed === 0) daysToNextWed = 7;
+    const rollover = new Date(playDate);
+    rollover.setDate(playDate.getDate() + daysToNextWed);
+    const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (todayLocal < rollover) return lastPlayed.weekNum;
+  }
+
+  return nextPlay ? nextPlay.weekNum : (lastPlayed ? lastPlayed.weekNum : null);
+}
+
+async function applyAutoCurrentWeek() {
+  const target = computeCurrentWeekNum();
+  if (target == null) return;
+  // Prefer scheduleData; fall back to existing state.thisWeek (legacy data
+  // saved before saveThisWeek wrote into /schedule)
+  const sd = scheduleData[target] || {};
+  const legacy = (state.thisWeek && Number(state.thisWeek.weekNum) === target) ? state.thisWeek : {};
+  const teeTimes = (sd.teeTimes && sd.teeTimes.length) ? sd.teeTimes
+                 : (legacy.teeTimes && legacy.teeTimes.length) ? legacy.teeTimes
+                 : (legacy.time ? [legacy.time] : []);
+  const newThisWeek = {
+    weekNum: target,
+    course: sd.course || legacy.course || '',
+    date: sd.date || legacy.date || '',
+    teeTimes: teeTimes,
+    time: teeTimes[0] || '',
+    par: sd.par || legacy.par || 72,
+    notes: sd.notes || legacy.notes || ''
+  };
+
+  const same = state.thisWeek && JSON.stringify(state.thisWeek) === JSON.stringify(newThisWeek);
+  if (same) return;
+
+  const oldWn = state.thisWeek && state.thisWeek.weekNum;
+  state.thisWeek = newThisWeek;
+  try { await saveState(); } catch (e) {}
+
+  // Only admins write the canonical /thisWeek so other clients sync
+  if (isEditor) {
+    try { await db.ref('thisWeek').set(state.thisWeek); } catch (e) { console.warn('thisWeek write:', e); }
+  }
+
+  if (oldWn !== target) {
+    try {
+      listenToRSVPs();
+      listenToGuests();
+      listenToPayments();
+      listenToLiveScores();
+      listenToRoundStatus();
+      listenToCourseSetup();
+      listenToContests();
+      listenToPairings();
+      listenToScoringMode();
+      listenToGroupScorers();
+    } catch (e) { console.warn('Listener re-attach:', e); }
+  }
+
+  try { renderAll(); } catch (e) { console.warn('renderAll:', e); }
 }
 
 function listenToScheduleRSVP(weekNum) {
@@ -7026,6 +7115,15 @@ async function preloadDataIfEmpty() {
       renderThisWeek();
     });
   } catch(e) { console.error('RSVP override listener error:', e); }
+
+  // Auto-rollover: re-check periodically (handles Wednesday morning advance
+  // without needing a refresh) and on tab visibility change.
+  try {
+    setInterval(() => { try { applyAutoCurrentWeek(); } catch(e){} }, 10 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { try { applyAutoCurrentWeek(); } catch(e){} }
+    });
+  } catch(e) { console.warn('Auto-rollover timer error:', e); }
 
   // Start countdown timer and auto-email checks
   countdownInterval = setInterval(() => {
