@@ -4932,7 +4932,77 @@ function renderPairingsEditHtml() {
   }
   html += `</div>`;
 
+  // Quick-add section — for late additions after RSVPs lock
+  const visibleIds = new Set([...assignedIds, ...unassigned.map(u => u.id)]);
+  const availableRoster = (state.players || []).filter(p => !visibleIds.has(p.id));
+  html += `<div class="pe-unassigned-section">
+    <div class="pe-unassigned-title">Add Player to Pairings</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
+      <select id="pe-add-roster-select" class="pe-move-select" style="flex:1;min-width:160px"
+              onchange="editQuickAddRosterPlayer(this.value); this.value=''">
+        <option value="">${availableRoster.length === 0 ? 'No roster players to add' : 'From roster…'}</option>
+        ${availableRoster.map(p => `<option value="${escHtml(p.id)}">${escHtml(p.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="pe-add-guest-input" placeholder="New guest name"
+             style="flex:1;min-width:140px;padding:6px 10px;background:rgba(0,0,0,0.25);
+                    border:1px solid rgba(255,61,167,0.3);border-radius:6px;color:var(--white);
+                    font-size:0.85rem;font-family:'Space Grotesk',sans-serif"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();editQuickAddGuest()}">
+      <button class="btn btn-outline" style="font-size:0.75rem;padding:6px 14px"
+              onclick="editQuickAddGuest()">+ Add Guest</button>
+    </div>
+    <div style="font-size:0.7rem;color:var(--gray);margin-top:6px;font-style:italic">
+      Added players are RSVP'd "yes" and appear above for group assignment.
+    </div>
+  </div>`;
+
   return html;
+}
+
+async function editQuickAddRosterPlayer(playerId) {
+  if (!editingPairings || editingWeek == null || !playerId) return;
+  const wn = editingWeek;
+  try {
+    await db.ref('rsvps/' + wn + '/' + playerId).set('yes');
+    if (!rsvpData[wn]) rsvpData[wn] = {};
+    rsvpData[wn][playerId] = 'yes';
+    renderPairingsDisplay();
+    renderPairingsTab();
+  } catch (e) {
+    toast('Could not add player.');
+    console.warn(e);
+  }
+}
+
+async function editQuickAddGuest() {
+  if (!editingPairings || editingWeek == null) return;
+  const wn = editingWeek;
+  const inp = document.getElementById('pe-add-guest-input');
+  if (!inp) return;
+  const name = inp.value.trim();
+  if (!name) return toast('Enter a guest name.');
+  if (getActivePlayers().find(p => p.name.toLowerCase() === name.toLowerCase())) {
+    return toast('Player exists already — use the roster dropdown.');
+  }
+  const guestId = 'guest_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const guestRecord = { id: guestId, name, handicap: 0, isGuest: true, addedAt: Date.now() };
+  try {
+    await db.ref('guests/' + wn + '/' + guestId).set(guestRecord);
+    await db.ref('rsvps/' + wn + '/' + guestId).set('yes');
+    if (!guestData[wn]) guestData[wn] = {};
+    guestData[wn][guestId] = guestRecord;
+    if (!rsvpData[wn]) rsvpData[wn] = {};
+    rsvpData[wn][guestId] = 'yes';
+    inp.value = '';
+    toast(name + ' added.');
+    renderPairingsDisplay();
+    renderPairingsTab();
+  } catch (e) {
+    toast('Failed to add guest.');
+    console.warn(e);
+  }
 }
 
 function startEditPairings(weekNum) {
@@ -6174,15 +6244,31 @@ function calculateSkins() {
   const defaultPars = new Array(holeCount).fill(4);
   const pars = courseSetupData.pars || defaultPars;
   const wn = state.thisWeek.weekNum || 1;
-  const rsvps = rsvpData[wn] || {};
 
-  // Get all players with complete or partial scores
-  const activePlayers = getActivePlayers().filter(p => {
+  // Pot size comes from the actual groups (pairings) — that's who played.
+  // RSVPs are intentionally not used here: a late add-in via the pairings
+  // editor counts; an RSVP who didn't show doesn't.
+  const pairings = pairingsData[wn] || [];
+  const inGroups = new Set();
+  pairings.forEach(g => (g.players || []).forEach(pid => inGroups.add(pid)));
+
+  // Players considered for skins comparison: those with any scores. If we
+  // have pairings, restrict to in-group players (no rogue scores).
+  const allActive = getActivePlayers();
+  const hasScore = (p) => {
     const scores = liveScoresData[p.id];
     return scores && scores.some(s => s !== null && s !== undefined);
-  });
+  };
+  let activePlayers;
+  let numPlayers;
+  if (inGroups.size > 0) {
+    activePlayers = allActive.filter(p => inGroups.has(p.id) && hasScore(p));
+    numPlayers = inGroups.size; // pot = players in groups
+  } else {
+    activePlayers = allActive.filter(hasScore);
+    numPlayers = activePlayers.length; // fallback: legacy behavior
+  }
 
-  const numPlayers = activePlayers.length;
   if (numPlayers === 0) return { skinResults: [], numPlayers: 0 };
 
   const skinResults = [];
@@ -6240,7 +6326,13 @@ function calculateSkins() {
 /* ─── Low Gross Calculation ─── */
 function calculateLowGross() {
   const holeCount = getActiveHoleCount();
+  const wn = state.thisWeek.weekNum || 1;
+  // Restrict to players in the pairings (if any) — same rule as skins
+  const pairings = pairingsData[wn] || [];
+  const inGroups = new Set();
+  pairings.forEach(g => (g.players || []).forEach(pid => inGroups.add(pid)));
   const activePlayers = getActivePlayers().filter(p => {
+    if (inGroups.size > 0 && !inGroups.has(p.id)) return false;
     const scores = liveScoresData[p.id];
     return scores && scores.filter(s => s !== null && s !== undefined).length === holeCount;
   });
