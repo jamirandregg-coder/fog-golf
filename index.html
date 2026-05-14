@@ -2145,8 +2145,6 @@ let guestData = {};          // { weekNum: { guestId: guestObj } }
 let guestListener = null;
 let handicapData = {};       // { playerId: { current, overrideActive, overrideValue, history, updatedAt } }
 let handicapListener = null;
-let playerClaims = {};       // { playerId: uid } — device claim for RSVP protection
-let playerClaimsListener = null;
 
 /* ─── EmailJS Config (update after setting up emailjs.com) ─── */
 const EMAILJS_PUBLIC_KEY  = '-IFkOARWCJ652xybq';
@@ -2533,21 +2531,11 @@ function renderRSVP() {
     const guestBadge = p.isGuest ? ' <span class="guest-badge">GUEST</span>' : '';
     const guestRemoveBtn = p.isGuest && isEditor ? ` <button class="guest-remove-btn" onclick="removeGuest('${p.id}')" title="Remove guest">✕</button>` : '';
 
-    // Device claim indicator
-    const claimed = playerClaims[p.id];
-    const myUid = getMyUid();
-    const isMyPlayer = claimed && claimed === myUid;
-    const claimedByOther = claimed && claimed !== myUid && !isEditor;
-    const claimIcon = isMyPlayer ? ' <span title="Your device" style="font-size:0.6rem;opacity:0.6">🔒</span>' : '';
-    const unclaimBtn = isEditor && claimed ? ` <button onclick="adminUnclaimPlayer('${p.id}')" title="Remove device claim" style="font-size:0.55rem;background:none;border:1px solid rgba(255,61,167,0.3);color:var(--pink-light);padding:0 4px;border-radius:3px;cursor:pointer">🔓</button>` : '';
-
-    // If claimed by another device and not admin, disable the RSVP button
-    const rsvpDisabled = locked || claimedByOther;
-    const rsvpDisabledAttr = rsvpDisabled ? 'disabled style="opacity:0.5;cursor:not-allowed"' : '';
+    const rsvpDisabledAttr = locked ? 'disabled style="opacity:0.5;cursor:not-allowed"' : '';
 
     return `
       <div class="rsvp-chip ${chipClass}">
-        <span style="font-weight:600">${escHtml(p.name)}${claimIcon}${guestBadge}${guestRemoveBtn}${unclaimBtn}</span>
+        <span style="font-weight:600">${escHtml(p.name)}${guestBadge}${guestRemoveBtn}</span>
         <span class="chip-actions">
           ${payHtml}
           <button class="rsvp-status ${btnClass}" onclick="toggleRSVP('${p.id}')" ${rsvpDisabledAttr}>${btnText}</button>
@@ -2589,12 +2577,6 @@ async function toggleRSVP(playerId) {
   if (isRSVPLocked() && !isEditor) {
     toast('RSVPs are locked! Deadline has passed.');
     return;
-  }
-
-  // Device-claim check (admins bypass)
-  if (!isEditor) {
-    const ok = await claimAndRSVP(playerId);
-    if (!ok) return;
   }
 
   const wn = state.thisWeek.weekNum || 1;
@@ -2868,56 +2850,6 @@ function checkAutoEmailTriggers() {
       localStorage.setItem('emailSent_' + morningKey, 'true');
       sendRSVPEmail('FOG Game Day Reminder - Week ' + wn);
     }
-  }
-}
-
-/* ─── Player Device Claims ─── */
-function listenToPlayerClaims() {
-  const ref = db.ref('playerClaims');
-  if (playerClaimsListener) playerClaimsListener.off();
-  playerClaimsListener = ref;
-  ref.on('value', (snap) => {
-    playerClaims = snap.val() || {};
-    renderRSVP();
-  });
-}
-
-function getMyUid() {
-  const u = firebase.auth().currentUser;
-  return u ? u.uid : null;
-}
-
-async function claimAndRSVP(playerId) {
-  const uid = getMyUid();
-  if (!uid) { toast('Not signed in — try refreshing.'); return false; }
-
-  const claimedBy = playerClaims[playerId];
-  if (claimedBy && claimedBy !== uid && !isEditor) {
-    toast('This player is claimed on another device. Contact admin to reset.');
-    return false;
-  }
-
-  // Claim this player to this device (no-op if already claimed by us)
-  if (!claimedBy || claimedBy !== uid) {
-    try {
-      await db.ref('playerClaims/' + playerId).set(uid);
-    } catch (e) {
-      toast('Could not verify your device — try again.');
-      console.warn(e);
-      return false;
-    }
-  }
-  return true;
-}
-
-async function adminUnclaimPlayer(playerId) {
-  if (!isEditor) return;
-  try {
-    await db.ref('playerClaims/' + playerId).set(null);
-    toast('Device claim removed. Player can re-claim from any device.');
-  } catch (e) {
-    toast('Failed to unclaim player.');
-    console.warn(e);
   }
 }
 
@@ -3397,12 +3329,6 @@ function toggleScheduleRSVP(weekNum) {
 }
 
 async function toggleScheduleWeekRSVP(playerId, weekNum) {
-  // Device-claim check (admins bypass)
-  if (!isEditor) {
-    const ok = await claimAndRSVP(playerId);
-    if (!ok) return;
-  }
-
   const weekRsvps = scheduleRsvpData[weekNum] || rsvpData[weekNum] || {};
   const cur = weekRsvps[playerId] || 'pending';
   const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
@@ -6269,15 +6195,22 @@ function calculateSkins() {
     numPlayers = activePlayers.length; // fallback: legacy behavior
   }
 
-  if (numPlayers === 0) return { skinResults: [], numPlayers: 0 };
+  if (numPlayers === 0) return { skinResults: [], numPlayers: 0, skinsPot: 0 };
 
-  const skinResults = [];
+  // Skins pot = $13/player minus $1/player per proxy contest minus $1/player low gross.
+  // Pushed-hole money is redistributed across paid holes so the full pot pays out.
+  const ENTRY_FEE = 13;
+  const ctpHolesSetup = courseSetupData.ctpHoles || [];
+  const ldHolesSetup = [courseSetupData.longDriveHole, courseSetupData.longDriveHole2]
+    .filter(h => h !== null && h !== undefined);
+  const numProxies = ctpHolesSetup.length + ldHolesSetup.length;
+  const skinsPerPlayer = Math.max(0, ENTRY_FEE - numProxies - 1);
+  const skinsPot = numPlayers * skinsPerPlayer;
 
+  // Pass 1: identify winners per hole (defer dollar amounts)
+  const rawResults = [];
   for (let hole = 0; hole < holeCount; hole++) {
     const par = pars[hole] || 4;
-    const holePot = numPlayers * 1; // $1 per player per hole from skins pot
-
-    // Gather scores for this hole
     const holeScores = [];
     activePlayers.forEach(p => {
       const scores = liveScoresData[p.id] || [];
@@ -6287,40 +6220,54 @@ function calculateSkins() {
     });
 
     if (holeScores.length === 0) {
-      skinResults.push({ hole, par, result: 'no-scores', winners: [], amount: 0, holePot, isBirdie: false });
+      rawResults.push({ hole, par, result: 'no-scores', winners: [], isBirdie: false });
       continue;
     }
 
-    // Check for birdies (par - 1 or better)
     const birdies = holeScores.filter(h => h.score <= par - 1);
-
     if (birdies.length > 0) {
-      // Birdies ALWAYS win — split among them
-      const amount = holePot / birdies.length;
-      skinResults.push({
+      rawResults.push({
         hole, par, result: 'birdie-win',
-        winners: birdies.map(b => ({ player: b.player, score: b.score, amount })),
-        holePot, isBirdie: true
+        winners: birdies.map(b => ({ player: b.player, score: b.score })),
+        isBirdie: true
       });
     } else {
-      // No birdies — lowest unique score wins
       const minScore = Math.min(...holeScores.map(h => h.score));
       const minPlayers = holeScores.filter(h => h.score === minScore);
-
       if (minPlayers.length === 1) {
-        skinResults.push({
+        rawResults.push({
           hole, par, result: 'solo-win',
-          winners: [{ player: minPlayers[0].player, score: minPlayers[0].score, amount: holePot }],
-          holePot, isBirdie: false
+          winners: [{ player: minPlayers[0].player, score: minPlayers[0].score }],
+          isBirdie: false
         });
       } else {
-        // Push — tied low, no winner
-        skinResults.push({ hole, par, result: 'push', winners: [], amount: 0, holePot, isBirdie: false });
+        rawResults.push({ hole, par, result: 'push', winners: [], isBirdie: false });
       }
     }
   }
 
-  return { skinResults, numPlayers };
+  // Pass 2: redistribute the full skins pot across paid holes (pushes don't lose money)
+  const paidCount = rawResults.filter(r => r.result === 'birdie-win' || r.result === 'solo-win').length;
+  const holePot = paidCount > 0 ? skinsPot / paidCount : 0;
+
+  const skinResults = rawResults.map(r => {
+    if (r.result === 'birdie-win') {
+      const amount = holePot / r.winners.length;
+      return {
+        ...r, holePot, amount,
+        winners: r.winners.map(w => ({ ...w, amount }))
+      };
+    } else if (r.result === 'solo-win') {
+      return {
+        ...r, holePot, amount: holePot,
+        winners: [{ ...r.winners[0], amount: holePot }]
+      };
+    } else {
+      return { ...r, holePot: 0, amount: 0 };
+    }
+  });
+
+  return { skinResults, numPlayers, skinsPot };
 }
 
 /* ─── Low Gross Calculation ─── */
@@ -6357,17 +6304,21 @@ function renderPayouts() {
   if (roundStatus !== 'closed') { payoutDiv.style.display = 'none'; return; }
   payoutDiv.style.display = 'block';
 
-  const { skinResults, numPlayers } = calculateSkins();
+  const { skinResults, numPlayers, skinsPot } = calculateSkins();
   if (numPlayers === 0) {
     container.innerHTML = '<div class="empty-state">No scores available for payout calculation.</div>';
     return;
   }
 
+  // Pot rules: each proxy (CTP hole, LD hole) = $1/player, low gross = $1/player,
+  // skins = whatever's left of the $13/player entry.
   const ENTRY_FEE = 13;
-  const SKINS_PER = 9, CTP_PER = 2, LD_PER = 1, LG_PER = 1;
-  const skinsPot = numPlayers * SKINS_PER;
-  const ctpPot = numPlayers * CTP_PER;
-  const ldPot = numPlayers * LD_PER;
+  const PROXY_PER = 1, LG_PER = 1;
+  const ctpHolesPayout = courseSetupData.ctpHoles || [];
+  const ldHolesPayout = [courseSetupData.longDriveHole, courseSetupData.longDriveHole2]
+    .filter(h => h !== null && h !== undefined);
+  const ctpPot = ctpHolesPayout.length * numPlayers * PROXY_PER;
+  const ldPot = ldHolesPayout.length * numPlayers * PROXY_PER;
   const lgPot = numPlayers * LG_PER;
 
   // Track earnings per player
@@ -7190,7 +7141,6 @@ async function preloadDataIfEmpty() {
     listenToWeekResults();
     listenToHandicaps();
     listenToAnnouncement();
-    listenToPlayerClaims();
     loadEmailSentFlags();
     initFCM();
     initCapacitorNative();
