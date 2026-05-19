@@ -330,6 +330,37 @@
   .this-week-hero .course-details span {
     margin: 0 8px;
   }
+  .tw-fee-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 22px;
+    margin: 4px 0 14px;
+    background: linear-gradient(135deg, rgba(0,210,127,0.18), rgba(0,210,127,0.08));
+    border: 1.5px solid rgba(0,210,127,0.45);
+    border-radius: 50px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--white);
+  }
+  .tw-fee-pill .fee-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.7);
+    font-weight: 700;
+  }
+  .tw-fee-pill .fee-amount {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: var(--green-good);
+  }
+  .tw-fee-pill .fee-note {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.55);
+    font-weight: 500;
+  }
   .rsvp-count-display {
     display: inline-flex;
     align-items: center;
@@ -945,9 +976,22 @@
   .add-tee-time-btn:hover { border-color: var(--pink-hot); color: var(--pink-hot); }
 
   .pairings-card { margin-top: 16px; }
+  /* Home-tab pairings card gets a stronger visual treatment */
+  #pairings-card {
+    border: 2px solid rgba(255,61,167,0.4);
+    background: linear-gradient(135deg, rgba(255,61,167,0.08), rgba(230,0,126,0.04));
+    box-shadow: 0 4px 20px rgba(255,61,167,0.1);
+  }
+  #pairings-card .card-title { font-size: 1.15rem; }
   .pairing-group {
     background: rgba(255,61,167,0.04); border: 1px solid rgba(255,61,167,0.15);
     border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+  }
+  #pairings-card .pairing-group {
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,61,167,0.25);
+    padding: 16px 18px;
+    margin-bottom: 12px;
   }
   .pairing-header {
     display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
@@ -955,6 +999,7 @@
   .pairing-tee-time {
     font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 700; color: var(--pink-hot);
   }
+  #pairings-card .pairing-tee-time { font-size: 1.2rem; }
   .pairing-group-label { font-size: 0.68rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
   .pairing-players { display: flex; flex-wrap: wrap; gap: 6px; }
   .pairing-player {
@@ -963,7 +1008,14 @@
     border: 1px solid rgba(255,61,167,0.2); border-radius: 20px;
     font-size: 0.85rem; font-weight: 600;
   }
+  #pairings-card .pairing-player {
+    padding: 8px 16px;
+    font-size: 0.95rem;
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,61,167,0.3);
+  }
   .pairing-player .pairing-num { font-size: 0.65rem; color: var(--pink-hot); font-weight: 800; }
+  #pairings-card .pairing-player .pairing-num { font-size: 0.75rem; }
 
   /* PAIRINGS EDIT MODE */
   .pairing-edit-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
@@ -1520,8 +1572,18 @@
       <h2>This Week's Round</h2>
       <div class="course-name" id="tw-course">No course set yet</div>
       <div class="course-details" id="tw-details"></div>
+      <div id="tw-fee-display"></div>
       <div class="rsvp-count-display" id="tw-rsvp-count"></div>
       <div id="rsvp-deadline-display"></div>
+    </div>
+
+    <!-- Pairings Display (visible to everyone when pairings exist) -->
+    <div class="card" id="pairings-card" style="display:none">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>Tee Time Pairings</span>
+        <div id="pairings-card-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <div id="pairings-content"></div>
     </div>
 
     <div class="card">
@@ -1545,15 +1607,6 @@
         </div>
       </div>
       <div id="admin-summary-content"></div>
-    </div>
-
-    <!-- Pairings Display (visible to everyone when pairings exist) -->
-    <div class="card" id="pairings-card" style="display:none">
-      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <span>Tee Time Pairings</span>
-        <div id="pairings-card-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-      </div>
-      <div id="pairings-content"></div>
     </div>
   </div>
 
@@ -1781,6 +1834,11 @@
         <div class="form-group">
           <label for="tw-par-input">Par</label>
           <input type="number" id="tw-par-input" value="72" min="60" max="80" style="width:90px">
+        </div>
+        <div class="form-group">
+          <label for="tw-fee-input">Weekly Fee ($)</label>
+          <input type="number" id="tw-fee-input" value="13" min="0" max="500" style="width:110px" placeholder="13">
+          <p style="font-size:0.7rem;color:var(--gray);margin-top:4px">Green fees + $13 skins pot</p>
         </div>
       </div>
       <div style="margin-top:10px">
@@ -2099,7 +2157,7 @@ let isEditor = false;
 let state = {
   players: [],
   weeks: {},
-  thisWeek: { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' }
+  thisWeek: { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '', fee: 13 }
 };
 let rsvpData = {};       // Populated by Firebase listener: { weekNum: { playerId: status } }
 let rsvpListener = null; // Track current Firebase listener
@@ -2278,7 +2336,7 @@ async function loadState() {
       const loaded = JSON.parse(raw);
       state.players = loaded.players || [];
       state.weeks = loaded.weeks || {};
-      state.thisWeek = loaded.thisWeek || { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
+      state.thisWeek = loaded.thisWeek || { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '', fee: 13 };
     }
   } catch(e) { console.warn('No saved data yet.'); }
   setLoading(false);
@@ -2489,6 +2547,21 @@ function renderThisWeek() {
     detailsEl.innerHTML = '<span style="color:var(--gray)">Admin will post this week\'s details soon</span>';
   }
 
+  // Weekly fee display (green fees + $13 skins pot)
+  const feeEl = document.getElementById('tw-fee-display');
+  if (feeEl) {
+    const fee = (tw.fee != null) ? tw.fee : 13;
+    if (tw.course && fee > 0) {
+      feeEl.innerHTML = `<div class="tw-fee-pill">
+        <span class="fee-label">Fees</span>
+        <span class="fee-amount">$${fee}</span>
+        <span class="fee-note">green fees + skins</span>
+      </div>`;
+    } else {
+      feeEl.innerHTML = '';
+    }
+  }
+
   // RSVP count (from Firebase data)
   const wn = tw.weekNum || 1;
   const rsvps = rsvpData[wn] || {};
@@ -2662,7 +2735,7 @@ async function resetSeason() {
     };
     await db.ref().update(updates);
     // Reset thisWeek to week 1
-    const freshWeek = { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '' };
+    const freshWeek = { weekNum: 1, course: '', date: '', time: '', par: 72, notes: '', fee: 13 };
     await db.ref('thisWeek').set(freshWeek);
     // Reset local state completely
     state.weeks = {};
@@ -3127,6 +3200,7 @@ function renderManageWeek() {
   document.getElementById('tw-course-input').value = state.thisWeek.course || '';
   document.getElementById('tw-date-input').value = state.thisWeek.date || '';
   document.getElementById('tw-par-input').value = state.thisWeek.par || 72;
+  document.getElementById('tw-fee-input').value = (state.thisWeek.fee != null) ? state.thisWeek.fee : 13;
   document.getElementById('tw-notes-input').value = state.thisWeek.notes || '';
   // Populate tee times
   const teeTimes = state.thisWeek.teeTimes || (state.thisWeek.time ? [state.thisWeek.time] : ['14:00']);
@@ -3154,12 +3228,15 @@ async function saveThisWeek() {
   if (!isEditor) return;
   const teeTimes = getTeeTimes('tw-tee-input');
   const weekNum = parseInt(document.getElementById('current-week-select').value);
+  const feeRaw = document.getElementById('tw-fee-input').value;
+  const fee = feeRaw === '' ? 13 : Math.max(0, parseInt(feeRaw) || 0);
   const weekData = {
     course: document.getElementById('tw-course-input').value.trim(),
     date: document.getElementById('tw-date-input').value,
     teeTimes: teeTimes.length > 0 ? teeTimes : [],
     par: parseInt(document.getElementById('tw-par-input').value) || 72,
-    notes: document.getElementById('tw-notes-input').value.trim()
+    notes: document.getElementById('tw-notes-input').value.trim(),
+    fee: fee
   };
 
   // Write to schedule (source of truth per week) — does NOT change which
@@ -3386,7 +3463,8 @@ async function saveScheduleWeek() {
   };
   if (!data.course && !data.date) return toast('Enter at least a course or date.');
   try {
-    await db.ref('schedule/' + weekNum).set(data);
+    // Use update() to preserve fields like `fee` and `notes` set elsewhere
+    await db.ref('schedule/' + weekNum).update(data);
     toast('Week ' + weekNum + ' saved to schedule!');
     // Clear form for next entry
     document.getElementById('sched-course-input').value = '';
@@ -4290,7 +4368,8 @@ async function applyAutoCurrentWeek() {
     teeTimes: teeTimes,
     time: teeTimes[0] || '',
     par: sd.par || legacy.par || 72,
-    notes: sd.notes || legacy.notes || ''
+    notes: sd.notes || legacy.notes || '',
+    fee: (sd.fee != null) ? sd.fee : (legacy.fee != null ? legacy.fee : 13)
   };
 
   const same = state.thisWeek && JSON.stringify(state.thisWeek) === JSON.stringify(newThisWeek);
