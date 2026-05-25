@@ -6624,9 +6624,14 @@ function renderPayouts() {
     const netClass = e.net > 0 ? 'earnings-positive' : e.net < 0 ? 'earnings-negative' : 'earnings-even';
     const netStr = e.net > 0 ? '+$' + e.net.toFixed(2) : e.net === 0 ? '$0.00' : '-$' + Math.abs(e.net).toFixed(2);
     const tag = e.noShow ? ' <span class="payout-birdie-tag" style="background:rgba(255,82,82,0.2);color:#ff8a8a">NO-SHOW</span>' : '';
+    // No-shows already paid before the deadline — their stake is in the pot.
+    // Show "Forfeited stake" instead of a negative net so it doesn't read as a debt.
+    const rightCol = e.noShow
+      ? `<span class="${netClass}" title="Already paid before the lock — stake stays in the pot">Forfeited stake</span>`
+      : `<span class="${netClass}">Net: ${netStr}</span>`;
     html += `<div class="earnings-row">
       <span>${escHtml(e.player.name)}${tag}: <strong>$${e.earnings.toFixed(2)}</strong></span>
-      <span class="${netClass}">Net: ${netStr}</span>
+      ${rightCol}
     </div>`;
   });
   html += '</div>';
