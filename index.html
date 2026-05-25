@@ -3894,7 +3894,7 @@ async function computeWeekWinners(weekNum) {
     const leader = entries[0] || null;
     const result = {
       weekNum: +weekNum, course, date, fee, fallback: true,
-      leader, skinsLeader: null, ctpWinners: [], ldWinners: [], lgWinner: null,
+      leader, skinWinners: [], ctpWinners: [], ldWinners: [], lgWinner: null,
       numPlayers: entries.length, totalPot: entries.length * fee
     };
     weeklyWinnersCache[weekNum] = result;
@@ -3957,14 +3957,14 @@ async function computeWeekWinners(weekNum) {
     const amt = holePot / winners.length;
     winners.forEach(pid => { skinEarnings[pid] = (skinEarnings[pid] || 0) + amt; });
   });
-  let skinsLeader = null;
-  let topAmt = 0;
-  Object.entries(skinEarnings).forEach(([pid, amt]) => {
-    if (amt > topAmt) {
+  // All skin winners (sorted high-to-low by total $ won that week)
+  const skinWinners = Object.entries(skinEarnings)
+    .map(([pid, amount]) => {
       const p = findPlayer(pid);
-      if (p) { topAmt = amt; skinsLeader = { name: p.name, amount: amt }; }
-    }
-  });
+      return p ? { name: p.name, amount } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.amount - a.amount);
 
   // CTP winners
   const ctpWinners = ctpHoles.map(h => {
@@ -4004,7 +4004,7 @@ async function computeWeekWinners(weekNum) {
   const leader = lgWinner ? { name: lgWinner.names[0], score: lgWinner.score } : null;
   const result = {
     weekNum: +weekNum, course, date, fee, fallback: false,
-    leader, skinsLeader, ctpWinners, ldWinners, lgWinner,
+    leader, skinWinners, ctpWinners, ldWinners, lgWinner,
     numPlayers, totalPot: numPlayers * fee
   };
   weeklyWinnersCache[weekNum] = result;
@@ -4048,9 +4048,13 @@ async function renderWeeklyWinners() {
       }
       html += `<div class="ww-note">Per-hole detail wasn't recorded for this week</div>`;
     } else {
-      const anyWinner = r.skinsLeader || r.ctpWinners.length || r.ldWinners.length || r.lgWinner;
-      if (r.skinsLeader) {
-        html += `<div class="ww-line"><span class="ww-icon">🏌️</span> Skins leader: <strong>${escHtml(r.skinsLeader.name)}</strong> ($${r.skinsLeader.amount.toFixed(2)})</div>`;
+      const anyWinner = r.skinWinners.length || r.ctpWinners.length || r.ldWinners.length || r.lgWinner;
+      if (r.skinWinners.length > 0) {
+        const skinsStr = r.skinWinners
+          .map(w => `<strong>${escHtml(w.name)}</strong> ($${w.amount.toFixed(2)})`)
+          .join(', ');
+        const label = r.skinWinners.length === 1 ? 'Skins' : `Skins (${r.skinWinners.length})`;
+        html += `<div class="ww-line"><span class="ww-icon">🏌️</span> ${label}: ${skinsStr}</div>`;
       }
       if (r.ctpWinners.length > 0) {
         const ctpStr = r.ctpWinners.map(w => `<strong>${escHtml(w.name)}</strong> (hole ${w.hole})`).join(', ');
