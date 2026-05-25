@@ -47,12 +47,12 @@
   /* HEADER */
   .header {
     text-align: center;
-    padding: 40px 20px 10px;
+    padding: 14px 20px 4px;
     position: relative;
   }
   .header h1 {
     font-family: 'Outfit', sans-serif;
-    font-size: clamp(3rem, 10vw, 5.5rem);
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
     font-weight: 900;
     background: linear-gradient(135deg, var(--pink-hot), var(--pink-light), var(--pink-hot));
     -webkit-background-clip: text;
@@ -61,19 +61,24 @@
     letter-spacing: 0.15em;
     line-height: 1;
     text-shadow: none;
-    filter: drop-shadow(0 0 40px rgba(255,61,167,0.6)) drop-shadow(0 0 80px rgba(255,61,167,0.3));
+    filter: drop-shadow(0 0 20px rgba(255,61,167,0.45));
+    display: inline-block;
+    vertical-align: middle;
   }
   .header .subtitle {
-    font-size: 0.9rem;
+    font-size: 0.68rem;
     color: var(--pink-light);
-    letter-spacing: 0.35em;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
-    margin-top: 6px;
+    margin-top: 2px;
     font-weight: 400;
   }
   .header .golf-icon {
-    font-size: 2rem;
-    margin-bottom: 6px;
+    font-size: 1.2rem;
+    margin-bottom: 0;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
   }
 
   /* NAV */
@@ -81,8 +86,12 @@
     display: flex;
     justify-content: center;
     gap: 4px;
-    padding: 20px 20px 24px;
+    padding: 8px 16px 14px;
     flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: linear-gradient(180deg, var(--dark) 70%, rgba(13,2,9,0));
   }
   .nav-tab {
     padding: 10px 22px;
@@ -117,8 +126,27 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px;
-    padding: 6px 20px 4px;
+    gap: 10px;
+    padding: 2px 20px 2px;
+  }
+  /* Footer variant — tiny, low-key, only the admin uses it */
+  .mode-bar-footer {
+    margin-top: 14px;
+    gap: 6px;
+    opacity: 0.55;
+    transition: opacity 0.2s;
+  }
+  .mode-bar-footer:hover { opacity: 1; }
+  .mode-bar-footer .mode-badge {
+    font-size: 0.55rem;
+    padding: 2px 8px;
+    letter-spacing: 0.1em;
+  }
+  .mode-bar-footer .mode-dot { width: 5px; height: 5px; }
+  .mode-bar-footer .lock-btn {
+    font-size: 0.55rem;
+    padding: 2px 8px;
+    letter-spacing: 0.08em;
   }
   .mode-badge {
     display: inline-flex;
@@ -157,6 +185,34 @@
   .container { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
   .panel { display: none; }
   .panel.active { display: block; animation: fadeIn 0.3s ease; }
+  /* Home panel uses flex so we can reorder children (RSVP vs Pairings priority) */
+  #panel-home.active { display: flex; flex-direction: column; }
+
+  /* Priority card — highlights the most important action on the home page */
+  .priority-card {
+    border: 2px solid var(--pink-hot) !important;
+    box-shadow: 0 0 0 4px rgba(255,61,167,0.12), 0 0 28px rgba(255,61,167,0.25) !important;
+    background: linear-gradient(135deg, rgba(255,61,167,0.12), rgba(255,61,167,0.04)) !important;
+    position: relative;
+  }
+  /* Beat PR #35's #pairings-card .card-title rule via ID+class specificity */
+  #rsvp-card.priority-card > .card-title,
+  #pairings-card.priority-card > .card-title {
+    font-size: 1.55rem;
+  }
+  .priority-card::before {
+    content: 'NOW';
+    position: absolute;
+    top: -10px; left: 18px;
+    background: var(--pink-hot);
+    color: var(--white);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    padding: 3px 10px;
+    border-radius: 20px;
+    box-shadow: 0 0 12px rgba(255,61,167,0.6);
+  }
   @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
   /* CARDS */
@@ -1490,71 +1546,10 @@
   <div class="subtitle">Friends of Golf</div>
 </div>
 
-<div style="padding: 0 20px 4px;">
-  <div class="season-champ-banner" id="season-champ-banner">
-    <div class="champ-trophy">🏆</div>
-    <div class="champ-label">2025 Season Champion</div>
-    <div class="champ-name" id="champ-name"></div>
-    <div class="champ-details" id="champ-details"></div>
-  </div>
-  <div class="winner-banner" id="winner-banner">
-    <div class="winner-trophy">🏆</div>
-    <div class="winner-label">This Week's Champion</div>
-    <div class="winner-name" id="winner-name"></div>
-    <div class="winner-details" id="winner-details"></div>
-  </div>
-</div>
-
-<div style="padding: 8px 20px;">
-  <a class="venmo-banner" id="venmo-link" href="https://venmo.com/Jami-Andregg" target="_blank" rel="noopener">
-    <span style="font-size:1.4rem">&#128176;</span>
-    <div>
-      <div class="venmo-text">Pay League Dues via Venmo</div>
-      <div class="venmo-sub">Tap to open Venmo</div>
-    </div>
-    <span style="font-size:1.1rem">&#8594;</span>
-  </a>
-</div>
-
-<!-- PWA Install Banner -->
-<div style="padding: 0 20px 4px;">
-  <div class="pwa-install-banner" id="pwa-install-banner" style="display:none">
-    <button class="pwa-dismiss" onclick="dismissInstallBanner()" aria-label="Dismiss">&times;</button>
-    <span style="font-size:1.4rem">&#9971;</span>
-    <div>
-      <div class="install-text"><span class="install-btn-text">Install FOG App</span></div>
-      <div class="install-sub">Add to home screen for full-screen access</div>
-    </div>
-    <button class="btn btn-pink" style="padding:8px 18px;font-size:0.75rem" onclick="handleInstallClick()">Install</button>
-  </div>
-</div>
-
-<!-- Announcement Banner (admin-posted, shown to all) -->
-<div id="announcement-banner-container"></div>
-
-<!-- Notification Permission Banner (shown to users who haven't enabled push) -->
-<div class="notif-permission-banner" id="notif-permission-banner" style="display:none">
-  <button class="pwa-dismiss" onclick="dismissNotificationBanner()" aria-label="Dismiss">&times;</button>
-  <span style="font-size:1.4rem">🔔</span>
-  <div>
-    <div class="notif-text">Turn On Notifications</div>
-    <div class="notif-sub">Get alerts when scoring opens &amp; results are posted</div>
-  </div>
-  <button class="btn btn-pink" style="padding:8px 18px;font-size:0.75rem" onclick="handleEnableNotifications()">Enable</button>
-</div>
-
-<div class="mode-bar">
-  <div class="mode-badge mode-viewer" id="mode-badge">
-    <span class="mode-dot"></span>
-    <span id="mode-label">View Only</span>
-  </div>
-  <button class="lock-btn" id="lock-btn" onclick="handleLockBtn()">Admin Login</button>
-</div>
-
 <nav class="nav-tabs" role="tablist" aria-label="League navigation">
   <button class="nav-tab active" role="tab" aria-selected="true"  onclick="showPanel('home',this)">This Week</button>
   <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('live-scoring',this)">Live Scoring</button>
-  <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('pairings',this)">Pairings</button>
+  <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('pairings',this)">Tee Time Pairings</button>
   <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('standings',this)">Standings</button>
   <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('history',this)">Scores</button>
   <button class="nav-tab"        role="tab" aria-selected="false" onclick="showPanel('schedule',this)">Schedule</button>
@@ -1568,7 +1563,15 @@
 
   <!-- THIS WEEK / RSVP PANEL -->
   <div id="panel-home" class="panel active">
-    <div class="this-week-hero" id="this-week-hero">
+    <!-- This Week's Champion banner (shown when last round has scores) -->
+    <div class="winner-banner" id="winner-banner" style="order:0">
+      <div class="winner-trophy">🏆</div>
+      <div class="winner-label">This Week's Champion</div>
+      <div class="winner-name" id="winner-name"></div>
+      <div class="winner-details" id="winner-details"></div>
+    </div>
+
+    <div class="this-week-hero" id="this-week-hero" style="order:1">
       <h2>This Week's Round</h2>
       <div class="course-name" id="tw-course">No course set yet</div>
       <div class="course-details" id="tw-details"></div>
@@ -1577,16 +1580,8 @@
       <div id="rsvp-deadline-display"></div>
     </div>
 
-    <!-- Pairings Display (visible to everyone when pairings exist) -->
-    <div class="card" id="pairings-card" style="display:none">
-      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <span>Tee Time Pairings</span>
-        <div id="pairings-card-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-      </div>
-      <div id="pairings-content"></div>
-    </div>
-
-    <div class="card">
+    <!-- RSVP card — priority (NOW) until the week is locked -->
+    <div class="card priority-card" id="rsvp-card" style="order:2">
       <div class="card-title">RSVP for This Week</div>
       <p style="font-size:0.85rem;color:var(--gray);margin-bottom:12px">Tap your name to toggle your RSVP status.</p>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
@@ -1598,8 +1593,17 @@
       </div>
     </div>
 
+    <!-- Pairings Display — priority (NOW) once the week is locked -->
+    <div class="card" id="pairings-card" style="display:none;order:3">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>Tee Time Pairings</span>
+        <div id="pairings-card-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <div id="pairings-content"></div>
+    </div>
+
     <!-- Admin RSVP Summary (visible only in editor mode) -->
-    <div class="card editor-only-card" id="admin-rsvp-summary">
+    <div class="card editor-only-card" id="admin-rsvp-summary" style="order:4">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>RSVP Summary</span>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1607,6 +1611,41 @@
         </div>
       </div>
       <div id="admin-summary-content"></div>
+    </div>
+
+    <!-- Announcement Banner (admin-posted, shown to all) -->
+    <div id="announcement-banner-container" style="order:5"></div>
+
+    <!-- Venmo link -->
+    <a class="venmo-banner" id="venmo-link" href="https://venmo.com/Jami-Andregg" target="_blank" rel="noopener" style="order:6;margin-bottom:16px">
+      <span style="font-size:1.4rem">&#128176;</span>
+      <div>
+        <div class="venmo-text">Pay League Dues via Venmo</div>
+        <div class="venmo-sub">Tap to open Venmo</div>
+      </div>
+      <span style="font-size:1.1rem">&#8594;</span>
+    </a>
+
+    <!-- PWA Install Banner -->
+    <div class="pwa-install-banner" id="pwa-install-banner" style="display:none;order:7;margin-bottom:16px">
+      <button class="pwa-dismiss" onclick="dismissInstallBanner()" aria-label="Dismiss">&times;</button>
+      <span style="font-size:1.4rem">&#9971;</span>
+      <div>
+        <div class="install-text"><span class="install-btn-text">Install FOG App</span></div>
+        <div class="install-sub">Add to home screen for full-screen access</div>
+      </div>
+      <button class="btn btn-pink" style="padding:8px 18px;font-size:0.75rem" onclick="handleInstallClick()">Install</button>
+    </div>
+
+    <!-- Notification Permission Banner (shown to users who haven't enabled push) -->
+    <div class="notif-permission-banner" id="notif-permission-banner" style="display:none;order:8;margin-bottom:16px">
+      <button class="pwa-dismiss" onclick="dismissNotificationBanner()" aria-label="Dismiss">&times;</button>
+      <span style="font-size:1.4rem">🔔</span>
+      <div>
+        <div class="notif-text">Turn On Notifications</div>
+        <div class="notif-sub">Get alerts when scoring opens &amp; results are posted</div>
+      </div>
+      <button class="btn btn-pink" style="padding:8px 18px;font-size:0.75rem" onclick="handleEnableNotifications()">Enable</button>
     </div>
   </div>
 
@@ -1660,7 +1699,7 @@
   <!-- PAIRINGS PANEL -->
   <div id="panel-pairings" class="panel">
     <div class="card">
-      <div class="card-title">Group Pairings</div>
+      <div class="card-title">Tee Time Pairings</div>
       <div id="pairings-tab-content"><div class="empty-state">Loading pairings...</div></div>
     </div>
   </div>
@@ -1749,6 +1788,12 @@
 
   <!-- PAST SEASONS PANEL -->
   <div id="panel-past-seasons" class="panel">
+    <div class="season-champ-banner" id="season-champ-banner">
+      <div class="champ-trophy">🏆</div>
+      <div class="champ-label">2025 Season Champion</div>
+      <div class="champ-name" id="champ-name"></div>
+      <div class="champ-details" id="champ-details"></div>
+    </div>
     <div class="card">
       <div class="card-title">Past Seasons</div>
       <div class="week-pills" id="season-pills"></div>
@@ -2253,6 +2298,7 @@ function isRSVPLocked() {
 }
 
 function updateDeadlineDisplay() {
+  try { updateHomePriority(); } catch(_) {}
   const el = document.getElementById('rsvp-deadline-display');
   if (!el) return;
 
@@ -2571,6 +2617,41 @@ function renderThisWeek() {
   updateDeadlineDisplay();
   renderRSVP();
   renderPairingsDisplay();
+  updateHomePriority();
+}
+
+/* ─── Home page priority swap (RSVP vs Pairings) ─── */
+function updateHomePriority() {
+  const rsvpCard = document.getElementById('rsvp-card');
+  const pairingsCard = document.getElementById('pairings-card');
+  if (!rsvpCard || !pairingsCard) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const pairings = pairingsData[wn];
+  const hasPairings = pairings && pairings.length > 0;
+  const locked = isRSVPLocked();
+  // Once the round has scores, the round is over — the Winner banner takes over,
+  // so don't put the NOW highlight on either RSVP or pairings.
+  const wkData = state.weeks && state.weeks[wn];
+  const roundComplete = !!(wkData && wkData.scores && Object.keys(wkData.scores).length > 0);
+  if (roundComplete) {
+    rsvpCard.classList.remove('priority-card');
+    pairingsCard.classList.remove('priority-card');
+    pairingsCard.style.order = '2';
+    rsvpCard.style.order = '3';
+    return;
+  }
+  // When the week is locked AND pairings exist, pairings becomes the priority card.
+  if (locked && hasPairings) {
+    pairingsCard.classList.add('priority-card');
+    pairingsCard.style.order = '2';
+    rsvpCard.classList.remove('priority-card');
+    rsvpCard.style.order = '3';
+  } else {
+    rsvpCard.classList.add('priority-card');
+    rsvpCard.style.order = '2';
+    pairingsCard.classList.remove('priority-card');
+    pairingsCard.style.order = '3';
+  }
 }
 
 function renderRSVP() {
@@ -4817,6 +4898,7 @@ function renderPairingsDisplay() {
   if (!pairings || !pairings.length) {
     card.style.display = 'none';
     if (actions) actions.innerHTML = '';
+    updateHomePriority();
     return;
   }
 
@@ -4851,6 +4933,7 @@ function renderPairingsDisplay() {
   });
 
   content.innerHTML = html;
+  updateHomePriority();
 }
 
 /* ─── Pairings Edit Mode ─── */
@@ -6250,15 +6333,21 @@ function calculateSkins() {
   const pars = courseSetupData.pars || defaultPars;
   const wn = state.thisWeek.weekNum || 1;
 
-  // Pot size comes from the actual groups (pairings) — that's who played.
-  // RSVPs are intentionally not used here: a late add-in via the pairings
-  // editor counts; an RSVP who didn't show doesn't.
+  // Pot = anyone who COMMITTED: RSVP'd "yes" OR was placed in a pairing group.
+  // RSVP no-shows still owe their fee (they committed, so their entry is in the
+  // pot and gets split among the players who actually showed up).
   const pairings = pairingsData[wn] || [];
   const inGroups = new Set();
   pairings.forEach(g => (g.players || []).forEach(pid => inGroups.add(pid)));
 
-  // Players considered for skins comparison: those with any scores. If we
-  // have pairings, restrict to in-group players (no rogue scores).
+  const rsvps = rsvpData[wn] || {};
+  const committed = new Set(inGroups);
+  Object.entries(rsvps).forEach(([pid, status]) => {
+    if (status === 'yes') committed.add(pid);
+  });
+
+  // Players who can win skins: those who actually have scores. If we have
+  // pairings, restrict to in-group players (no rogue scores).
   const allActive = getActivePlayers();
   const hasScore = (p) => {
     const scores = liveScoresData[p.id];
@@ -6266,19 +6355,21 @@ function calculateSkins() {
   };
   let activePlayers;
   let numPlayers;
-  if (inGroups.size > 0) {
-    activePlayers = allActive.filter(p => inGroups.has(p.id) && hasScore(p));
-    numPlayers = inGroups.size; // pot = players in groups
+  if (committed.size > 0) {
+    activePlayers = allActive.filter(p =>
+      (inGroups.size > 0 ? inGroups.has(p.id) : true) && hasScore(p)
+    );
+    numPlayers = committed.size; // pot includes RSVP no-shows
   } else {
     activePlayers = allActive.filter(hasScore);
     numPlayers = activePlayers.length; // fallback: legacy behavior
   }
 
-  if (numPlayers === 0) return { skinResults: [], numPlayers: 0, skinsPot: 0 };
+  if (numPlayers === 0) return { skinResults: [], numPlayers: 0, skinsPot: 0, committed: [] };
 
-  // Skins pot = $13/player minus $1/player per proxy contest minus $1/player low gross.
+  // Skins pot = fee/player minus $1/player per proxy contest minus $1/player low gross.
   // Pushed-hole money is redistributed across paid holes so the full pot pays out.
-  const ENTRY_FEE = 13;
+  const ENTRY_FEE = (state.thisWeek && state.thisWeek.fee != null) ? state.thisWeek.fee : 13;
   const ctpHolesSetup = courseSetupData.ctpHoles || [];
   const ldHolesSetup = [courseSetupData.longDriveHole, courseSetupData.longDriveHole2]
     .filter(h => h !== null && h !== undefined);
@@ -6346,7 +6437,7 @@ function calculateSkins() {
     }
   });
 
-  return { skinResults, numPlayers, skinsPot };
+  return { skinResults, numPlayers, skinsPot, committed: Array.from(committed) };
 }
 
 /* ─── Low Gross Calculation ─── */
@@ -6383,15 +6474,15 @@ function renderPayouts() {
   if (roundStatus !== 'closed') { payoutDiv.style.display = 'none'; return; }
   payoutDiv.style.display = 'block';
 
-  const { skinResults, numPlayers, skinsPot } = calculateSkins();
+  const { skinResults, numPlayers, skinsPot, committed = [] } = calculateSkins();
   if (numPlayers === 0) {
     container.innerHTML = '<div class="empty-state">No scores available for payout calculation.</div>';
     return;
   }
 
   // Pot rules: each proxy (CTP hole, LD hole) = $1/player, low gross = $1/player,
-  // skins = whatever's left of the $13/player entry.
-  const ENTRY_FEE = 13;
+  // skins = whatever's left of the per-player fee (set per week in Manage Week).
+  const ENTRY_FEE = (state.thisWeek && state.thisWeek.fee != null) ? state.thisWeek.fee : 13;
   const PROXY_PER = 1, LG_PER = 1;
   const ctpHolesPayout = courseSetupData.ctpHoles || [];
   const ldHolesPayout = [courseSetupData.longDriveHole, courseSetupData.longDriveHole2]
@@ -6510,16 +6601,31 @@ function renderPayouts() {
   });
   activePlayersEarnings.forEach(p => {
     if (!earningsArr.find(e => e.player.id === p.id)) {
-      earningsArr.push({ player: p, earnings: 0, net: -ENTRY_FEE });
+      earningsArr.push({ player: p, earnings: 0, net: -ENTRY_FEE, noShow: false });
     }
   });
+
+  // RSVP no-shows: committed (RSVP'd yes or in pairings) but no scores.
+  // They still owe the fee — their entry is in the pot above.
+  const committedSet = new Set(committed);
+  getActivePlayers().forEach(p => {
+    if (!committedSet.has(p.id)) return;
+    if (earningsArr.find(e => e.player.id === p.id)) return;
+    const scores = liveScoresData[p.id];
+    const played = scores && scores.some(s => s !== null && s !== undefined);
+    if (!played) {
+      earningsArr.push({ player: p, earnings: 0, net: -ENTRY_FEE, noShow: true });
+    }
+  });
+
   earningsArr.sort((a, b) => b.net - a.net);
 
   earningsArr.forEach(e => {
     const netClass = e.net > 0 ? 'earnings-positive' : e.net < 0 ? 'earnings-negative' : 'earnings-even';
     const netStr = e.net > 0 ? '+$' + e.net.toFixed(2) : e.net === 0 ? '$0.00' : '-$' + Math.abs(e.net).toFixed(2);
+    const tag = e.noShow ? ' <span class="payout-birdie-tag" style="background:rgba(255,82,82,0.2);color:#ff8a8a">NO-SHOW</span>' : '';
     html += `<div class="earnings-row">
-      <span>${escHtml(e.player.name)}: <strong>$${e.earnings.toFixed(2)}</strong></span>
+      <span>${escHtml(e.player.name)}${tag}: <strong>$${e.earnings.toFixed(2)}</strong></span>
       <span class="${netClass}">Net: ${netStr}</span>
     </div>`;
   });
@@ -7418,6 +7524,13 @@ function showPrivacy() {
     <a href="#" onclick="event.preventDefault();openDeleteModal()">Delete My Data</a>
   </div>
   <div class="footer-copy">&copy; 2025 FOG — Friends of Golf</div>
+  <div class="mode-bar mode-bar-footer">
+    <span class="mode-badge mode-viewer" id="mode-badge">
+      <span class="mode-dot"></span>
+      <span id="mode-label">View Only</span>
+    </span>
+    <button class="lock-btn" id="lock-btn" onclick="handleLockBtn()">Admin Login</button>
+  </div>
 </footer>
 
 <!-- WhatsApp Floating Button -->
