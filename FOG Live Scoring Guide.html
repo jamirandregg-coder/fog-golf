@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FOG Golf League - Live Scoring Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #222; padding: 32px 40px; max-width: 800px; margin: 0 auto; }
+  h1 { color: #d6006e; font-size: 2rem; margin-bottom: 4px; text-align: center; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 28px; font-size: 0.95rem; }
+  h2 { color: #d6006e; font-size: 1.25rem; margin: 24px 0 10px; border-bottom: 2px solid #f0c0d8; padding-bottom: 4px; }
+  h3 { color: #333; font-size: 1rem; margin: 14px 0 6px; }
+  ol, ul { margin-left: 24px; margin-bottom: 10px; }
+  li { margin-bottom: 5px; line-height: 1.5; font-size: 0.93rem; }
+  .card { background: #fafafa; border: 1px solid #e8e8e8; border-radius: 10px; padding: 14px 18px; margin: 10px 0; }
+  .money { color: #0a8a6e; font-weight: 700; }
+  .highlight { color: #d6006e; font-weight: 600; }
+  .rule { background: #fef0f5; border-left: 3px solid #d6006e; padding: 8px 14px; margin: 8px 0; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  th { background: #fef0f5; color: #d6006e; padding: 7px 10px; text-align: left; font-size: 0.82rem; border-bottom: 2px solid #f0c0d8; }
+  td { padding: 7px 10px; border-bottom: 1px solid #eee; font-size: 0.88rem; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 0.88rem; }
+  .footer { text-align: center; color: #999; margin-top: 36px; font-size: 0.78rem; border-top: 1px solid #eee; padding-top: 12px; }
+  @page { margin: 0.7in; }
+</style>
+</head>
+<body>
+
+<h1>FOG Golf League</h1>
+<p class="subtitle">Live Scoring &amp; Skins Guide &mdash; thefog.golf</p>
+
+<h2>1. Admin Setup (Before the Round)</h2>
+<div class="card">
+  <ol>
+    <li>Go to <span class="highlight">thefog.golf</span> and click <span class="highlight">Admin Login</span> (password: <code>golf2025</code>)</li>
+    <li>Navigate to the <span class="highlight">Manage Week</span> tab</li>
+    <li>Set the <span class="highlight">course name</span> (type to search &mdash; pars auto-fill from the master course list)</li>
+    <li>Choose <span class="highlight">Front 9 or Back 9</span> using the toggle buttons</li>
+    <li>Set the <span class="highlight">date and tee times</span> (up to 6 tee times)</li>
+    <li>Verify <span class="highlight">hole pars</span> for all 9 holes (H1&ndash;H9) &mdash; adjust if needed</li>
+    <li>Check which holes are <span class="highlight">CTP (Closest to Pin)</span> contests</li>
+    <li>Select the <span class="highlight">Long Drive</span> hole from the dropdown</li>
+    <li>Click <span class="highlight">&quot;Save This Week&quot;</span></li>
+    <li>Click <span class="highlight">&quot;Open Scoring&quot;</span> to enable live score entry for all players</li>
+  </ol>
+</div>
+
+<h2>2. Players Entering Scores (During the Round)</h2>
+<div class="card">
+  <ol>
+    <li>Go to <span class="highlight">thefog.golf</span> on your phone</li>
+    <li>Tap the <span class="highlight">&quot;Live Scoring&quot;</span> tab</li>
+    <li><span class="highlight">Pick your name</span> from the dropdown at the top</li>
+    <li>Enter your score for each hole as you finish it</li>
+    <li>Your <span class="highlight">running total</span> and <span class="highlight">+/- par</span> update automatically</li>
+    <li>The full scorecard grid below shows <span class="highlight">all players' scores in real time</span></li>
+  </ol>
+  <div class="rule">Scores sync live via Firebase &mdash; everyone sees updates instantly on their own device.</div>
+</div>
+
+<h2>3. After the Round (Admin)</h2>
+<div class="card">
+  <ol>
+    <li>Verify all scores are entered on the Live Scoring tab</li>
+    <li>Click <span class="highlight">&quot;Close &amp; Calculate&quot;</span> &mdash; this locks inputs and runs the skins calculation</li>
+    <li>Select <span class="highlight">CTP winners</span> from the dropdown for each CTP hole</li>
+    <li>Select the <span class="highlight">Long Drive winner</span> from the dropdown</li>
+    <li><span class="highlight">Low Gross</span> is calculated automatically (lowest total score)</li>
+    <li>The <span class="highlight">Payout Summary</span> card appears with all winnings</li>
+  </ol>
+  <div class="rule">Need to fix a score? Click <span class="highlight">&quot;Reopen Scoring&quot;</span>, make edits, then close again.</div>
+</div>
+
+<h2>4. Skins Rules</h2>
+<div class="card">
+  <table>
+    <tr><th>Scenario</th><th>Result</th></tr>
+    <tr><td>One birdie (or better) on a hole</td><td><strong>Birdie always wins</strong> the skin</td></tr>
+    <tr><td>Multiple birdies on a hole</td><td>All birdies <strong>split</strong> the hole pot evenly</td></tr>
+    <tr><td>No birdies, one player has lowest score</td><td>Lowest unique score wins the skin</td></tr>
+    <tr><td>No birdies, tied for lowest score</td><td>Hole <strong>pushes</strong> (no winner)</td></tr>
+  </table>
+</div>
+
+<h2>5. Money Breakdown</h2>
+<div class="card">
+  <h3>Entry Fee: <span class="money">$13 / player / week</span></h3>
+  <table>
+    <tr><th>Category</th><th>Amount</th><th>How It Works</th></tr>
+    <tr><td>Skins</td><td class="money">$9</td><td>Split across 9 holes ($1/player/hole)</td></tr>
+    <tr><td>Closest to Pin (CTP)</td><td class="money">$2</td><td>Split across CTP holes; admin picks winner per hole</td></tr>
+    <tr><td>Long Drive</td><td class="money">$1</td><td>One winner; admin picks from dropdown</td></tr>
+    <tr><td>Low Gross</td><td class="money">$1</td><td>Lowest total score wins; ties split</td></tr>
+  </table>
+  <div class="rule">The Payout Summary shows each player's <span class="highlight">net profit/loss</span> (winnings minus $13 entry fee).</div>
+</div>
+
+<h2>6. RSVP &amp; Tee Times</h2>
+<div class="card">
+  <ul>
+    <li>RSVP on the <span class="highlight">This Week</span> tab or <span class="highlight">Schedule</span> tab</li>
+    <li>Clicking <span class="highlight">&quot;I'm In&quot;</span> automatically opens Venmo to pay dues</li>
+    <li>RSVP deadline: <span class="highlight">Monday at 2:00 PM MDT</span></li>
+    <li>After the deadline, pairings of 4 are <span class="highlight">auto-generated</span> from confirmed players</li>
+    <li>Admin can set up to <span class="highlight">6 tee times</span> per round (8-min increments)</li>
+    <li>Admin can manually regenerate pairings anytime from Manage Week</li>
+  </ul>
+</div>
+
+<h2>7. Quick Reference</h2>
+<div class="card">
+  <table>
+    <tr><th>Action</th><th>Where</th></tr>
+    <tr><td>Admin login</td><td>Tap lock icon, password: <code>golf2025</code></td></tr>
+    <tr><td>Set up the week</td><td>Manage Week tab</td></tr>
+    <tr><td>Enter scores</td><td>Live Scoring tab &rarr; pick your name</td></tr>
+    <tr><td>View scorecard</td><td>Live Scoring tab (scroll down)</td></tr>
+    <tr><td>See payouts</td><td>Live Scoring tab (after round closes)</td></tr>
+    <tr><td>RSVP for a round</td><td>This Week tab or Schedule tab</td></tr>
+    <tr><td>Pay dues</td><td>Venmo link at top of page</td></tr>
+    <tr><td>View standings</td><td>Standings tab</td></tr>
+    <tr><td>View pairings</td><td>This Week tab (after deadline)</td></tr>
+  </table>
+</div>
+
+<div class="footer">
+  <p>FOG Golf League &mdash; thefog.golf</p>
+  <p>Questions? Contact the league admin.</p>
+</div>
+
+</body>
+</html>

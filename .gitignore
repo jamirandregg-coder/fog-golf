@@ -32,3 +32,25 @@ android/local.properties
 .idea/
 *.swp
 *.swo
+
+# Secrets — NEVER commit these to a public repo
+firebase-secret.json
+asc-api-key.txt
+*.keystore
+Copy-Item *.keystore*
+serviceAccountKey*.json
+*-private-key*.json
+
+# Local Firebase deploy state
+.firebase/
+
+# Windows junk
+*.lnk
+Thumbs.db
+desktop.ini
+
+# Browser "Save As" auto-generated folder
+FOG Golf League_files/
+
+# PDF outputs (regenerated from source as needed)
+*.pdf

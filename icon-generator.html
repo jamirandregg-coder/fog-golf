@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head><title>FOG Icon Generator</title></head>
+<body style="background:#333;color:#fff;font-family:sans-serif;padding:20px">
+<h1>FOG Golf Icon Generator</h1>
+<p>Click each button to generate and download the PNG icon at that size.</p>
+<div id="buttons"></div>
+<canvas id="canvas" style="border:1px solid #555;margin:20px 0"></canvas>
+<script>
+const sizes = [1024, 512, 192, 180, 167, 152, 120];
+const container = document.getElementById('buttons');
+sizes.forEach(size => {
+  const btn = document.createElement('button');
+  btn.textContent = 'Generate ' + size + 'x' + size;
+  btn.style.cssText = 'margin:5px;padding:10px 20px;font-size:16px;cursor:pointer';
+  btn.onclick = () => generateIcon(size);
+  container.appendChild(btn);
+});
+
+function generateIcon(size) {
+  const canvas = document.getElementById('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#0f0a10';
+  ctx.beginPath();
+  const r = size * 0.1875; // rounded corners
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fill();
+
+  // FOG text
+  ctx.fillStyle = '#ff3da7';
+  ctx.font = 'bold ' + (size * 0.35) + 'px "Arial Black", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FOG', size/2, size * 0.48);
+
+  // GOLF text
+  ctx.fillStyle = '#ff77c4';
+  ctx.font = 'bold ' + (size * 0.14) + 'px Arial, sans-serif';
+  ctx.fillText('GOLF', size/2, size * 0.72);
+
+  // Download
+  const link = document.createElement('a');
+  link.download = 'icon-' + size + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+</script>
+</body>
+</html>
