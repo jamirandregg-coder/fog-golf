@@ -1736,6 +1736,10 @@
       <div class="week-pills" id="week-pills"></div>
       <div id="history-content"><div class="empty-state">No scores saved yet.</div></div>
     </div>
+    <div class="card payout-card" id="history-payouts-card" style="display:none">
+      <div class="card-title">Round Payouts</div>
+      <div id="history-payouts-content"></div>
+    </div>
   </div>
 
   <!-- SCHEDULE PANEL -->
@@ -3809,8 +3813,14 @@ function renderStandings() {
 function renderHistory(sel) {
   const pillsEl = document.getElementById('week-pills');
   const contentEl = document.getElementById('history-content');
+  const payoutsCard = document.getElementById('history-payouts-card');
   const weeks = Object.keys(state.weeks).filter(w => Object.keys(state.weeks[w].scores || {}).length > 0).sort((a, b) => +a - +b);
-  if (!weeks.length) { pillsEl.innerHTML = ''; contentEl.innerHTML = '<div class="empty-state">No scores saved yet.</div>'; return; }
+  if (!weeks.length) {
+    pillsEl.innerHTML = '';
+    contentEl.innerHTML = '<div class="empty-state">No scores saved yet.</div>';
+    if (payoutsCard) payoutsCard.style.display = 'none';
+    return;
+  }
   if (!sel || !weeks.includes(String(sel))) sel = weeks[weeks.length - 1];
   curHistoryWeek = sel;
   pillsEl.innerHTML = weeks.map(w => `
@@ -3849,6 +3859,277 @@ function renderHistory(sel) {
       </table>
     </div>
   `;
+  // Also render the per-hole payout breakdown for this week
+  renderHistoricalPayouts(sel);
+}
+
+/* ─── Historical Payouts (Scores tab) ────────────────────────────────
+   Recomputes skins/proxies/low-gross/earnings for a past week by
+   fetching that week's per-hole data from Firebase. Self-contained:
+   does NOT touch the globals used by the live Round Payouts card.
+*/
+async function renderHistoricalPayouts(weekNum) {
+  const card = document.getElementById('history-payouts-card');
+  const content = document.getElementById('history-payouts-content');
+  if (!card || !content) return;
+  card.style.display = 'block';
+  content.innerHTML = '<div class="empty-state">Loading payouts…</div>';
+
+  let liveScores, contests, courseSetup, pairings, rsvps, guests, schedule;
+  try {
+    const paths = ['liveScores', 'contests', 'courseSetup', 'pairings', 'rsvps', 'guests', 'schedule'];
+    const snaps = await Promise.all(paths.map(p => db.ref(p + '/' + weekNum).once('value')));
+    [liveScores, contests, courseSetup, pairings, rsvps, guests, schedule] =
+      snaps.map(s => s.val());
+  } catch (e) {
+    content.innerHTML = '<div class="empty-state">Could not load payout data.</div>';
+    return;
+  }
+
+  liveScores  = liveScores  || {};
+  contests    = contests    || {};
+  courseSetup = courseSetup || {};
+  pairings    = Array.isArray(pairings) ? pairings : (pairings ? Object.values(pairings) : []);
+  rsvps       = rsvps       || {};
+  guests      = guests      || {};
+  schedule    = schedule    || {};
+
+  // Need per-hole scores to compute skins. If liveScores wasn't recorded
+  // for this week (e.g. early weeks before live scoring shipped), bail.
+  const hasAnyPerHole = Object.values(liveScores).some(arr =>
+    Array.isArray(arr) && arr.some(s => s !== null && s !== undefined)
+  );
+  if (!hasAnyPerHole) {
+    content.innerHTML = '<div class="empty-state">Per-hole payout breakdown wasn\'t recorded for this week.</div>';
+    return;
+  }
+
+  // Build roster (permanent players + that week's guests)
+  const guestList = Object.values(guests).map(g => ({ ...g, isGuest: true }));
+  const players = [...state.players, ...guestList];
+  const findPlayer = (pid) => players.find(p => p.id === pid);
+
+  // Course setup → pars + proxy holes
+  const defaultPars = new Array(9).fill(4);
+  const pars = (courseSetup.pars && courseSetup.pars.length) ? courseSetup.pars : defaultPars;
+  const holeCount = pars.length;
+  const ctpHoles = courseSetup.ctpHoles || [];
+  const ldHoles = [courseSetup.longDriveHole, courseSetup.longDriveHole2]
+    .filter(h => h !== null && h !== undefined);
+  const numProxies = ctpHoles.length + ldHoles.length;
+
+  // Committed = anyone in pairings OR RSVP'd yes
+  const inGroups = new Set();
+  pairings.forEach(g => (g && g.players || []).forEach(pid => inGroups.add(pid)));
+  const committed = new Set(inGroups);
+  Object.entries(rsvps).forEach(([pid, status]) => { if (status === 'yes') committed.add(pid); });
+
+  // Players who can win skins: in pairings (if any) with at least one score
+  const hasScore = (pid) => {
+    const arr = liveScores[pid];
+    return Array.isArray(arr) && arr.some(s => s !== null && s !== undefined);
+  };
+  let activePids;
+  let numPlayers;
+  if (committed.size > 0) {
+    activePids = players
+      .filter(p => (inGroups.size > 0 ? inGroups.has(p.id) : true) && hasScore(p.id))
+      .map(p => p.id);
+    numPlayers = committed.size;
+  } else {
+    activePids = players.filter(p => hasScore(p.id)).map(p => p.id);
+    numPlayers = activePids.length;
+  }
+  if (numPlayers === 0) {
+    content.innerHTML = '<div class="empty-state">No payable players for this week.</div>';
+    return;
+  }
+
+  // Fee for this week (from schedule, fallback $13)
+  const ENTRY_FEE = (schedule.fee != null) ? schedule.fee : 13;
+  const PROXY_PER = 1, LG_PER = 1;
+  const skinsPerPlayer = Math.max(0, ENTRY_FEE - numProxies - 1);
+  const skinsPot = numPlayers * skinsPerPlayer;
+  const ctpPot = ctpHoles.length * numPlayers * PROXY_PER;
+  const ldPot  = ldHoles.length  * numPlayers * PROXY_PER;
+  const lgPot  = numPlayers * LG_PER;
+
+  // === Skins (pass 1: winners per hole) ===
+  const rawResults = [];
+  for (let hole = 0; hole < holeCount; hole++) {
+    const par = pars[hole] || 4;
+    const holeScores = [];
+    activePids.forEach(pid => {
+      const scores = liveScores[pid] || [];
+      if (scores[hole] !== null && scores[hole] !== undefined) {
+        holeScores.push({ pid, score: scores[hole] });
+      }
+    });
+    if (holeScores.length === 0) {
+      rawResults.push({ hole, par, result: 'no-scores', winners: [] });
+      continue;
+    }
+    const birdies = holeScores.filter(h => h.score <= par - 1);
+    if (birdies.length > 0) {
+      rawResults.push({ hole, par, result: 'birdie-win',
+        winners: birdies.map(b => ({ pid: b.pid, score: b.score })) });
+    } else {
+      const minScore = Math.min(...holeScores.map(h => h.score));
+      const minPlayers = holeScores.filter(h => h.score === minScore);
+      if (minPlayers.length === 1) {
+        rawResults.push({ hole, par, result: 'solo-win',
+          winners: [{ pid: minPlayers[0].pid, score: minPlayers[0].score }] });
+      } else {
+        rawResults.push({ hole, par, result: 'push', winners: [] });
+      }
+    }
+  }
+  const paidCount = rawResults.filter(r => r.result === 'birdie-win' || r.result === 'solo-win').length;
+  const holePot = paidCount > 0 ? skinsPot / paidCount : 0;
+
+  // Track earnings per player
+  const earnings = {};
+  const addEarn = (pid, amt) => { earnings[pid] = (earnings[pid] || 0) + amt; };
+
+  let html = `<div style="margin-bottom:14px;font-size:0.85rem;color:var(--gray)">${numPlayers} players &middot; $${ENTRY_FEE}/player &middot; $${numPlayers * ENTRY_FEE} total pot</div>`;
+
+  // === SKINS ===
+  html += '<div class="payout-section">';
+  html += `<div class="payout-section-title">🏌️ Skins <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${skinsPot} pot)</span></div>`;
+  rawResults.forEach(r => {
+    const holeName = `Hole ${r.hole + 1}`;
+    if (r.result === 'birdie-win') {
+      const amt = holePot / r.winners.length;
+      const names = r.winners.map(w => {
+        addEarn(w.pid, amt);
+        const p = findPlayer(w.pid);
+        return escHtml(p ? p.name : '?');
+      }).join(', ');
+      html += `<div class="payout-row">
+        <span><strong>${holeName}</strong>: <span class="payout-winner">${names}</span> <span class="payout-birdie-tag">BIRDIE</span> (${r.winners[0].score})</span>
+        <span class="payout-amount">$${amt.toFixed(2)}${r.winners.length > 1 ? ' each' : ''}</span>
+      </div>`;
+    } else if (r.result === 'solo-win') {
+      const w = r.winners[0];
+      addEarn(w.pid, holePot);
+      const p = findPlayer(w.pid);
+      html += `<div class="payout-row">
+        <span><strong>${holeName}</strong>: <span class="payout-winner">${escHtml(p ? p.name : '?')}</span> (${w.score})</span>
+        <span class="payout-amount">$${holePot.toFixed(2)}</span>
+      </div>`;
+    } else if (r.result === 'no-scores') {
+      // skip empty holes silently
+    } else {
+      html += `<div class="payout-row"><span><strong>${holeName}</strong>: <span class="payout-push">Push</span></span><span class="payout-push">—</span></div>`;
+    }
+  });
+  html += '</div>';
+
+  // === CTP ===
+  if (ctpHoles.length > 0) {
+    const perCtp = ctpPot / ctpHoles.length;
+    html += '<div class="payout-section">';
+    html += `<div class="payout-section-title">⛳ Closest to Pin <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${ctpPot} pot)</span></div>`;
+    ctpHoles.forEach(h => {
+      const winnerId = contests.ctp && contests.ctp[h];
+      const winner = winnerId ? findPlayer(winnerId) : null;
+      if (winner) {
+        addEarn(winner.id, perCtp);
+        html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perCtp.toFixed(2)}</span></div>`;
+      } else {
+        html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+      }
+    });
+    html += '</div>';
+  }
+
+  // === LONG DRIVE ===
+  if (ldHoles.length > 0) {
+    const perLd = ldPot / ldHoles.length;
+    html += '<div class="payout-section">';
+    html += `<div class="payout-section-title">💪 Long Drive <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${ldPot} pot)</span></div>`;
+    ldHoles.forEach((ldh, idx) => {
+      const key = idx === 0 ? 'longDrive' : 'longDrive2';
+      const winnerId = contests[key];
+      const winner = winnerId ? findPlayer(winnerId) : null;
+      if (winner) {
+        addEarn(winner.id, perLd);
+        html += `<div class="payout-row"><span><strong>Hole ${ldh+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perLd.toFixed(2)}</span></div>`;
+      } else {
+        html += `<div class="payout-row"><span><strong>Hole ${ldh+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+      }
+    });
+    html += '</div>';
+  }
+
+  // === LOW GROSS ===
+  const completeTotals = activePids
+    .map(pid => {
+      const arr = liveScores[pid] || [];
+      const complete = arr.length === holeCount && arr.every(s => s !== null && s !== undefined);
+      if (!complete) return null;
+      return { pid, total: arr.reduce((a, b) => a + b, 0) };
+    })
+    .filter(Boolean);
+  html += '<div class="payout-section">';
+  html += `<div class="payout-section-title">🏆 Low Gross <span style="font-size:0.75rem;color:var(--gray);font-weight:400">($${lgPot} pot)</span></div>`;
+  if (completeTotals.length > 0) {
+    const minTotal = Math.min(...completeTotals.map(t => t.total));
+    const lgWinners = completeTotals.filter(t => t.total === minTotal);
+    const perLg = lgPot / lgWinners.length;
+    lgWinners.forEach(w => {
+      addEarn(w.pid, perLg);
+      const p = findPlayer(w.pid);
+      html += `<div class="payout-row"><span><span class="payout-winner">${escHtml(p ? p.name : '?')}</span> (${w.total})</span><span class="payout-amount">$${perLg.toFixed(2)}</span></div>`;
+    });
+  } else {
+    html += `<div class="payout-row"><span class="payout-push">No complete rounds</span><span class="payout-push">—</span></div>`;
+  }
+  html += '</div>';
+
+  // === TOTAL EARNINGS (with NO-SHOW rows) ===
+  html += '<div class="payout-section" style="margin-top:18px;padding-top:14px;border-top:2px solid rgba(255,61,167,0.2)">';
+  html += '<div class="payout-section-title">💰 Total Earnings</div>';
+
+  const earningsArr = Object.entries(earnings)
+    .map(([pid, amt]) => {
+      const p = findPlayer(pid);
+      return p ? { player: p, earnings: amt, net: amt - ENTRY_FEE, noShow: false } : null;
+    })
+    .filter(Boolean);
+
+  // Played but won nothing
+  players.forEach(p => {
+    if (!hasScore(p.id)) return;
+    if (earningsArr.find(e => e.player.id === p.id)) return;
+    earningsArr.push({ player: p, earnings: 0, net: -ENTRY_FEE, noShow: false });
+  });
+
+  // RSVP no-shows: committed but no scores
+  players.forEach(p => {
+    if (!committed.has(p.id)) return;
+    if (earningsArr.find(e => e.player.id === p.id)) return;
+    if (!hasScore(p.id)) {
+      earningsArr.push({ player: p, earnings: 0, net: -ENTRY_FEE, noShow: true });
+    }
+  });
+
+  earningsArr.sort((a, b) => b.net - a.net);
+  earningsArr.forEach(e => {
+    const netClass = e.net > 0 ? 'earnings-positive' : e.net < 0 ? 'earnings-negative' : 'earnings-even';
+    const netStr = e.net > 0 ? '+$' + e.net.toFixed(2) : e.net === 0 ? '$0.00' : '-$' + Math.abs(e.net).toFixed(2);
+    const tag = e.noShow ? ' <span class="payout-birdie-tag" style="background:rgba(255,82,82,0.2);color:#ff8a8a">NO-SHOW</span>' : '';
+    const rightCol = e.noShow
+      ? `<span class="${netClass}" title="Already paid before the lock — stake stayed in the pot">Forfeited stake</span>`
+      : `<span class="${netClass}">Net: ${netStr}</span>`;
+    html += `<div class="earnings-row">
+      <span>${escHtml(e.player.name)}${tag}: <strong>$${e.earnings.toFixed(2)}</strong></span>
+      ${rightCol}
+    </div>`;
+  });
+  html += '</div>';
+
+  content.innerHTML = html;
 }
 
 /* ─── Handicap Calculator (GHIN/WHS Formula) ─── */
