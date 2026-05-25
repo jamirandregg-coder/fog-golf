@@ -1111,6 +1111,36 @@
   }
   .pe-add-group-btn:hover { border-color: var(--pink-hot); color: var(--pink-hot); }
 
+  /* WEEKLY WINNERS (Standings) */
+  .weekly-winner-row {
+    border: 1px solid rgba(255,61,167,0.18);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, rgba(255,61,167,0.06), rgba(255,61,167,0.02));
+  }
+  .ww-header {
+    display: flex; align-items: baseline; gap: 12px;
+    flex-wrap: wrap; margin-bottom: 10px;
+    padding-bottom: 8px; border-bottom: 1px dashed rgba(255,61,167,0.15);
+  }
+  .ww-week {
+    font-family: 'Outfit', sans-serif; font-size: 1.05rem;
+    font-weight: 700; color: var(--pink-hot);
+  }
+  .ww-course { font-size: 0.9rem; color: var(--white); font-weight: 600; }
+  .ww-date { font-size: 0.75rem; color: var(--gray); margin-left: auto; }
+  .ww-line { font-size: 0.85rem; color: var(--white); padding: 4px 0; }
+  .ww-line .ww-icon { display: inline-block; width: 22px; text-align: center; margin-right: 4px; }
+  .ww-line strong { color: var(--pink-light); }
+  .ww-empty { color: var(--gray); font-style: italic; }
+  .ww-note { font-size: 0.72rem; color: var(--gray); font-style: italic; margin-top: 8px; }
+  .ww-meta {
+    font-size: 0.7rem; color: var(--gray); margin-top: 10px;
+    padding-top: 8px; border-top: 1px dashed rgba(255,61,167,0.15);
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+
   /* PAIRINGS TAB - EXPANDABLE WEEKS */
   .pairings-week-section { margin-bottom: 10px; }
   .pairings-week-header {
@@ -1715,6 +1745,10 @@
           <tbody id="standings-body"></tbody>
         </table>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Weekly Winners</div>
+      <div id="weekly-winners-content"><div class="empty-state">Loading…</div></div>
     </div>
     <div class="card player-stats-card" id="player-stats-card">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -3807,6 +3841,241 @@ function renderStandings() {
       <td>${p.rounds}</td><td>${p.total ?? '—'}</td><td>${p.avg ?? '—'}</td><td>${p.best ?? '—'}</td><td>${vph}</td>
     </tr>`;
   }).join('');
+  // Weekly winners log — async, fetches per-week data from Firebase
+  renderWeeklyWinners();
+}
+
+/* ─── Weekly Winners (Standings tab) ────────────────────────────────
+   Computes the skin leader / CTP / LD / Low Gross winners per week
+   by fetching per-week data from Firebase. Cached for the session
+   so flipping back to Standings doesn't re-fetch already-loaded weeks.
+*/
+let weeklyWinnersCache = {};
+
+async function computeWeekWinners(weekNum) {
+  if (weeklyWinnersCache[weekNum]) return weeklyWinnersCache[weekNum];
+
+  let liveScores, contests, courseSetup, pairings, rsvps, guests, schedule;
+  try {
+    const paths = ['liveScores', 'contests', 'courseSetup', 'pairings', 'rsvps', 'guests', 'schedule'];
+    const snaps = await Promise.all(paths.map(p => db.ref(p + '/' + weekNum).once('value')));
+    [liveScores, contests, courseSetup, pairings, rsvps, guests, schedule] = snaps.map(s => s.val());
+  } catch (e) {
+    return null;
+  }
+  liveScores  = liveScores  || {};
+  contests    = contests    || {};
+  courseSetup = courseSetup || {};
+  pairings    = Array.isArray(pairings) ? pairings : (pairings ? Object.values(pairings) : []);
+  rsvps       = rsvps       || {};
+  guests      = guests      || {};
+  schedule    = schedule    || {};
+
+  const wd = state.weeks[weekNum] || {};
+  const course = wd.course || schedule.course || '';
+  const date = wd.date || schedule.date || '';
+  const fee = (schedule.fee != null) ? schedule.fee : 13;
+
+  const guestList = Object.values(guests).map(g => ({ ...g, isGuest: true }));
+  const players = [...state.players, ...guestList];
+  const findPlayer = (pid) => players.find(p => p.id === pid);
+
+  const hasAnyPerHole = Object.values(liveScores).some(arr =>
+    Array.isArray(arr) && arr.some(s => s !== null && s !== undefined)
+  );
+
+  // Fallback: no per-hole data — use the leaderboard from state.weeks
+  if (!hasAnyPerHole) {
+    const scores = wd.scores || {};
+    const entries = Object.entries(scores).map(([pid, gross]) => {
+      const p = findPlayer(pid);
+      return p ? { name: p.name, gross } : null;
+    }).filter(Boolean).sort((a, b) => a.gross - b.gross);
+    const leader = entries[0] || null;
+    const result = {
+      weekNum: +weekNum, course, date, fee, fallback: true,
+      leader, skinsLeader: null, ctpWinners: [], ldWinners: [], lgWinner: null,
+      numPlayers: entries.length, totalPot: entries.length * fee
+    };
+    weeklyWinnersCache[weekNum] = result;
+    return result;
+  }
+
+  const hasScore = (pid) => {
+    const arr = liveScores[pid];
+    return Array.isArray(arr) && arr.some(s => s !== null && s !== undefined);
+  };
+
+  const inGroups = new Set();
+  pairings.forEach(g => ((g && g.players) || []).forEach(pid => inGroups.add(pid)));
+  const committed = new Set(inGroups);
+  Object.entries(rsvps).forEach(([pid, status]) => { if (status === 'yes') committed.add(pid); });
+
+  let activePids;
+  let numPlayers;
+  if (committed.size > 0) {
+    activePids = players.filter(p => (inGroups.size > 0 ? inGroups.has(p.id) : true) && hasScore(p.id)).map(p => p.id);
+    numPlayers = committed.size;
+  } else {
+    activePids = players.filter(p => hasScore(p.id)).map(p => p.id);
+    numPlayers = activePids.length;
+  }
+
+  const defaultPars = new Array(9).fill(4);
+  const pars = (courseSetup.pars && courseSetup.pars.length) ? courseSetup.pars : defaultPars;
+  const holeCount = pars.length;
+  const ctpHoles = courseSetup.ctpHoles || [];
+  const ldHoles = [courseSetup.longDriveHole, courseSetup.longDriveHole2]
+    .filter(h => h !== null && h !== undefined);
+  const numProxies = ctpHoles.length + ldHoles.length;
+  const skinsPot = numPlayers * Math.max(0, fee - numProxies - 1);
+
+  // Compute skin winners → find the player who won the most $
+  const skinEarnings = {};
+  const paidHoles = [];
+  for (let hole = 0; hole < holeCount; hole++) {
+    const par = pars[hole] || 4;
+    const holeScores = [];
+    activePids.forEach(pid => {
+      const arr = liveScores[pid] || [];
+      if (arr[hole] !== null && arr[hole] !== undefined) holeScores.push({ pid, score: arr[hole] });
+    });
+    if (holeScores.length === 0) continue;
+    const birdies = holeScores.filter(h => h.score <= par - 1);
+    if (birdies.length > 0) {
+      paidHoles.push(birdies.map(b => b.pid));
+    } else {
+      const minScore = Math.min(...holeScores.map(h => h.score));
+      const minPlayers = holeScores.filter(h => h.score === minScore);
+      if (minPlayers.length === 1) {
+        paidHoles.push([minPlayers[0].pid]);
+      }
+    }
+  }
+  const holePot = paidHoles.length > 0 ? skinsPot / paidHoles.length : 0;
+  paidHoles.forEach(winners => {
+    const amt = holePot / winners.length;
+    winners.forEach(pid => { skinEarnings[pid] = (skinEarnings[pid] || 0) + amt; });
+  });
+  let skinsLeader = null;
+  let topAmt = 0;
+  Object.entries(skinEarnings).forEach(([pid, amt]) => {
+    if (amt > topAmt) {
+      const p = findPlayer(pid);
+      if (p) { topAmt = amt; skinsLeader = { name: p.name, amount: amt }; }
+    }
+  });
+
+  // CTP winners
+  const ctpWinners = ctpHoles.map(h => {
+    const wid = contests.ctp && contests.ctp[h];
+    const w = wid ? findPlayer(wid) : null;
+    return w ? { hole: h + 1, name: w.name } : null;
+  }).filter(Boolean);
+
+  // Long Drive winners
+  const ldWinners = [];
+  if (ldHoles.length >= 1 && contests.longDrive) {
+    const w = findPlayer(contests.longDrive);
+    if (w) ldWinners.push({ hole: ldHoles[0] + 1, name: w.name });
+  }
+  if (ldHoles.length >= 2 && contests.longDrive2) {
+    const w = findPlayer(contests.longDrive2);
+    if (w) ldWinners.push({ hole: ldHoles[1] + 1, name: w.name });
+  }
+
+  // Low Gross
+  const completeTotals = activePids.map(pid => {
+    const arr = liveScores[pid] || [];
+    const complete = arr.length === holeCount && arr.every(s => s !== null && s !== undefined);
+    if (!complete) return null;
+    return { pid, total: arr.reduce((a, b) => a + b, 0) };
+  }).filter(Boolean);
+  let lgWinner = null;
+  if (completeTotals.length > 0) {
+    const minTotal = Math.min(...completeTotals.map(t => t.total));
+    const winners = completeTotals.filter(t => t.total === minTotal);
+    lgWinner = {
+      score: minTotal,
+      names: winners.map(w => { const p = findPlayer(w.pid); return p ? p.name : '?'; })
+    };
+  }
+
+  const leader = lgWinner ? { name: lgWinner.names[0], score: lgWinner.score } : null;
+  const result = {
+    weekNum: +weekNum, course, date, fee, fallback: false,
+    leader, skinsLeader, ctpWinners, ldWinners, lgWinner,
+    numPlayers, totalPot: numPlayers * fee
+  };
+  weeklyWinnersCache[weekNum] = result;
+  return result;
+}
+
+async function renderWeeklyWinners() {
+  const el = document.getElementById('weekly-winners-content');
+  if (!el) return;
+  const weeks = Object.keys(state.weeks)
+    .filter(w => Object.keys(state.weeks[w].scores || {}).length > 0)
+    .sort((a, b) => +b - +a); // newest first
+  if (weeks.length === 0) {
+    el.innerHTML = '<div class="empty-state">No completed weeks yet.</div>';
+    return;
+  }
+  el.innerHTML = '<div class="empty-state">Loading weekly winners…</div>';
+
+  const results = await Promise.all(weeks.map(w => computeWeekWinners(w)));
+
+  let html = '';
+  results.forEach(r => {
+    if (!r) return;
+    const dateStr = r.date
+      ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '';
+    const courseStr = r.course || '(unknown course)';
+
+    html += `<div class="weekly-winner-row">`;
+    html += `<div class="ww-header">
+      <span class="ww-week">Week ${r.weekNum}</span>
+      <span class="ww-course">${escHtml(courseStr)}</span>
+      ${dateStr ? `<span class="ww-date">${escHtml(dateStr)}</span>` : ''}
+    </div>`;
+
+    if (r.fallback) {
+      if (r.leader) {
+        html += `<div class="ww-line"><span class="ww-icon">🏆</span> Low Gross: <strong>${escHtml(r.leader.name)}</strong> (${r.leader.gross})</div>`;
+      } else {
+        html += `<div class="ww-line ww-empty">No winners recorded</div>`;
+      }
+      html += `<div class="ww-note">Per-hole detail wasn't recorded for this week</div>`;
+    } else {
+      const anyWinner = r.skinsLeader || r.ctpWinners.length || r.ldWinners.length || r.lgWinner;
+      if (r.skinsLeader) {
+        html += `<div class="ww-line"><span class="ww-icon">🏌️</span> Skins leader: <strong>${escHtml(r.skinsLeader.name)}</strong> ($${r.skinsLeader.amount.toFixed(2)})</div>`;
+      }
+      if (r.ctpWinners.length > 0) {
+        const ctpStr = r.ctpWinners.map(w => `<strong>${escHtml(w.name)}</strong> (hole ${w.hole})`).join(', ');
+        html += `<div class="ww-line"><span class="ww-icon">⛳</span> CTP: ${ctpStr}</div>`;
+      }
+      r.ldWinners.forEach(w => {
+        html += `<div class="ww-line"><span class="ww-icon">💪</span> Long Drive: <strong>${escHtml(w.name)}</strong> (hole ${w.hole})</div>`;
+      });
+      if (r.lgWinner) {
+        html += `<div class="ww-line"><span class="ww-icon">🏆</span> Low Gross: <strong>${escHtml(r.lgWinner.names.join(', '))}</strong> (${r.lgWinner.score})</div>`;
+      }
+      if (!anyWinner) {
+        html += `<div class="ww-line ww-empty">No winners recorded</div>`;
+      }
+    }
+
+    html += `<div class="ww-meta">
+      <span>${r.numPlayers} player${r.numPlayers !== 1 ? 's' : ''}</span>
+      <span>$${r.totalPot} pot</span>
+      <span>$${r.fee}/player</span>
+    </div>`;
+    html += `</div>`;
+  });
+
+  el.innerHTML = html;
 }
 
 /* ─── History ─── */
