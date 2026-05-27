@@ -3808,7 +3808,14 @@ function renderStandings() {
     });
     return { ...p, total: rounds ? total : null, rounds, avg: rounds ? (total / rounds).toFixed(1) : null, best: rounds ? best : null, vsPar: rounds ? total - totalPar : null };
   });
-  stats.sort((a, b) => { if (!a.rounds && !b.rounds) return 0; if (!a.rounds) return 1; if (!b.rounds) return -1; return a.total - b.total; });
+  // Rank by rounds played (desc), then by average score (asc). Players with no rounds go last.
+  stats.sort((a, b) => {
+    if (!a.rounds && !b.rounds) return 0;
+    if (!a.rounds) return 1;
+    if (!b.rounds) return -1;
+    if (b.rounds !== a.rounds) return b.rounds - a.rounds;
+    return parseFloat(a.avg) - parseFloat(b.avg);
+  });
   const allScores = Object.values(state.weeks).flatMap(w => Object.values(w.scores || {}));
   const lowestEver = allScores.length ? Math.min(...allScores) : null;
   let lowestPlayerName = '';
