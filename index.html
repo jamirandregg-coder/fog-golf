@@ -1921,7 +1921,7 @@
         <div class="form-group">
           <label for="tw-fee-input">Weekly Fee ($)</label>
           <input type="number" id="tw-fee-input" value="13" min="0" max="500" style="width:110px" placeholder="13">
-          <p style="font-size:0.7rem;color:var(--gray);margin-top:4px">Green fees + $13 skins pot</p>
+          <p style="font-size:0.7rem;color:var(--gray);margin-top:4px">Shown on homepage as total cost (greens + $13 skins). Payouts always use $13/player.</p>
         </div>
       </div>
       <div style="margin-top:10px">
@@ -2214,6 +2214,9 @@ setTimeout(() => {
 const TOTAL_WEEKS    = 20;
 const STORAGE_KEY    = 'fog-league-v2';
 const ADMIN_EMAIL    = 'admin@foggolf.app';
+// Prize pool per player: $1 per proxy contest + $1 low gross + the rest to skins.
+// Independent of the "Weekly Fee" field, which is informational (course-collected greens).
+const WEEKLY_BUYIN   = 13;
 
 /* ─── Firebase Init ─── */
 const firebaseConfig = {
@@ -3874,7 +3877,7 @@ async function computeWeekWinners(weekNum) {
   const wd = state.weeks[weekNum] || {};
   const course = wd.course || schedule.course || '';
   const date = wd.date || schedule.date || '';
-  const fee = (schedule.fee != null) ? schedule.fee : 13;
+  const fee = WEEKLY_BUYIN;
 
   const guestList = Object.values(guests).map(g => ({ ...g, isGuest: true }));
   const players = [...state.players, ...guestList];
@@ -4218,8 +4221,8 @@ async function renderHistoricalPayouts(weekNum) {
     return;
   }
 
-  // Fee for this week (from schedule, fallback $13)
-  const ENTRY_FEE = (schedule.fee != null) ? schedule.fee : 13;
+  // Prize pool is always $13/player — schedule.fee may include green fees and is ignored here.
+  const ENTRY_FEE = WEEKLY_BUYIN;
   const PROXY_PER = 1, LG_PER = 1;
   const skinsPerPlayer = Math.max(0, ENTRY_FEE - numProxies - 1);
   const skinsPot = numPlayers * skinsPerPlayer;
@@ -6921,9 +6924,9 @@ function calculateSkins() {
 
   if (numPlayers === 0) return { skinResults: [], numPlayers: 0, skinsPot: 0, committed: [] };
 
-  // Skins pot = fee/player minus $1/player per proxy contest minus $1/player low gross.
+  // Skins pot = $13/player buy-in minus $1/player per proxy contest minus $1/player low gross.
   // Pushed-hole money is redistributed across paid holes so the full pot pays out.
-  const ENTRY_FEE = (state.thisWeek && state.thisWeek.fee != null) ? state.thisWeek.fee : 13;
+  const ENTRY_FEE = WEEKLY_BUYIN;
   const ctpHolesSetup = courseSetupData.ctpHoles || [];
   const ldHolesSetup = [courseSetupData.longDriveHole, courseSetupData.longDriveHole2]
     .filter(h => h !== null && h !== undefined);
@@ -7035,8 +7038,8 @@ function renderPayouts() {
   }
 
   // Pot rules: each proxy (CTP hole, LD hole) = $1/player, low gross = $1/player,
-  // skins = whatever's left of the per-player fee (set per week in Manage Week).
-  const ENTRY_FEE = (state.thisWeek && state.thisWeek.fee != null) ? state.thisWeek.fee : 13;
+  // skins = the rest of the $13/player buy-in. Independent of greens "Weekly Fee".
+  const ENTRY_FEE = WEEKLY_BUYIN;
   const PROXY_PER = 1, LG_PER = 1;
   const ctpHolesPayout = courseSetupData.ctpHoles || [];
   const ldHolesPayout = [courseSetupData.longDriveHole, courseSetupData.longDriveHole2]
