@@ -505,6 +505,12 @@
     background: rgba(255,82,82,0.12); border: 1px solid rgba(255,82,82,0.4);
     border-radius: 50px; color: var(--red-bad); font-weight: 700; font-size: 0.85rem;
   }
+  .deadline-open {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px; padding: 8px 20px;
+    background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.4);
+    border-radius: 50px; color: var(--green-good); font-weight: 700; font-size: 0.85rem;
+  }
 
   /* ADMIN SUMMARY */
   .editor-only-card { display: none !important; }
@@ -2350,6 +2356,7 @@ let allPairingsListener = null;
 let editingWeek = null;       // week number currently being edited, or null
 let editingPairings = null;   // working copy during edit
 let rsvpOverrideLocked = false;    // admin manual RSVP lock override
+let rsvpForceOpen = false;         // admin override that reopens RSVPs for everyone (beats deadline + manual lock)
 let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
 let groupScorersData = {};         // { groupIndex: playerId }
@@ -2405,6 +2412,8 @@ function getRSVPDeadline() {
 }
 
 function isRSVPLocked() {
+  // Admin reopened RSVPs — beats both the deadline and a manual lock
+  if (rsvpForceOpen) return false;
   // Admin manual override takes priority
   if (rsvpOverrideLocked) return true;
   const deadline = getRSVPDeadline();
@@ -2422,11 +2431,21 @@ function updateDeadlineDisplay() {
   const el = document.getElementById('rsvp-deadline-display');
   if (!el) return;
 
+  // If admin reopened RSVPs (force-open override)
+  if (rsvpForceOpen) {
+    let html = '<div class="deadline-open">RSVPs REOPENED (Admin)</div>';
+    if (isEditor) {
+      html += `<button class="btn btn-outline" style="margin-top:8px;font-size:0.72rem;padding:5px 14px" onclick="lockRSVPOverride()">Lock RSVPs</button>`;
+    }
+    el.innerHTML = html;
+    return;
+  }
+
   // If admin manually locked RSVPs
   if (rsvpOverrideLocked) {
     let html = '<div class="deadline-locked">RSVPs ARE LOCKED (Manual Override)</div>';
     if (isEditor) {
-      html += `<button class="btn btn-outline" style="margin-top:8px;font-size:0.72rem;padding:5px 14px" onclick="unlockRSVPOverride()">Unlock RSVPs</button>`;
+      html += `<button class="btn btn-outline" style="margin-top:8px;font-size:0.72rem;padding:5px 14px" onclick="forceOpenRSVPs()">Unlock RSVPs</button>`;
     }
     el.innerHTML = html;
     return;
@@ -2437,7 +2456,11 @@ function updateDeadlineDisplay() {
   const now = new Date();
   const diff = deadline.getTime() - now.getTime();
   if (diff <= 0) {
-    el.innerHTML = '<div class="deadline-locked">RSVPs ARE LOCKED</div>';
+    let html = '<div class="deadline-locked">RSVPs ARE LOCKED</div>';
+    if (isEditor) {
+      html += `<button class="btn btn-outline" style="margin-top:8px;font-size:0.72rem;padding:5px 14px" onclick="forceOpenRSVPs()">Unlock RSVPs</button>`;
+    }
+    el.innerHTML = html;
     return;
   }
   const days = Math.floor(diff / (1000*60*60*24));
@@ -2458,21 +2481,31 @@ async function lockRSVPOverride() {
   if (!isEditor) return;
   const wn = state.thisWeek.weekNum || 1;
   rsvpOverrideLocked = true;
+  rsvpForceOpen = false;                       // locking clears any reopen override
   await db.ref('rsvpOverride/' + wn).set(true);
+  await db.ref('rsvpForceOpen/' + wn).set(false);
   updateDeadlineDisplay();
   renderThisWeek();
   toast('RSVPs locked manually.');
   autoGeneratePairingsIfNeeded();
 }
 
-async function unlockRSVPOverride() {
+// Reopen RSVPs for everyone — beats the deadline AND a manual lock
+async function forceOpenRSVPs() {
   if (!isEditor) return;
   const wn = state.thisWeek.weekNum || 1;
+  rsvpForceOpen = true;
   rsvpOverrideLocked = false;
+  await db.ref('rsvpForceOpen/' + wn).set(true);
   await db.ref('rsvpOverride/' + wn).set(false);
   updateDeadlineDisplay();
   renderThisWeek();
-  toast('RSVPs unlocked.');
+  toast('RSVPs reopened for everyone.');
+}
+
+// Backwards-compatible alias — reopening is now a force-open
+async function unlockRSVPOverride() {
+  return forceOpenRSVPs();
 }
 
 /* ─── Storage ─── */
@@ -2932,6 +2965,7 @@ async function resetSeason() {
       'groupScorers': null,
       'schedule': null,
       'rsvpOverride': null,
+      'rsvpForceOpen': null,
       'announcement': null,
     };
     await db.ref().update(updates);
@@ -3455,6 +3489,11 @@ async function saveThisWeek() {
   // Re-listen to RSVP override for the saved week so admin sees its lock state
   db.ref('rsvpOverride/' + weekNum).on('value', (snap) => {
     rsvpOverrideLocked = snap.val() === true;
+    updateDeadlineDisplay();
+    renderThisWeek();
+  });
+  db.ref('rsvpForceOpen/' + weekNum).on('value', (snap) => {
+    rsvpForceOpen = snap.val() === true;
     updateDeadlineDisplay();
     renderThisWeek();
   });
@@ -8205,6 +8244,11 @@ async function preloadDataIfEmpty() {
     const wnOverride = state.thisWeek.weekNum || 1;
     db.ref('rsvpOverride/' + wnOverride).on('value', (snap) => {
       rsvpOverrideLocked = snap.val() === true;
+      updateDeadlineDisplay();
+      renderThisWeek();
+    });
+    db.ref('rsvpForceOpen/' + wnOverride).on('value', (snap) => {
+      rsvpForceOpen = snap.val() === true;
       updateDeadlineDisplay();
       renderThisWeek();
     });

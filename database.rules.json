@@ -88,6 +88,14 @@
       }
     },
 
+    "rsvpForceOpen": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$wn": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
     "handicaps": {
       ".read": "auth != null",
       "$playerId": {
