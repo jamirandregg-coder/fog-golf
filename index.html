@@ -1312,6 +1312,63 @@
   .group-scorecard .gs-score-display.gs-birdie { color: var(--pink-hot); }
   .group-scorecard .gs-score-display.gs-bogey { color: rgba(255,82,82,0.7); }
 
+  /* GROUP VIEW TOGGLE */
+  .gs-view-toggle { display: inline-flex; gap: 0; margin-bottom: 12px; border: 1px solid rgba(255,61,167,0.3); border-radius: 8px; overflow: hidden; }
+  .gs-view-btn {
+    background: transparent; color: var(--gray); border: none; cursor: pointer;
+    font-size: 0.74rem; font-weight: 600; padding: 7px 12px; font-family: 'Outfit', sans-serif;
+    border-right: 1px solid rgba(255,61,167,0.2);
+  }
+  .gs-view-btn:last-child { border-right: none; }
+  .gs-view-btn.active { background: var(--pink-hot); color: #fff; }
+
+  /* OPTION A — HOLE-BY-HOLE CARD */
+  .gs-card { border: 1px solid rgba(255,61,167,0.2); border-radius: 14px; padding: 14px; background: rgba(255,61,167,0.03); }
+  .gs-card-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 10px; }
+  .gs-card-arrow {
+    background: rgba(255,61,167,0.12); color: var(--pink-hot); border: none; cursor: pointer;
+    width: 40px; height: 40px; border-radius: 50%; font-size: 1.1rem; line-height: 1;
+  }
+  .gs-card-arrow:disabled { opacity: 0.25; cursor: default; }
+  .gs-card-hole { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.25rem; color: var(--pink-hot); letter-spacing: 0.03em; }
+  .gs-card-par { font-size: 0.85rem; color: var(--gray); font-weight: 600; }
+  .gs-card-dots { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-bottom: 14px; }
+  .gs-dot {
+    width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+    border: 1px solid rgba(255,61,167,0.3); background: transparent; color: var(--gray);
+    font-size: 0.62rem; font-weight: 700; font-family: 'Outfit', sans-serif; padding: 0;
+  }
+  .gs-dot-done { background: rgba(255,61,167,0.18); color: var(--pink-light); border-color: rgba(255,61,167,0.4); }
+  .gs-dot-current { outline: 2px solid var(--pink-hot); outline-offset: 1px; color: var(--pink-hot); font-weight: 800; }
+  .gs-card-players { display: flex; flex-direction: column; gap: 8px; }
+  .gs-card-row {
+    display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px;
+    padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.04);
+  }
+  .gs-card-name { text-align: left; font-weight: 700; font-size: 1rem; color: var(--pink-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gs-card-name.gs-scorer { color: var(--pink-hot); }
+  input.gs-card-input, span.gs-card-input { width: 56px; height: 48px; font-size: 1.35rem; }
+  .gs-card-running { font-size: 0.78rem; color: var(--gray); font-weight: 600; min-width: 64px; text-align: right; }
+  .gs-card-next { width: 100%; margin-top: 14px; font-size: 0.85rem; }
+  .gs-card-next:disabled { opacity: 0.3; cursor: default; }
+
+  /* OPTION C — VERTICAL GRID (holes down, players across, names pinned) */
+  .gs-grid-wrap { max-height: 62vh; overflow-y: auto; border: 1px solid rgba(255,61,167,0.15); border-radius: 12px; }
+  .gs-grid { width: 100%; border-collapse: collapse; }
+  .gs-grid th, .gs-grid td { padding: 7px 4px; text-align: center; border: 1px solid rgba(255,61,167,0.12); white-space: nowrap; }
+  .gs-grid thead th {
+    position: sticky; top: 0; z-index: 3; background: #2a1020; color: var(--pink-hot);
+    font-size: 0.78rem; font-weight: 700; font-family: 'Outfit', sans-serif;
+  }
+  .gs-grid th.gsv-name { color: var(--pink-light); max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+  .gs-grid th.gsv-name.gs-scorer { color: var(--pink-hot); }
+  .gs-grid td.gsv-hole { font-weight: 700; color: var(--white); font-family: 'Outfit', sans-serif; background: rgba(255,61,167,0.05); }
+  .gs-grid td.gsv-par { font-size: 0.72rem; color: var(--gray); background: rgba(255,61,167,0.03); }
+  .gs-grid tr.gsv-subtotal td { background: rgba(255,61,167,0.08); font-weight: 700; font-size: 0.82rem; }
+  .gs-grid tr.gsv-total-row td { background: rgba(255,61,167,0.12); font-weight: 800; font-family: 'Outfit', sans-serif; }
+  .gs-grid .gsv-diff { font-size: 0.66rem; font-weight: 600; }
+  .gs-grid input.gs-score-input { width: 100%; min-width: 38px; max-width: 56px; }
+
   /* GROUP LOCKED MESSAGE */
   .group-locked-message {
     display: flex; align-items: center; gap: 14px;
@@ -1468,6 +1525,25 @@
   #panel-live-scoring.sunlight-mode .group-scorecard .gs-score-display.gs-birdie { color: #006622; }
   #panel-live-scoring.sunlight-mode .group-scorecard .gs-score-display.gs-bogey { color: #990000; }
   #panel-live-scoring.sunlight-mode .group-scorecard td.gs-player-name { background: #fff; color: #1a1a1a; }
+
+  /* Sunlight: view toggle + card + vertical grid */
+  #panel-live-scoring.sunlight-mode .gs-view-toggle { border-color: #333; }
+  #panel-live-scoring.sunlight-mode .gs-view-btn { color: #333; border-right-color: #ccc; }
+  #panel-live-scoring.sunlight-mode .gs-view-btn.active { background: #0066cc; color: #fff; }
+  #panel-live-scoring.sunlight-mode .gs-card { background: #fff; border: 2px solid #333; }
+  #panel-live-scoring.sunlight-mode .gs-card-hole { color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .gs-card-arrow { background: #e0e0e0; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .gs-dot { border-color: #333; color: #555; }
+  #panel-live-scoring.sunlight-mode .gs-dot-done { background: #d4f5d4; color: #004411; border-color: #006622; }
+  #panel-live-scoring.sunlight-mode .gs-dot-current { outline-color: #0066cc; color: #0066cc; }
+  #panel-live-scoring.sunlight-mode .gs-card-row { background: #f0f0f0; }
+  #panel-live-scoring.sunlight-mode .gs-card-name { color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .gs-card-input { background: #fff; border: 2px solid #444; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .gs-grid-wrap { border-color: #333; }
+  #panel-live-scoring.sunlight-mode .gs-grid thead th { background: #e0e0e0; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .gs-grid td { border-color: #ccc; color: #1a1a1a; }
+  #panel-live-scoring.sunlight-mode .gs-grid td.gsv-hole { background: #ececec; }
+  #panel-live-scoring.sunlight-mode .gs-grid input.gs-score-input { background: #fff; border: 2px solid #444; color: #1a1a1a; }
 
   /* Sunlight: buttons */
   #panel-live-scoring.sunlight-mode .btn-pink { background: #0066cc; color: #fff; border: none; box-shadow: none; }
@@ -2280,6 +2356,9 @@ let groupScorersData = {};         // { groupIndex: playerId }
 let groupScorersListener = null;
 let thisWeekListener = null;
 let groupSaveTimers = {};           // debounce timers for auto-saving group scores
+let groupViewMode = localStorage.getItem('fogGroupViewMode') || 'card';  // 'card' | 'grid' | 'wide'
+let groupCurrentHole = 0;           // active hole index for the card (hole-at-a-time) view
+let gsCardAutoFocus = false;        // focus first input only after an explicit hole/view change
 let masterCourses = {};      // { courseId: { name, pars: [18 ints] } }
 let masterCoursesListener = null;
 let weekResultsListener = null;  // Firebase listener for week results (cross-device sync)
@@ -6641,7 +6720,215 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
   let gsFrontPar = 0, gsBackPar = 0;
   if (is18) { for (let i = 0; i < 9; i++) gsFrontPar += (pars[i]||4); for (let i = 9; i < 18; i++) gsBackPar += (pars[i]||4); }
 
-  // Build header row
+  // Build scorer picker — any group member can choose who scores
+  const allActive = getActivePlayers();
+  let scorerPickerHtml = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
+  scorerPickerHtml += '<span style="font-size:0.78rem;color:var(--gray)">Group scorer:</span>';
+  scorerPickerHtml += `<select class="group-scorer-select" onchange="changeGroupScorer(${groupInfo.groupIndex}, this.value)" style="font-size:0.82rem">`;
+  groupInfo.players.forEach(pid => {
+    const pl = allActive.find(p => p.id === pid);
+    if (pl) {
+      const sel = pid === groupInfo.scorerId ? 'selected' : '';
+      scorerPickerHtml += `<option value="${pid}" ${sel}>${escHtml(pl.name)}</option>`;
+    }
+  });
+  scorerPickerHtml += '</select>';
+  if (!isScorer) {
+    scorerPickerHtml += `<button class="btn btn-outline" style="font-size:0.72rem;padding:5px 12px" onclick="changeGroupScorer(${groupInfo.groupIndex},'${selectedPlayerId}')">I'll Score</button>`;
+  }
+  scorerPickerHtml += '</div>';
+
+  // View-mode toggle (Card / Grid / Wide) so users can pick how scores are entered
+  const viewToggleHtml = `
+    <div class="gs-view-toggle">
+      <button class="gs-view-btn ${groupViewMode === 'card' ? 'active' : ''}" onclick="setGroupView('card')">Hole-by-hole</button>
+      <button class="gs-view-btn ${groupViewMode === 'grid' ? 'active' : ''}" onclick="setGroupView('grid')">Vertical grid</button>
+      <button class="gs-view-btn ${groupViewMode === 'wide' ? 'active' : ''}" onclick="setGroupView('wide')">Wide grid</button>
+    </div>`;
+
+  const roleHint = isScorer
+    ? 'You are scoring for everyone in this group'
+    : 'Your group scorer enters scores for all — you can also enter your own below';
+
+  const ctx = { groupInfo, pars, holeCount, is18, gsFrontPar, gsBackPar, totalPar, isScorer, isLocked, selectedPlayerId };
+  let bodyHtml;
+  if (groupViewMode === 'card') bodyHtml = buildGroupCardView(ctx);
+  else if (groupViewMode === 'grid') bodyHtml = buildGroupGridView(ctx);
+  else bodyHtml = buildGroupWideView(ctx);
+
+  container.innerHTML = `
+    <div class="group-scoring-header">
+      <span class="group-scoring-badge">GROUP SCORING</span>
+      Group ${groupInfo.groupIndex + 1} — ${escHtml(courseName)} (${nineLabel})
+    </div>
+    ${scorerPickerHtml}
+    ${viewToggleHtml}
+    <div style="font-size:0.72rem;color:var(--gray);margin-bottom:10px;font-style:italic">${roleHint}</div>
+    ${bodyHtml}
+  `;
+
+  // After an explicit hole/view change, focus the first editable input for fast entry
+  if (groupViewMode === 'card' && gsCardAutoFocus) {
+    const firstEditable = container.querySelector('.gs-score-input');
+    if (firstEditable) setTimeout(() => firstEditable.focus(), 30);
+  }
+  gsCardAutoFocus = false;
+}
+
+// Helper: compute a player's running totals + per-cell class for a given hole list
+function gsPlayerStats(pid, pars, holeCount) {
+  const scores = liveScoresData[pid] || [];
+  let total = 0, holesPlayed = 0, parPlayed = 0;
+  for (let i = 0; i < holeCount; i++) {
+    const v = scores[i];
+    if (v !== null && v !== undefined && v !== '') {
+      total += Number(v); holesPlayed++; parPlayed += (pars[i] || 4);
+    }
+  }
+  const diff = holesPlayed > 0 ? total - parPlayed : 0;
+  const diffStr = holesPlayed > 0 ? (diff > 0 ? '+' + diff : diff === 0 ? 'E' : String(diff)) : '';
+  return { scores, total, holesPlayed, diff, diffStr };
+}
+
+function gsCellClass(val, par) {
+  if (val === '' || val === null || val === undefined) return '';
+  return Number(val) < par ? 'gs-birdie' : (Number(val) > par ? 'gs-bogey' : '');
+}
+
+// ── Option A: Hole-by-hole card view ──
+function buildGroupCardView(ctx) {
+  const { groupInfo, pars, holeCount, isScorer, isLocked, selectedPlayerId } = ctx;
+  if (groupCurrentHole < 0) groupCurrentHole = 0;
+  if (groupCurrentHole > holeCount - 1) groupCurrentHole = holeCount - 1;
+  const h = groupCurrentHole;
+  const par = pars[h] || 4;
+  const active = getActivePlayers();
+
+  // Progress dots — a hole is "done" when every editable player has a score
+  const editablePids = groupInfo.players.filter(pid => (isScorer || pid === selectedPlayerId) && !isLocked);
+  let dots = '<div class="gs-card-dots">';
+  for (let i = 0; i < holeCount; i++) {
+    const allIn = editablePids.length > 0 && editablePids.every(pid => {
+      const v = (liveScoresData[pid] || [])[i];
+      return v !== null && v !== undefined && v !== '';
+    });
+    const cls = 'gs-dot' + (i === h ? ' gs-dot-current' : '') + (allIn ? ' gs-dot-done' : '');
+    dots += `<button class="${cls}" onclick="setGroupHole(${i})" title="Hole ${i + 1}">${i + 1}</button>`;
+  }
+  dots += '</div>';
+
+  // Player rows for the current hole
+  let rows = '';
+  groupInfo.players.forEach(pid => {
+    const player = active.find(p => p.id === pid);
+    if (!player) return;
+    const canEdit = (isScorer || pid === selectedPlayerId) && !isLocked;
+    const isGroupScorer = pid === groupInfo.scorerId;
+    const stats = gsPlayerStats(pid, pars, holeCount);
+    const val = (stats.scores[h] !== null && stats.scores[h] !== undefined) ? stats.scores[h] : '';
+    const cellClass = gsCellClass(val, par);
+    const gsBadge = player.isGuest ? ' <span class="guest-badge">G</span>' : '';
+    const firstName = player.name.split(' ')[0];
+    const input = canEdit
+      ? `<input type="number" class="gs-score-input gs-card-input ${cellClass}"
+            id="gs-${pid}-hole-${h}" value="${val}" min="1" max="15"
+            data-player="${pid}" data-hole="${h}"
+            oninput="updateGroupScoreCardStyle('${pid}',${h})"
+            onkeydown="groupCardKeyNav(event,'${pid}',${h})">`
+      : `<span class="gs-score-display gs-card-input ${cellClass}">${val !== '' ? val : '–'}</span>`;
+    rows += `
+      <div class="gs-card-row">
+        <div class="gs-card-name ${isGroupScorer ? 'gs-scorer' : ''}" title="${escHtml(player.name)}">${escHtml(firstName)}${gsBadge}${isGroupScorer ? ' ✎' : ''}</div>
+        ${input}
+        <div class="gs-card-running">${stats.holesPlayed > 0 ? stats.total + ' (' + stats.diffStr + ')' : '—'}</div>
+      </div>`;
+  });
+
+  return `
+    <div class="gs-card">
+      <div class="gs-card-nav">
+        <button class="gs-card-arrow" ${h === 0 ? 'disabled' : ''} onclick="setGroupHole(${h - 1})">◀</button>
+        <div class="gs-card-hole">HOLE ${h + 1} <span class="gs-card-par">· Par ${par}</span></div>
+        <button class="gs-card-arrow" ${h === holeCount - 1 ? 'disabled' : ''} onclick="setGroupHole(${h + 1})">▶</button>
+      </div>
+      ${dots}
+      <div class="gs-card-players">${rows}</div>
+      <button class="btn btn-outline gs-card-next" ${h === holeCount - 1 ? 'disabled' : ''} onclick="setGroupHole(${h + 1})">Next hole ▶</button>
+    </div>`;
+}
+
+// ── Option C: Vertical grid (holes down, players across, names pinned at top) ──
+function buildGroupGridView(ctx) {
+  const { groupInfo, pars, holeCount, is18, gsFrontPar, gsBackPar, totalPar, isScorer, isLocked, selectedPlayerId } = ctx;
+  const active = getActivePlayers();
+  const members = groupInfo.players.map(pid => active.find(p => p.id === pid)).filter(Boolean);
+
+  // Header: Hole | Par | <player names...>
+  let header = '<tr><th class="gsv-hole-h">Hole</th><th class="gsv-par-h">Par</th>';
+  members.forEach(pl => {
+    const isGroupScorer = pl.id === groupInfo.scorerId;
+    const gsBadge = pl.isGuest ? ' <span class="guest-badge">G</span>' : '';
+    header += `<th class="gsv-name ${isGroupScorer ? 'gs-scorer' : ''}" title="${escHtml(pl.name)}">${escHtml(pl.name.split(' ')[0])}${gsBadge}${isGroupScorer ? ' ✎' : ''}</th>`;
+  });
+  header += '</tr>';
+
+  // One row per hole
+  const subtotalRow = (label, fromI, toI) => {
+    let r = `<tr class="gsv-subtotal"><td class="gsv-hole">${label}</td><td class="gsv-par">${label === 'OUT' ? gsFrontPar : gsBackPar}</td>`;
+    members.forEach(pl => {
+      const sc = liveScoresData[pl.id] || [];
+      let sum = 0, n = 0;
+      for (let i = fromI; i <= toI; i++) { const v = sc[i]; if (v !== null && v !== undefined && v !== '') { sum += Number(v); n++; } }
+      r += `<td>${n > 0 ? sum : '–'}</td>`;
+    });
+    return r + '</tr>';
+  };
+
+  let rows = '';
+  for (let i = 0; i < holeCount; i++) {
+    const par = pars[i] || 4;
+    rows += `<tr><td class="gsv-hole">${i + 1}</td><td class="gsv-par">${par}</td>`;
+    members.forEach(pl => {
+      const pid = pl.id;
+      const canEdit = (isScorer || pid === selectedPlayerId) && !isLocked;
+      const sc = liveScoresData[pid] || [];
+      const val = (sc[i] !== null && sc[i] !== undefined) ? sc[i] : '';
+      const cellClass = gsCellClass(val, par);
+      rows += canEdit
+        ? `<td><input type="number" class="gs-score-input ${cellClass}"
+              id="gs-${pid}-hole-${i}" value="${val}" min="1" max="15"
+              data-player="${pid}" data-hole="${i}"
+              oninput="updateGroupScoreCardStyle('${pid}',${i})"
+              onkeydown="groupScorecardKeyNav(event,'${pid}',${i})"></td>`
+        : `<td><span class="gs-score-display ${cellClass}">${val !== '' ? val : '–'}</span></td>`;
+    });
+    rows += '</tr>';
+    if (is18 && i === 8) rows += subtotalRow('OUT', 0, 8);
+  }
+  if (is18) rows += subtotalRow('IN', 9, 17);
+
+  // Totals row
+  let totalsRow = `<tr class="gsv-total-row"><td class="gsv-hole">TOT</td><td class="gsv-par">${totalPar}</td>`;
+  members.forEach(pl => {
+    const stats = gsPlayerStats(pl.id, pars, holeCount);
+    const diffColor = stats.diff < 0 ? 'color:var(--pink-hot)' : stats.diff === 0 ? 'color:var(--white)' : 'color:var(--red-bad)';
+    totalsRow += `<td class="gsv-tot">${stats.holesPlayed > 0 ? stats.total : '–'}<br><span class="gsv-diff" style="${diffColor}">${stats.diffStr}</span></td>`;
+  });
+  totalsRow += '</tr>';
+
+  return `
+    <div class="gs-grid-wrap">
+      <table class="gs-grid">
+        <thead>${header}</thead>
+        <tbody>${rows}${totalsRow}</tbody>
+      </table>
+    </div>`;
+}
+
+// ── Existing wide grid (players down, holes across) ──
+function buildGroupWideView(ctx) {
+  const { groupInfo, pars, holeCount, is18, gsFrontPar, gsBackPar, totalPar, isScorer, isLocked, selectedPlayerId } = ctx;
+
   let headerRow = '<tr><th style="text-align:left;min-width:80px">Player</th>';
   for (let i = 0; i < holeCount; i++) {
     headerRow += `<th>H${i + 1}</th>`;
@@ -6650,7 +6937,6 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
   if (is18) headerRow += '<th class="subtotal-header" style="font-size:0.65rem">IN</th>';
   headerRow += '<th>TOT</th><th>+/−</th></tr>';
 
-  // Par row
   let parRow = '<tr><td class="gs-player-name" style="font-size:0.68rem;color:var(--gray);font-weight:400">Par</td>';
   for (let i = 0; i < holeCount; i++) {
     parRow += `<td class="gs-par-header" style="font-size:0.7rem;color:var(--gray);background:rgba(255,61,167,0.04)">${pars[i] || 4}</td>`;
@@ -6660,7 +6946,6 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
   parRow += `<td style="font-size:0.75rem;font-weight:700;color:var(--gray);border-left:2px solid rgba(255,61,167,0.2)">${totalPar}</td>`;
   parRow += '<td></td></tr>';
 
-  // Player rows
   let playerRows = '';
   groupInfo.players.forEach(pid => {
     const player = getActivePlayers().find(p => p.id === pid);
@@ -6668,7 +6953,6 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
     const scores = liveScoresData[pid] || [];
     const firstName = player.name.split(' ')[0];
     const isGroupScorer = pid === groupInfo.scorerId;
-    // Scorer can edit all rows; non-scorers can edit only their own row
     const canEdit = (isScorer || pid === selectedPlayerId) && !isLocked;
 
     let total = 0, holesPlayed = 0, frontTotal = 0, frontHoles = 0, backTotal = 0, backHoles = 0;
@@ -6699,17 +6983,14 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
       } else {
         playerRows += `<td><span class="gs-score-display ${cellClass}">${val !== '' ? val : '–'}</span></td>`;
       }
-      // Insert OUT subtotal after hole 9 for 18-hole rounds
       if (is18 && i === 8) {
         playerRows += `<td class="subtotal-cell" style="font-size:0.82rem">${frontHoles > 0 ? frontTotal : '–'}</td>`;
       }
     }
-    // Insert IN subtotal for 18-hole rounds
     if (is18) {
       playerRows += `<td class="subtotal-cell" style="font-size:0.82rem">${backHoles > 0 ? backTotal : '–'}</td>`;
     }
 
-    // Total
     const diff = holesPlayed > 0 ? total - pars.slice(0, holeCount).reduce((s, p, idx) => {
       const sc = (scores[idx] !== null && scores[idx] !== undefined) ? 1 : 0;
       return s + (sc ? (p || 4) : 0);
@@ -6721,35 +7002,7 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
     playerRows += '</tr>';
   });
 
-  // Build scorer picker — any group member can choose who scores
-  const allActive = getActivePlayers();
-  let scorerPickerHtml = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
-  scorerPickerHtml += '<span style="font-size:0.78rem;color:var(--gray)">Group scorer:</span>';
-  scorerPickerHtml += `<select class="group-scorer-select" onchange="changeGroupScorer(${groupInfo.groupIndex}, this.value)" style="font-size:0.82rem">`;
-  groupInfo.players.forEach(pid => {
-    const pl = allActive.find(p => p.id === pid);
-    if (pl) {
-      const sel = pid === groupInfo.scorerId ? 'selected' : '';
-      scorerPickerHtml += `<option value="${pid}" ${sel}>${escHtml(pl.name)}</option>`;
-    }
-  });
-  scorerPickerHtml += '</select>';
-  if (!isScorer) {
-    scorerPickerHtml += `<button class="btn btn-outline" style="font-size:0.72rem;padding:5px 12px" onclick="changeGroupScorer(${groupInfo.groupIndex},'${selectedPlayerId}')">I'll Score</button>`;
-  }
-  scorerPickerHtml += '</div>';
-
-  const roleHint = isScorer
-    ? 'You are scoring for everyone in this group'
-    : 'Your group scorer enters scores for all — you can also enter your own below';
-
-  container.innerHTML = `
-    <div class="group-scoring-header">
-      <span class="group-scoring-badge">GROUP SCORING</span>
-      Group ${groupInfo.groupIndex + 1} — ${escHtml(courseName)} (${nineLabel})
-    </div>
-    ${scorerPickerHtml}
-    <div style="font-size:0.72rem;color:var(--gray);margin-bottom:10px;font-style:italic">${roleHint}</div>
+  return `
     <div class="group-scorecard-wrap">
       <table class="group-scorecard">
         <thead>${headerRow}</thead>
@@ -6758,8 +7011,48 @@ function renderGroupScorecardGrid(container, groupInfo, selectedPlayerId) {
           ${playerRows}
         </tbody>
       </table>
-    </div>
-  `;
+    </div>`;
+}
+
+// Switch group scoring layout and persist the choice
+function setGroupView(mode) {
+  groupViewMode = mode;
+  localStorage.setItem('fogGroupViewMode', mode);
+  if (mode === 'card') gsCardAutoFocus = true;
+  renderLiveScoreInputs();
+}
+
+// Jump to a specific hole in the card (hole-by-hole) view
+function setGroupHole(idx) {
+  groupCurrentHole = idx;
+  gsCardAutoFocus = true;
+  renderLiveScoreInputs();
+}
+
+// Enter/arrow navigation within the card view (one hole at a time)
+function groupCardKeyNav(event, playerId, holeIdx) {
+  const selectedPlayer = document.getElementById('live-player-select')?.value;
+  const groupInfo = selectedPlayer ? getPlayerGroupInfo(selectedPlayer) : null;
+  if (!groupInfo) return;
+  const editablePids = groupInfo.players.filter(pid => {
+    return !!document.getElementById('gs-' + pid + '-hole-' + holeIdx);
+  });
+  const idx = editablePids.indexOf(playerId);
+  if (event.key === 'Enter' || event.key === 'ArrowDown') {
+    event.preventDefault();
+    if (idx < editablePids.length - 1) {
+      const next = document.getElementById('gs-' + editablePids[idx + 1] + '-hole-' + holeIdx);
+      if (next) next.focus();
+    } else if (event.key === 'Enter' && holeIdx < getActiveHoleCount() - 1) {
+      setGroupHole(holeIdx + 1);  // last player + Enter → advance hole
+    }
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    if (idx > 0) {
+      const prev = document.getElementById('gs-' + editablePids[idx - 1] + '-hole-' + holeIdx);
+      if (prev) prev.focus();
+    }
+  }
 }
 
 function updateGroupScoreCardStyle(playerId, holeIdx) {
@@ -6773,6 +7066,10 @@ function updateGroupScoreCardStyle(playerId, holeIdx) {
     if (val < par) input.classList.add('gs-birdie');
     else if (val > par) input.classList.add('gs-bogey');
   }
+  // Keep in-memory scores current so hole navigation (card view) preserves
+  // values before the debounced save round-trips through Firebase.
+  if (!liveScoresData[playerId]) liveScoresData[playerId] = [];
+  liveScoresData[playerId][holeIdx] = isNaN(val) ? null : val;
   // Auto-save this player's scores after any change
   autoSaveGroupPlayer(playerId);
 }
