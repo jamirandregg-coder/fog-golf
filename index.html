@@ -5186,6 +5186,17 @@ async function applyAutoCurrentWeek() {
   }
 
   if (oldWn !== target) {
+    // Auto-reset RSVPs on rollover: when the homepage advances to a LATER
+    // week, clear that week's RSVPs/guests so everyone starts as Pending
+    // (restores the old "reset on new week" behavior). Admin-only and
+    // forward-only (target > oldWn) so viewing past weeks or reloading the
+    // current week never wipes anyone's responses.
+    if (isEditor && oldWn != null && Number(target) > Number(oldWn)) {
+      try {
+        await db.ref('rsvps/' + target).remove();
+        await db.ref('guests/' + target).remove();
+      } catch (e) { console.warn('Auto-reset RSVPs on rollover:', e); }
+    }
     try {
       listenToRSVPs();
       listenToGuests();
