@@ -2058,6 +2058,7 @@
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-outline" id="btn-open-scoring" onclick="openScoring()" style="display:none">Open Scoring</button>
         <button class="btn btn-pink" id="btn-close-scoring" onclick="closeScoring()" style="display:none">Close & Calculate</button>
+        <button class="btn btn-outline" id="btn-reset-setup" onclick="resetToSetup()" style="display:none">Set Back to Not Started</button>
         <button class="btn btn-outline" id="btn-reopen-scoring" onclick="reopenScoring()" style="display:none">Reopen Scoring</button>
       </div>
 
@@ -2709,6 +2710,8 @@ function listenToPayments() {
     paymentData[wn] = snapshot.val() || {};
     renderRSVP();
     if (isEditor) renderAdminSummary();
+    // Paid players are in the pot, so payouts must refresh when payments change.
+    if (roundStatus === 'closed') renderPayouts();
   });
 }
 
@@ -2782,6 +2785,14 @@ function updateHomePriority() {
   const pairings = pairingsData[wn];
   const hasPairings = pairings && pairings.length > 0;
   const locked = isRSVPLocked();
+  // The RSVP lock auto-expires 24h after the deadline (which is noon the day
+  // BEFORE golf), so it goes stale at noon on golf day. For the home layout we
+  // also treat "deadline has passed" as a reason to feature pairings, so they
+  // stay first through golf day instead of getting demoted mid-round.
+  const deadline = getRSVPDeadline();
+  const pastDeadline = !!deadline && new Date() >= deadline;
+  // If the admin reopened RSVPs, keep the RSVP card featured.
+  const featurePairings = hasPairings && !rsvpForceOpen && (locked || pastDeadline);
   // Once the round has scores, the round is over — the Winner banner takes over,
   // so don't put the NOW highlight on either RSVP or pairings.
   const wkData = state.weeks && state.weeks[wn];
@@ -2793,8 +2804,9 @@ function updateHomePriority() {
     rsvpCard.style.order = '3';
     return;
   }
-  // When the week is locked AND pairings exist, pairings becomes the priority card.
-  if (locked && hasPairings) {
+  // Once RSVPs are closed (locked or past deadline) and pairings exist,
+  // pairings becomes the priority card.
+  if (featurePairings) {
     pairingsCard.classList.add('priority-card');
     pairingsCard.style.order = '2';
     rsvpCard.classList.remove('priority-card');
@@ -2819,8 +2831,14 @@ function renderRSVP() {
   const payments = paymentData[wn] || {};
   const locked = isRSVPLocked() && !isEditor;
 
+  // A player placed in a pairing group is playing this week — show them as
+  // "In" even if their RSVP still says no/pending.
+  const pairings = pairingsData[wn] || [];
+  const inGroups = new Set();
+  pairings.forEach(g => (g && g.players || []).forEach(pid => inGroups.add(pid)));
+
   list.innerHTML = allPlayers.map(p => {
-    const status = rsvps[p.id] || 'pending';
+    const status = inGroups.has(p.id) ? 'yes' : (rsvps[p.id] || 'pending');
     const paid = payments[p.id] === true;
     const chipClass = status === 'yes' ? 'rsvp-yes' : status === 'no' ? 'rsvp-no' : '';
     const btnClass = status === 'yes' ? 'rsvp-in' : status === 'no' ? 'rsvp-out' : 'rsvp-pending';
@@ -4276,11 +4294,11 @@ async function renderHistoricalPayouts(weekNum) {
   card.style.display = 'block';
   content.innerHTML = '<div class="empty-state">Loading payouts…</div>';
 
-  let liveScores, contests, courseSetup, pairings, rsvps, guests, schedule;
+  let liveScores, contests, courseSetup, pairings, rsvps, guests, schedule, payments;
   try {
-    const paths = ['liveScores', 'contests', 'courseSetup', 'pairings', 'rsvps', 'guests', 'schedule'];
+    const paths = ['liveScores', 'contests', 'courseSetup', 'pairings', 'rsvps', 'guests', 'schedule', 'payments'];
     const snaps = await Promise.all(paths.map(p => db.ref(p + '/' + weekNum).once('value')));
-    [liveScores, contests, courseSetup, pairings, rsvps, guests, schedule] =
+    [liveScores, contests, courseSetup, pairings, rsvps, guests, schedule, payments] =
       snaps.map(s => s.val());
   } catch (e) {
     content.innerHTML = '<div class="empty-state">Could not load payout data.</div>';
@@ -4294,6 +4312,7 @@ async function renderHistoricalPayouts(weekNum) {
   rsvps       = rsvps       || {};
   guests      = guests      || {};
   schedule    = schedule    || {};
+  payments    = payments    || {};
 
   // Need per-hole scores to compute skins. If liveScores wasn't recorded
   // for this week (e.g. early weeks before live scoring shipped), bail.
@@ -4319,11 +4338,12 @@ async function renderHistoricalPayouts(weekNum) {
     .filter(h => h !== null && h !== undefined);
   const numProxies = ctpHoles.length + ldHoles.length;
 
-  // Committed = anyone in pairings OR RSVP'd yes
+  // Committed = anyone in pairings, RSVP'd yes, OR marked PAID
   const inGroups = new Set();
   pairings.forEach(g => (g && g.players || []).forEach(pid => inGroups.add(pid)));
   const committed = new Set(inGroups);
   Object.entries(rsvps).forEach(([pid, status]) => { if (status === 'yes') committed.add(pid); });
+  Object.entries(payments).forEach(([pid, paid]) => { if (paid === true) committed.add(pid); });
 
   // Players who can win skins: in pairings (if any) with at least one score
   const hasScore = (pid) => {
@@ -4579,7 +4599,10 @@ const COURSE_RATINGS = {
   'red hawk ridge':   { rating: 68.5, slope: 124 },
   'plum creek':       { rating: 70.2, slope: 126 },
   'eisenhower blue':  { rating: 70.5, slope: 131 },
-  'eisenhower silver':{ rating: 68.4, slope: 119 }
+  'eisenhower silver':{ rating: 68.4, slope: 119 },
+  'west woods sleeping indian - cottonwood': { rating: 69.6, slope: 127 },
+  'west woods cottonwood - silo':            { rating: 69.6, slope: 129 },
+  'west woods silo - sleeping indian':       { rating: 69.4, slope: 131 }
 };
 
 /* Name aliases for matching PAST_SEASONS names to current roster */
@@ -5013,6 +5036,8 @@ function listenToLiveScores() {
     liveScoresData = snap.val() || {};
     renderLiveScorecardGrid();
     renderLiveScoreTotal();
+    // Keep proxy winner dropdowns in sync with who has scores
+    if (isEditor && (roundStatus === 'open' || roundStatus === 'closed')) renderContestSelection();
   });
 }
 
@@ -5036,6 +5061,8 @@ function listenToCourseSetup() {
     courseSetupData = snap.val() || {};
     renderLiveScorecardGrid();
     renderLiveScoreInputs();
+    // Proxy holes (CTP / long drive) may have changed — refresh the picker
+    if (isEditor && (roundStatus === 'open' || roundStatus === 'closed')) renderContestSelection();
   });
 }
 
@@ -5935,7 +5962,10 @@ async function seedDefaultCourses() {
     'eisenhower-silver': { name: 'Eisenhower Silver', pars: [4,4,3,5,4,4,5,3,4, 4,4,5,3,4,4,4,3,5] },
     'indian-tree-par-3': { name: 'Indian Tree Par 3', pars: [3,3,3,3,3,3,3,3,3, 3,3,3,3,3,3,3,3,3] },
     'saddleback':        { name: 'Saddleback',        pars: [4,4,5,3,5,4,4,3,4, 4,3,4,5,4,4,4,3,5] },
-    'willis-case':       { name: 'Willis Case',       pars: [4,3,4,3,5,4,4,4,4, 3,4,5,4,4,4,4,3,4] }
+    'willis-case':       { name: 'Willis Case',       pars: [4,3,4,3,5,4,4,4,4, 3,4,5,4,4,4,4,3,4] },
+    'west-woods-sleeping-indian-cottonwood': { name: 'West Woods Sleeping Indian - Cottonwood', pars: [4,5,4,4,5,3,4,3,4, 4,4,3,4,5,3,4,4,5] },
+    'west-woods-cottonwood-silo':            { name: 'West Woods Cottonwood - Silo',            pars: [4,4,3,4,5,3,4,4,5, 4,3,5,4,5,4,4,4,3] },
+    'west-woods-silo-sleeping-indian':       { name: 'West Woods Silo - Sleeping Indian',       pars: [4,3,5,4,5,4,4,4,3, 4,5,4,4,5,3,4,3,4] }
   };
   // Only seed courses that don't already exist (merge, not overwrite)
   const missing = {};
@@ -6212,9 +6242,11 @@ function updateRoundStatusUI() {
   // Admin round control buttons
   const btnOpen = document.getElementById('btn-open-scoring');
   const btnClose = document.getElementById('btn-close-scoring');
+  const btnReset = document.getElementById('btn-reset-setup');
   const btnReopen = document.getElementById('btn-reopen-scoring');
   if (btnOpen) btnOpen.style.display = (isEditor && roundStatus === 'setup') ? 'inline-block' : 'none';
   if (btnClose) btnClose.style.display = (isEditor && roundStatus === 'open') ? 'inline-block' : 'none';
+  if (btnReset) btnReset.style.display = (isEditor && roundStatus === 'open') ? 'inline-block' : 'none';
   if (btnReopen) btnReopen.style.display = (isEditor && roundStatus === 'closed') ? 'inline-block' : 'none';
 
   // Show/hide score entry based on round status
@@ -6225,14 +6257,14 @@ function updateRoundStatusUI() {
   const payoutDiv = document.getElementById('payout-results');
   if (payoutDiv) payoutDiv.style.display = (roundStatus === 'closed') ? 'block' : 'none';
 
-  // Contest selection for admin
+  // Contest (proxy) selection for admin — available while the round is open
+  // so scores + proxies can be entered together, and after it closes.
   const contestDiv = document.getElementById('contest-selection');
-  if (contestDiv) contestDiv.style.display = (roundStatus === 'closed' && isEditor) ? 'block' : 'none';
+  const showContests = isEditor && (roundStatus === 'open' || roundStatus === 'closed');
+  if (contestDiv) contestDiv.style.display = showContests ? 'block' : 'none';
 
-  if (roundStatus === 'closed') {
-    renderPayouts();
-    renderContestSelection();
-  }
+  if (roundStatus === 'closed') renderPayouts();
+  if (showContests) renderContestSelection();
 }
 
 async function openScoring() {
@@ -6265,6 +6297,14 @@ async function reopenScoring() {
   const wn = state.thisWeek.weekNum || 1;
   await db.ref('roundStatus/' + wn).set('open');
   toast('Scoring reopened for corrections.');
+}
+
+async function resetToSetup() {
+  if (!isEditor) return;
+  if (!confirm('Set this round back to Not Started? Live scoring will be hidden until you open it again. No scores or payouts are affected.')) return;
+  const wn = state.thisWeek.weekNum || 1;
+  await db.ref('roundStatus/' + wn).set('setup');
+  toast('Round set back to Not Started.');
 }
 
 /* ─── Live Scoring Tab ─── */
@@ -7234,17 +7274,22 @@ function calculateSkins() {
   const pars = courseSetupData.pars || defaultPars;
   const wn = state.thisWeek.weekNum || 1;
 
-  // Pot = anyone who COMMITTED: RSVP'd "yes" OR was placed in a pairing group.
-  // RSVP no-shows still owe their fee (they committed, so their entry is in the
-  // pot and gets split among the players who actually showed up).
+  // Pot = anyone who COMMITTED: RSVP'd "yes", was placed in a pairing group,
+  // OR is marked PAID. RSVP no-shows still owe their fee (their entry is in the
+  // pot and gets split among the players who actually showed up), and anyone
+  // marked PAID has money on the table even if they don't play.
   const pairings = pairingsData[wn] || [];
   const inGroups = new Set();
   pairings.forEach(g => (g.players || []).forEach(pid => inGroups.add(pid)));
 
   const rsvps = rsvpData[wn] || {};
+  const payments = paymentData[wn] || {};
   const committed = new Set(inGroups);
   Object.entries(rsvps).forEach(([pid, status]) => {
     if (status === 'yes') committed.add(pid);
+  });
+  Object.entries(payments).forEach(([pid, paid]) => {
+    if (paid === true) committed.add(pid);
   });
 
   // Players who can win skins: those who actually have scores. If we have
@@ -7546,18 +7591,16 @@ function renderContestSelection() {
   if (!container || !isEditor) return;
 
   const wn = state.thisWeek.weekNum || 1;
-  const rsvps = rsvpData[wn] || {};
   const activePlayers = getActivePlayers().filter(p => {
     const scores = liveScoresData[p.id];
     return scores && scores.some(s => s !== null && s !== undefined);
   });
 
-  if (activePlayers.length === 0) {
-    container.innerHTML = '<div class="empty-state">No players with scores yet.</div>';
-    return;
-  }
-
   let html = '';
+
+  if (activePlayers.length === 0) {
+    html += '<div class="empty-state">No players with scores yet.</div>';
+  } else {
 
   // CTP selection
   const ctpHoles = courseSetupData.ctpHoles || [];
@@ -7602,6 +7645,17 @@ function renderContestSelection() {
   }
 
   if (!html) html = '<div class="empty-state">No contests configured for this week.</div>';
+  } // end activePlayers check
+
+  // While the round is open, let the admin close out right here once all
+  // scores and proxies are in.
+  if (roundStatus === 'open') {
+    html += `<div style="margin-top:8px;padding-top:14px;border-top:1px solid rgba(255,61,167,0.15)">
+      <p style="font-size:0.78rem;color:var(--gray);margin-bottom:10px">Enter all scores and proxy winners, then close the round to calculate skins &amp; payouts.</p>
+      <button class="btn btn-pink" onclick="closeScoring()">Close &amp; Calculate Round</button>
+    </div>`;
+  }
+
   container.innerHTML = html;
 }
 
