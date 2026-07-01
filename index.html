@@ -2965,11 +2965,13 @@ async function resetPayments() {
 
 async function resetRSVPs() {
   if (!isEditor) return;
-  if (!confirm('Reset all RSVPs for this week? Every player will go back to Pending.')) return;
+  if (!confirm('Reset all RSVPs for this week? Every player goes back to Pending, and this week\'s pairings will be cleared.')) return;
   const wn = state.thisWeek.weekNum || 1;
-  // Clear this week's responses and any guests so everyone reverts to Pending.
+  // Clear responses, guests, and pairings so everyone reverts to Pending.
+  // (A player placed in a pairing group renders as "In" regardless of RSVP.)
   await db.ref('rsvps/' + wn).remove();
   await db.ref('guests/' + wn).remove();
+  await db.ref('pairings/' + wn).remove();
   toast('RSVPs reset — all players Pending');
 }
 
@@ -5195,6 +5197,7 @@ async function applyAutoCurrentWeek() {
       try {
         await db.ref('rsvps/' + target).remove();
         await db.ref('guests/' + target).remove();
+        await db.ref('pairings/' + target).remove();
       } catch (e) { console.warn('Auto-reset RSVPs on rollover:', e); }
     }
     try {
