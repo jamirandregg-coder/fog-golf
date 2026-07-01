@@ -2053,6 +2053,7 @@
         <button class="btn btn-pink" onclick="saveThisWeek()">Save This Week</button>
         <button class="btn btn-outline" onclick="generatePairings()">Generate Pairings</button>
         <button class="btn btn-outline" onclick="markAllPaid()">Mark All In as Paid</button>
+        <button class="btn btn-outline" onclick="resetRSVPs()">Reset RSVPs</button>
         <button class="btn btn-outline" onclick="resetPayments()">Reset Payments</button>
       </div>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
@@ -2960,6 +2961,16 @@ async function resetPayments() {
   await db.ref('payments/' + wn).remove();
   await db.ref('paymentEnforced/' + wn).remove();
   toast('Payments reset');
+}
+
+async function resetRSVPs() {
+  if (!isEditor) return;
+  if (!confirm('Reset all RSVPs for this week? Every player will go back to Pending.')) return;
+  const wn = state.thisWeek.weekNum || 1;
+  // Clear this week's responses and any guests so everyone reverts to Pending.
+  await db.ref('rsvps/' + wn).remove();
+  await db.ref('guests/' + wn).remove();
+  toast('RSVPs reset — all players Pending');
 }
 
 async function resetSeason() {
