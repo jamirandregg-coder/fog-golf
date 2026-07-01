@@ -2080,6 +2080,16 @@
       <p style="font-size:0.72rem;color:var(--gray);margin-top:10px">Auto-emails send if this page is open at Sunday 2 PM & Monday 8 AM. Use the manual button in the RSVP Summary as backup.</p>
     </div>
 
+    <!-- Post Total Scores Card (admin only) -->
+    <div class="card editor-only-card">
+      <div class="card-title">Post Total Scores</div>
+      <p style="font-size:0.78rem;color:var(--gray);margin-bottom:10px">Enter a gross total for anyone who didn't score hole-by-hole. Scores post to <strong>this week's</strong> results and standings. Blank fields are left unchanged, and any live/hole-by-hole totals already recorded are kept.</p>
+      <div id="admin-total-scores-area"><div class="empty-state">Loading…</div></div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-pink" onclick="postAdminTotalScores()">Post Scores</button>
+      </div>
+    </div>
+
     <!-- Announcements & Notifications Card (admin only) -->
     <div class="card editor-only-card">
       <div class="card-title">Announcements & Notifications</div>
@@ -3473,6 +3483,7 @@ function renderManageWeek() {
   setTeeTimes('tw-tee-times-row', 'tw-tee-input', teeTimes);
   renderCourseSetup();
   updateRoundStatusUI();
+  renderAdminTotalScores();
   // Wire up course input change to auto-fill pars
   const courseInput = document.getElementById('tw-course-input');
   if (courseInput) {
@@ -3938,6 +3949,93 @@ async function saveScores() {
   toast('Week ' + week + ' scores saved!');
   renderWinnerBanner();
   recalculateAllHandicaps();
+}
+
+/* ─── Admin: Post Total Scores for the current week (Manage Week) ───
+   Lets the admin type a gross total for any player/guest after a round.
+   MERGES into this week's results so live/hole-by-hole totals and any
+   previously entered scores are preserved. */
+function renderAdminTotalScores() {
+  const area = document.getElementById('admin-total-scores-area');
+  if (!area) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const players = getActivePlayers();
+  if (!players.length) {
+    area.innerHTML = '<div class="empty-state">Add players first, then enter totals here.</div>';
+    return;
+  }
+  const existing = (state.weeks[wn] && state.weeks[wn].scores) || {};
+  area.innerHTML = `
+    <div class="score-table-wrap">
+      <table>
+        <thead><tr><th>Player</th><th>HCP</th><th>Gross</th><th>Net</th></tr></thead>
+        <tbody>
+          ${players.map(p => {
+            const gross = (existing[p.id] !== undefined && existing[p.id] !== null) ? existing[p.id] : '';
+            const hcp = p.handicap || 0;
+            const net = gross !== '' ? gross - hcp : '';
+            return `<tr>
+              <td><strong>${escHtml(p.name)}</strong>${p.isGuest ? ' <span style="color:var(--gray);font-size:0.7rem">[guest]</span>' : ''}</td>
+              <td style="color:var(--pink-light)">${p.handicap || '—'}</td>
+              <td class="score-input-cell">
+                <input type="number" id="atot-${p.id}" value="${gross}" min="18" max="200" placeholder="—"
+                  oninput="updateAdminNet('${p.id}',${hcp})">
+              </td>
+              <td id="atot-net-${p.id}" style="color:var(--pink-hot);font-weight:700">${net !== '' ? net : '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function updateAdminNet(id, hcp) {
+  const gross = parseInt(document.getElementById('atot-' + id)?.value);
+  const el = document.getElementById('atot-net-' + id);
+  if (el) el.textContent = isNaN(gross) ? '—' : gross - hcp;
+}
+
+async function postAdminTotalScores() {
+  if (!isEditor) return;
+  const wn = state.thisWeek.weekNum || 1;
+  const players = getActivePlayers();
+  const existing = state.weeks[wn] || {};
+  // Start from existing scores so nothing already recorded is lost.
+  const scores = { ...(existing.scores || {}) };
+  let changed = 0;
+  players.forEach(p => {
+    const el = document.getElementById('atot-' + p.id);
+    if (!el) return;
+    const v = el.value;
+    if (v === '' || v === undefined) return; // blank = leave as-is
+    const n = parseInt(v);
+    if (!isNaN(n)) { scores[p.id] = n; changed++; }
+  });
+  if (Object.keys(scores).length === 0) return toast('Enter at least one score first.');
+  // Derive par/course/holes: prefer this week's course setup, then existing result.
+  const pars = courseSetupData.pars || [];
+  const parFromSetup = pars.reduce((s, x) => s + (x || 0), 0);
+  const par = parFromSetup || existing.par || state.thisWeek.par || 72;
+  const course = existing.course || state.thisWeek.course || '';
+  const holes = existing.holes || getActiveHoleCount();
+  const weekResult = { par, course, scores, holes };
+  state.weeks[wn] = weekResult;
+  await saveState();
+  try {
+    await db.ref('weekResults/' + wn).set(weekResult);
+  } catch (e) {
+    console.error('Error posting total scores to Firebase:', e);
+    pendingSyncs[wn] = weekResult;
+    toast('Saved locally but failed to sync — will retry.');
+  }
+  populateWeekSelect();
+  renderScoreEntry();
+  renderStandings();
+  renderHistory(curHistoryWeek);
+  renderWinnerBanner();
+  recalculateAllHandicaps();
+  renderAdminTotalScores();
+  toast('Posted ' + changed + ' score' + (changed === 1 ? '' : 's') + ' for Week ' + wn);
 }
 
 /* ─── Standings ─── */
@@ -7709,7 +7807,9 @@ function saveHoleScoresToWeekTotals() {
   const wn = state.thisWeek.weekNum || 1;
   const pars = courseSetupData.pars || [];
   const totalPar = pars.reduce((s, p) => s + p, 0);
-  const scores = {};
+  // Start from any scores already recorded (e.g. admin-posted totals) so
+  // they survive Close & Calculate; live per-hole totals overlay on top.
+  const scores = { ...((state.weeks[wn] && state.weeks[wn].scores) || {}) };
 
   getActivePlayers().forEach(p => {
     const holeScores = liveScoresData[p.id];
