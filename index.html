@@ -6495,29 +6495,33 @@ function renderLiveScoreInputs() {
     return;
   }
 
-  // ── GROUP MODE: show group scorecard ABOVE individual entry ──
-  // Group scorer can score for everyone; individual entry always available below.
+  // ── GROUP MODE: the group scorecard is the ONLY entry surface ──
+  // The selected player's own row is editable inside the group card (which
+  // auto-saves every change), so we do NOT also render the separate individual
+  // grid. Rendering both previously caused a clobber bug: edits typed into the
+  // group card were never mirrored into the individual inputs, so clicking the
+  // main "Save Scores" button wrote the stale individual values back over the
+  // fix (e.g. a corrected 15→5 would snap back to 15).
   if (scoringMode === 'group') {
     const groupInfo = getPlayerGroupInfo(playerId);
     if (groupInfo) {
+      container.innerHTML = '';
       const groupDiv = document.createElement('div');
       groupDiv.style.marginBottom = '24px';
       renderGroupScorecardGrid(groupDiv, groupInfo, playerId);
-      // Add a group save button inside the group section
+      // Explicit save button (auto-save already runs on every edit)
       const groupSaveBtn = document.createElement('button');
       groupSaveBtn.className = 'btn btn-primary';
       groupSaveBtn.style.cssText = 'margin-top:10px;font-size:0.82rem';
       groupSaveBtn.textContent = 'Save Group Scores';
       groupSaveBtn.onclick = saveGroupScores;
       groupDiv.appendChild(groupSaveBtn);
-      // Separator
-      const sep = document.createElement('div');
-      sep.style.cssText = 'border-top:1px solid rgba(255,61,167,0.2);margin:18px 0 12px;padding-top:12px;font-size:0.78rem;color:var(--gray)';
-      sep.textContent = '— or enter your own score below —';
-      container.innerHTML = '';
       container.appendChild(groupDiv);
-      container.appendChild(sep);
-      // Fall through to also render individual inputs below
+      // Hide the individual "Save Scores" button — in group mode it reads a
+      // grid that doesn't reflect group-card edits and would overwrite them.
+      if (saveBtn) saveBtn.style.display = 'none';
+      renderLiveScoreTotal();
+      return;
     }
   }
 
@@ -6559,7 +6563,7 @@ function renderLiveScoreInputs() {
         <span class="hole-label">H${i+1}</span>
         <input type="number" id="live-hole-${i}" value="${val}" min="1" max="15"
           class="${inputClass}" ${isLocked ? 'disabled' : ''}
-          oninput="updateLiveScoreStyle(${i})" onkeydown="if(event.key==='Enter'){event.preventDefault();focusNextLive(${i})}">
+          oninput="updateLiveScoreStyle(${i})" onchange="guardLiveScore(${i})" onkeydown="if(event.key==='Enter'){event.preventDefault();focusNextLive(${i})}">
         <span class="par-label">Par ${par}</span>
       </div>
     `;
@@ -6606,6 +6610,29 @@ function updateLiveScoreStyle(holeIdx) {
     else if (val > par) input.className = 'input-bogey';
   }
   renderLiveScoreTotal();
+}
+
+// A hole score is "suspicious" (likely a typo, e.g. a stuck leading digit
+// turning 5 into 15) when it's more than 6 strokes over par. Realistic bad
+// holes stay under this; digit-typos like 14/15/16 on a par 4/5 trip it.
+function isSuspiciousScore(val, par) {
+  return !isNaN(val) && val > (par || 4) + 6;
+}
+
+// Confirm an individual-entry hole score before it sticks. On decline, clear
+// the box and refocus so the correct number can be re-entered.
+function guardLiveScore(holeIdx) {
+  const input = document.getElementById('live-hole-' + holeIdx);
+  if (!input) return;
+  const par = (courseSetupData.pars || [])[holeIdx] || 4;
+  const val = parseInt(input.value);
+  if (isSuspiciousScore(val, par)) {
+    if (!confirm(`That's a ${val} on a par ${par} (hole ${holeIdx + 1}). Is that right?`)) {
+      input.value = '';
+      updateLiveScoreStyle(holeIdx);
+      input.focus();
+    }
+  }
 }
 
 function focusNextLive(holeIdx) {
@@ -7036,6 +7063,7 @@ function buildGroupCardView(ctx) {
             id="gs-${pid}-hole-${h}" value="${val}" min="1" max="15"
             data-player="${pid}" data-hole="${h}"
             oninput="updateGroupScoreCardStyle('${pid}',${h})"
+            onchange="guardGroupScore('${pid}',${h})"
             onkeydown="groupCardKeyNav(event,'${pid}',${h})">`
       : `<span class="gs-score-display gs-card-input ${cellClass}">${val !== '' ? val : '–'}</span>`;
     rows += `
@@ -7101,6 +7129,7 @@ function buildGroupGridView(ctx) {
               id="gs-${pid}-hole-${i}" value="${val}" min="1" max="15"
               data-player="${pid}" data-hole="${i}"
               oninput="updateGroupScoreCardStyle('${pid}',${i})"
+              onchange="guardGroupScore('${pid}',${i})"
               onkeydown="groupScorecardKeyNav(event,'${pid}',${i})"></td>`
         : `<td><span class="gs-score-display ${cellClass}">${val !== '' ? val : '–'}</span></td>`;
     });
@@ -7180,6 +7209,7 @@ function buildGroupWideView(ctx) {
           id="gs-${pid}-hole-${i}" value="${val}" min="1" max="15"
           data-player="${pid}" data-hole="${i}"
           oninput="updateGroupScoreCardStyle('${pid}',${i})"
+          onchange="guardGroupScore('${pid}',${i})"
           onkeydown="groupScorecardKeyNav(event,'${pid}',${i})"
           ></td>`;
       } else {
@@ -7276,6 +7306,23 @@ function updateGroupScoreCardStyle(playerId, holeIdx) {
   autoSaveGroupPlayer(playerId);
 }
 
+// Confirm a group-entry hole score before it sticks. On decline, clear the
+// box (which also clears the in-memory value and re-saves via the style
+// handler) and refocus so the correct number can be re-entered.
+function guardGroupScore(playerId, holeIdx) {
+  const input = document.getElementById('gs-' + playerId + '-hole-' + holeIdx);
+  if (!input) return;
+  const par = (courseSetupData.pars || [])[holeIdx] || 4;
+  const val = parseInt(input.value);
+  if (isSuspiciousScore(val, par)) {
+    if (!confirm(`That's a ${val} on a par ${par} (hole ${holeIdx + 1}). Is that right?`)) {
+      input.value = '';
+      updateGroupScoreCardStyle(playerId, holeIdx);
+      input.focus();
+    }
+  }
+}
+
 function groupScorecardKeyNav(event, playerId, holeIdx) {
   const maxHole = getActiveHoleCount() - 1;
   if (event.key === 'Enter') {
@@ -7366,13 +7413,17 @@ async function saveGroupScores() {
   const holeCount = getActiveHoleCount();
   let savedCount = 0;
   for (const pid of groupInfo.players) {
-    // Only save players whose inputs exist (editable)
-    const firstInput = document.getElementById('gs-' + pid + '-hole-0');
-    if (!firstInput) continue;
+    // Build the full array from whatever inputs are on screen, filling the rest
+    // from existing data. Track whether ANY hole for this player is editable in
+    // the current view — the card view only renders one hole at a time, so
+    // checking a single fixed hole (e.g. hole 0) wrongly skipped players
+    // whenever the card was on any hole other than the first.
     const scores = [];
+    let hasEditableInput = false;
     for (let i = 0; i < holeCount; i++) {
       const input = document.getElementById('gs-' + pid + '-hole-' + i);
       if (input) {
+        hasEditableInput = true;
         const val = input.value;
         scores.push(val !== '' && val !== undefined ? parseInt(val) : null);
       } else {
@@ -7380,6 +7431,7 @@ async function saveGroupScores() {
         scores.push(existing[i] !== undefined ? existing[i] : null);
       }
     }
+    if (!hasEditableInput) continue; // this player isn't editable in the current view
     try {
       await db.ref('liveScores/' + wn + '/' + pid).set(scores);
       savedCount++;
