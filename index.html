@@ -4227,18 +4227,18 @@ async function computeWeekWinners(weekNum) {
   const ctpWinners = ctpHoles.map(h => {
     const wid = contests.ctp && contests.ctp[h];
     const w = wid ? findPlayer(wid) : null;
-    return w ? { hole: h + 1, name: w.name } : null;
+    return w ? { hole: holeDisplayNum(h, (courseSetup.nine || 'front')), name: w.name } : null;
   }).filter(Boolean);
 
   // Long Drive winners
   const ldWinners = [];
   if (ldHoles.length >= 1 && contests.longDrive) {
     const w = findPlayer(contests.longDrive);
-    if (w) ldWinners.push({ hole: ldHoles[0] + 1, name: w.name });
+    if (w) ldWinners.push({ hole: holeDisplayNum(ldHoles[0], (courseSetup.nine || 'front')), name: w.name });
   }
   if (ldHoles.length >= 2 && contests.longDrive2) {
     const w = findPlayer(contests.longDrive2);
-    if (w) ldWinners.push({ hole: ldHoles[1] + 1, name: w.name });
+    if (w) ldWinners.push({ hole: holeDisplayNum(ldHoles[1], (courseSetup.nine || 'front')), name: w.name });
   }
 
   // Low Gross
@@ -4567,9 +4567,9 @@ async function renderHistoricalPayouts(weekNum) {
       const winner = winnerId ? findPlayer(winnerId) : null;
       if (winner) {
         addEarn(winner.id, perCtp);
-        html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perCtp.toFixed(2)}</span></div>`;
+        html += `<div class="payout-row"><span><strong>Hole ${holeDisplayNum(h, (courseSetup.nine || 'front'))}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perCtp.toFixed(2)}</span></div>`;
       } else {
-        html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+        html += `<div class="payout-row"><span><strong>Hole ${holeDisplayNum(h, (courseSetup.nine || 'front'))}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
       }
     });
     html += '</div>';
@@ -4586,9 +4586,9 @@ async function renderHistoricalPayouts(weekNum) {
       const winner = winnerId ? findPlayer(winnerId) : null;
       if (winner) {
         addEarn(winner.id, perLd);
-        html += `<div class="payout-row"><span><strong>Hole ${ldh+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perLd.toFixed(2)}</span></div>`;
+        html += `<div class="payout-row"><span><strong>Hole ${holeDisplayNum(ldh, (courseSetup.nine || 'front'))}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perLd.toFixed(2)}</span></div>`;
       } else {
-        html += `<div class="payout-row"><span><strong>Hole ${ldh+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+        html += `<div class="payout-row"><span><strong>Hole ${holeDisplayNum(ldh, (courseSetup.nine || 'front'))}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
       }
     });
     html += '</div>';
@@ -6035,6 +6035,13 @@ function getActiveHoleCount() {
   return nine === 'full' ? 18 : 9;
 }
 
+/* Helper: hole number to DISPLAY for a 0-based hole index.
+   A back-nine round stores its holes as indexes 0-8 but plays holes 10-18. */
+function holeDisplayNum(idx, nine) {
+  const n = nine || courseSetupData.nine || selectedNine || 'front';
+  return n === 'back' ? idx + 10 : idx + 1;
+}
+
 function listenToMasterCourses() {
   const ref = db.ref('courses');
   if (masterCoursesListener) masterCoursesListener.off();
@@ -6305,7 +6312,7 @@ function renderCourseSetup(restoreFromSaved) {
   row.innerHTML = '';
   for (let i = 0; i < holeCount; i++) {
     const isCtpChecked = ctpHoles.includes(i) ? 'checked' : '';
-    const holeLabel = selectedNine === 'full' ? (i + 1) : (selectedNine === 'back' ? (i + 10) : (i + 1));
+    const holeLabel = holeDisplayNum(i, selectedNine);
     row.innerHTML += `
       <div class="par-hole-group">
         <span class="hole-num">H${holeLabel}</span>
@@ -6318,7 +6325,7 @@ function renderCourseSetup(restoreFromSaved) {
   ldSel.innerHTML = '<option value="">None</option>';
   for (let i = 0; i < holeCount; i++) {
     const sel = longDriveHole === i ? 'selected' : '';
-    ldSel.innerHTML += `<option value="${i}" ${sel}>Hole ${i+1}</option>`;
+    ldSel.innerHTML += `<option value="${i}" ${sel}>Hole ${holeDisplayNum(i, selectedNine)}</option>`;
   }
   ldSel.disabled = !isEditor;
 
@@ -6332,7 +6339,7 @@ function renderCourseSetup(restoreFromSaved) {
       ldSel2.innerHTML = '<option value="">None</option>';
       for (let i = 0; i < holeCount; i++) {
         const sel = longDriveHole2 === i ? 'selected' : '';
-        ldSel2.innerHTML += `<option value="${i}" ${sel}>Hole ${i+1}</option>`;
+        ldSel2.innerHTML += `<option value="${i}" ${sel}>Hole ${holeDisplayNum(i, selectedNine)}</option>`;
       }
       ldSel2.disabled = !isEditor;
     }
@@ -7658,9 +7665,9 @@ function renderPayouts() {
       const winner = winnerId ? getActivePlayers().find(p => p.id === winnerId) : null;
       if (winner) {
         addEarnings(winner.id, perCtpHole);
-        html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perCtpHole.toFixed(2)}</span></div>`;
+        html += `<div class="payout-row"><span><strong>Hole ${holeDisplayNum(h)}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perCtpHole.toFixed(2)}</span></div>`;
       } else {
-        html += `<div class="payout-row"><span><strong>Hole ${h+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+        html += `<div class="payout-row"><span><strong>Hole ${holeDisplayNum(h)}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
       }
     });
     html += '</div>';
@@ -7680,9 +7687,9 @@ function renderPayouts() {
       const winner = winnerId ? getActivePlayers().find(p => p.id === winnerId) : null;
       if (winner) {
         addEarnings(winner.id, perLdHole);
-        html += `<div class="payout-row"><span><strong>Hole ${ldh+1}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perLdHole.toFixed(2)}</span></div>`;
+        html += `<div class="payout-row"><span><strong>Hole ${holeDisplayNum(ldh)}</strong>: <span class="payout-winner">${escHtml(winner.name)}</span></span><span class="payout-amount">$${perLdHole.toFixed(2)}</span></div>`;
       } else {
-        html += `<div class="payout-row"><span><strong>Hole ${ldh+1}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
+        html += `<div class="payout-row"><span><strong>Hole ${holeDisplayNum(ldh)}</strong>: <span class="payout-push">Not selected</span></span><span class="payout-push">—</span></div>`;
       }
     });
     html += '</div>';
@@ -7785,7 +7792,7 @@ function renderContestSelection() {
     ctpHoles.forEach(h => {
       const curWinner = contestsData.ctp && contestsData.ctp[h] ? contestsData.ctp[h] : '';
       html += `<div class="form-group">
-        <label>Hole ${h+1}</label>
+        <label>Hole ${holeDisplayNum(h)}</label>
         <select id="ctp-winner-${h}" onchange="saveContestWinner('ctp',${h})">
           <option value="">— Select —</option>
           ${activePlayers.map(p => `<option value="${p.id}" ${p.id === curWinner ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('')}
@@ -7809,7 +7816,7 @@ function renderContestSelection() {
     ldContestHoles.forEach(ld => {
       const curWinner = contestsData[ld.key] || '';
       html += `<div class="form-group">
-        <label>Hole ${ld.hole+1}</label>
+        <label>Hole ${holeDisplayNum(ld.hole)}</label>
         <select id="${ld.id}" onchange="saveContestWinner('${ld.key}')">
           <option value="">— Select —</option>
           ${activePlayers.map(p => `<option value="${p.id}" ${p.id === curWinner ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('')}
