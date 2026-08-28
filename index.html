@@ -2177,13 +2177,19 @@
           <input type="date" id="tourney-date-input">
         </div>
         <div class="form-group">
-          <label for="tourney-time-input">Tee Time</label>
-          <input type="time" id="tourney-time-input">
-        </div>
-        <div class="form-group">
           <label for="tourney-deadline-input">RSVP Deadline</label>
           <input type="date" id="tourney-deadline-input">
         </div>
+      </div>
+      <div style="margin-top:10px">
+        <label style="margin-bottom:6px;display:block">Tee Times (up to 10)</label>
+        <div class="tee-times-row" id="tourney-tee-times-row">
+          <div class="tee-time-slot">
+            <span class="slot-label">T1</span>
+            <input type="time" class="tourney-tee-input" value="09:00">
+          </div>
+        </div>
+        <button class="add-tee-time-btn" onclick="addTournamentTeeTime()" style="margin-top:6px">+ Add Tee Time</button>
       </div>
       <div class="form-row">
         <div class="form-group wide">
@@ -2775,7 +2781,7 @@ function applyMode() {
    'tw-course-input','tw-date-input','tw-par-input','tw-notes-input','current-week-select']
     .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !isEditor; });
   // Also disable/enable tee time inputs in manage week
-  document.querySelectorAll('.tw-tee-input').forEach(el => el.disabled = !isEditor);
+  document.querySelectorAll('.tw-tee-input, .tourney-tee-input').forEach(el => el.disabled = !isEditor);
   renderScoreEntry();
   updateRoundStatusUI();
   renderCourseSetup();
@@ -3090,6 +3096,34 @@ function getTournamentPlayers() {
   return [...state.players, ...guests];
 }
 
+// Tee times as an array. Falls back to the legacy single `time` field so a
+// tournament saved before multi tee times still displays correctly.
+function getTournamentTeeTimes() {
+  if (tournamentData.teeTimes && tournamentData.teeTimes.length) return tournamentData.teeTimes;
+  return tournamentData.time ? [tournamentData.time] : [];
+}
+
+function addTournamentTeeTime() {
+  const row = document.getElementById('tourney-tee-times-row');
+  if (!row) return;
+  const count = row.querySelectorAll('.tee-time-slot').length;
+  if (count >= 10) return toast('Maximum 10 tee times.');
+  // Default the new slot to 8 minutes after the last one, same as the weekly round.
+  const lastInput = row.querySelector('.tee-time-slot:last-child .tourney-tee-input');
+  let nextTime = '09:00';
+  if (lastInput && lastInput.value) {
+    const [h, m] = lastInput.value.split(':').map(Number);
+    const totalMin = h * 60 + m + 8;
+    nextTime = String(Math.floor(totalMin / 60) % 24).padStart(2, '0') + ':' + String(totalMin % 60).padStart(2, '0');
+  }
+  const slot = document.createElement('div');
+  slot.className = 'tee-time-slot';
+  slot.innerHTML = '<span class="slot-label">T' + (count + 1) + '</span>' +
+    '<input type="time" class="tourney-tee-input" value="' + nextTime + '">' +
+    '<button class="remove-slot" onclick="this.parentElement.remove();renumberTeeSlots(&quot;tourney-tee-times-row&quot;,&quot;tourney-tee-input&quot;)">&#10005;</button>';
+  row.appendChild(slot);
+}
+
 function isTournamentLocked() {
   if (tournamentData.locked === true) return true;
   const dl = tournamentData.deadline;
@@ -3121,9 +3155,13 @@ function renderTournament() {
         escHtml(d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</strong></span>');
     }
   }
-  if (tournamentData.time) {
-    const t = formatTeeTime(tournamentData.time);
-    if (t) pills.push('<span class="tourney-pill">&#9971; <strong>' + escHtml(t) + '</strong></span>');
+  const teeTimes = getTournamentTeeTimes();
+  if (teeTimes.length) {
+    const f = teeTimes.map(formatTeeTime).filter(Boolean);
+    const label = f.length === 1
+      ? f[0]
+      : f[0] + '\u2013' + f[f.length - 1] + ' (' + f.length + ' tee times)';
+    pills.push('<span class="tourney-pill">&#9971; <strong>' + escHtml(label) + '</strong></span>');
   }
   if (tournamentData.course) {
     pills.push('<span class="tourney-pill">&#128205; <strong>' + escHtml(tournamentData.course) + '</strong></span>');
@@ -3309,8 +3347,9 @@ function renderTournamentSetup() {
   set('tourney-locked-input',   tournamentData.locked === true ? 'locked' : 'open');
   set('tourney-name-input',     tournamentData.name || '');
   set('tourney-date-input',     tournamentData.date || '');
-  set('tourney-time-input',     tournamentData.time || '');
   set('tourney-deadline-input', tournamentData.deadline || '');
+  const tt = getTournamentTeeTimes();
+  setTeeTimes('tourney-tee-times-row', 'tourney-tee-input', tt.length ? tt : ['09:00']);
   set('tourney-course-input',   tournamentData.course || '');
   set('tourney-notes-input',    tournamentData.notes || '');
   set('tourney-fee-input',      tournamentData.fee != null ? tournamentData.fee : '');
@@ -3319,12 +3358,14 @@ function renderTournamentSetup() {
 async function saveTournament() {
   if (!isEditor) return;
   const feeRaw = document.getElementById('tourney-fee-input').value;
+  const teeTimes = getTeeTimes('tourney-tee-input');
   const data = {
     enabled:  document.getElementById('tourney-enabled-input').value === 'yes',
     locked:   document.getElementById('tourney-locked-input').value === 'locked',
     name:     document.getElementById('tourney-name-input').value.trim() || 'End of Year Tournament',
     date:     document.getElementById('tourney-date-input').value,
-    time:     document.getElementById('tourney-time-input').value,
+    teeTimes: teeTimes,
+    time:     teeTimes[0] || '',
     deadline: document.getElementById('tourney-deadline-input').value,
     course:   document.getElementById('tourney-course-input').value.trim(),
     notes:    document.getElementById('tourney-notes-input').value.trim(),
