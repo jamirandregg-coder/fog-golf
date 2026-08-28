@@ -486,6 +486,37 @@
   .guest-remove-btn { background:none; border:1px solid rgba(255,82,82,0.3); color:#ff5252; font-size:0.65rem; padding:2px 6px; border-radius:4px; cursor:pointer; }
   .guest-remove-btn:hover { background:rgba(255,82,82,0.15); }
 
+  /* END OF YEAR TOURNAMENT (standing RSVP, runs alongside the weekly one) */
+  .tourney-card {
+    border: 1px solid rgba(255,215,0,0.35) !important;
+    background: linear-gradient(135deg, rgba(255,215,0,0.10), rgba(255,61,167,0.04)) !important;
+    position: relative;
+  }
+  .tourney-card > .card-title {
+    color: #ffd700;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .tourney-badge {
+    font-size: 0.58rem; font-weight: 800; letter-spacing: 0.16em;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(255,215,0,0.16); color: #ffd700;
+    border: 1px solid rgba(255,215,0,0.4);
+  }
+  .tourney-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tourney-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 50px;
+    background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25);
+    font-size: 0.78rem; color: #ffe98a;
+  }
+  .tourney-pill strong { color: #ffd700; font-weight: 700; }
+  .tourney-pill.tourney-closed { background: rgba(255,82,82,0.1); border-color: rgba(255,82,82,0.3); color: #ff8a8a; }
+  .tourney-pill.tourney-closed strong { color: #ff8a8a; }
+  .tourney-notes {
+    font-size: 0.82rem; color: var(--gray); margin-bottom: 12px;
+    white-space: pre-wrap; line-height: 1.5;
+  }
+
   /* DEADLINE COUNTDOWN */
   .deadline-pill {
     display: inline-flex; align-items: center; gap: 8px;
@@ -1714,8 +1745,28 @@
       <div id="pairings-content"></div>
     </div>
 
+    <!-- END OF YEAR TOURNAMENT — standing RSVP, always available, independent of the weekly RSVP -->
+    <div class="card tourney-card" id="tournament-card" style="display:none;order:4">
+      <div class="card-title">
+        <span id="tourney-title">End of Year Tournament</span>
+        <span class="tourney-badge">SEASON FINALE</span>
+      </div>
+      <div class="tourney-meta" id="tourney-meta"></div>
+      <div class="tourney-notes" id="tourney-notes" style="display:none"></div>
+      <p style="font-size:0.85rem;color:var(--gray);margin-bottom:12px">Tap your name to toggle your tournament RSVP. This one stays open all season and is separate from the weekly RSVP above.</p>
+      <div id="tourney-guest-row" style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+        <input type="text" id="tourney-guest-input" placeholder="Guest name..." aria-label="Tournament guest name" style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,215,0,0.3);background:rgba(255,255,255,0.05);color:var(--white);font-family:'Space Grotesk',sans-serif;font-size:0.85rem" onkeydown="if(event.key==='Enter')addTournamentGuest()">
+        <button class="btn btn-outline" style="font-size:0.78rem;padding:8px 16px" onclick="addTournamentGuest()">+ Add Guest</button>
+      </div>
+      <div class="rsvp-grid" id="tourney-rsvp-list"></div>
+      <div class="editor-only-card" style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,215,0,0.2)">
+        <div class="summary-col-header" style="color:#ffd700">Tournament RSVP Summary</div>
+        <div id="tourney-summary-content"></div>
+      </div>
+    </div>
+
     <!-- Admin RSVP Summary (visible only in editor mode) -->
-    <div class="card editor-only-card" id="admin-rsvp-summary" style="order:4">
+    <div class="card editor-only-card" id="admin-rsvp-summary" style="order:5">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>RSVP Summary</span>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1726,10 +1777,10 @@
     </div>
 
     <!-- Announcement Banner (admin-posted, shown to all) -->
-    <div id="announcement-banner-container" style="order:5"></div>
+    <div id="announcement-banner-container" style="order:6"></div>
 
     <!-- Venmo link -->
-    <a class="venmo-banner" id="venmo-link" href="https://venmo.com/Jami-Andregg" target="_blank" rel="noopener" style="order:6;margin-bottom:16px">
+    <a class="venmo-banner" id="venmo-link" href="https://venmo.com/Jami-Andregg" target="_blank" rel="noopener" style="order:7;margin-bottom:16px">
       <span style="font-size:1.4rem">&#128176;</span>
       <div>
         <div class="venmo-text">Pay League Dues via Venmo</div>
@@ -1739,7 +1790,7 @@
     </a>
 
     <!-- PWA Install Banner -->
-    <div class="pwa-install-banner" id="pwa-install-banner" style="display:none;order:7;margin-bottom:16px">
+    <div class="pwa-install-banner" id="pwa-install-banner" style="display:none;order:8;margin-bottom:16px">
       <button class="pwa-dismiss" onclick="dismissInstallBanner()" aria-label="Dismiss">&times;</button>
       <span style="font-size:1.4rem">&#9971;</span>
       <div>
@@ -1750,7 +1801,7 @@
     </div>
 
     <!-- Notification Permission Banner (shown to users who haven't enabled push) -->
-    <div class="notif-permission-banner" id="notif-permission-banner" style="display:none;order:8;margin-bottom:16px">
+    <div class="notif-permission-banner" id="notif-permission-banner" style="display:none;order:9;margin-bottom:16px">
       <button class="pwa-dismiss" onclick="dismissNotificationBanner()" aria-label="Dismiss">&times;</button>
       <span style="font-size:1.4rem">🔔</span>
       <div>
@@ -2090,6 +2141,71 @@
       </div>
     </div>
 
+    <!-- End of Year Tournament Card (admin only) -->
+    <div class="card editor-only-card">
+      <div class="card-title">End of Year Tournament</div>
+      <p style="font-size:0.78rem;color:var(--gray);margin-bottom:12px">A standing RSVP that shows on the home page alongside the weekly RSVP. It never resets when the week rolls over &mdash; only you can reset it.</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="tourney-enabled-input">Show on Home Page</label>
+          <select id="tourney-enabled-input">
+            <option value="no">Hidden</option>
+            <option value="yes">Visible</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="tourney-locked-input">RSVPs</label>
+          <select id="tourney-locked-input">
+            <option value="open">Open</option>
+            <option value="locked">Locked</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="tourney-fee-input">Entry Fee ($)</label>
+          <input type="number" id="tourney-fee-input" min="0" max="1000" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group wide">
+          <label for="tourney-name-input">Tournament Name</label>
+          <input type="text" id="tourney-name-input" placeholder="End of Year Tournament" maxlength="60">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="tourney-date-input">Tournament Date</label>
+          <input type="date" id="tourney-date-input">
+        </div>
+        <div class="form-group">
+          <label for="tourney-time-input">Tee Time</label>
+          <input type="time" id="tourney-time-input">
+        </div>
+        <div class="form-group">
+          <label for="tourney-deadline-input">RSVP Deadline</label>
+          <input type="date" id="tourney-deadline-input">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group wide">
+          <label for="tourney-course-input">Course</label>
+          <input type="text" id="tourney-course-input" placeholder="Course name" maxlength="60">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group wide">
+          <label for="tourney-notes-input">Details / Notes</label>
+          <textarea id="tourney-notes-input" rows="3" placeholder="Format, prizes, payment info, what to bring..." maxlength="500"></textarea>
+        </div>
+      </div>
+      <p style="font-size:0.7rem;color:var(--gray);margin-bottom:10px">Leave the deadline blank to keep RSVPs open indefinitely. RSVPs close at 11:59 PM on the deadline date, or any time you set RSVPs to Locked.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-pink" onclick="saveTournament()">Save Tournament</button>
+        <button class="btn btn-outline" onclick="markAllTournamentPaid()">Mark All In as Paid</button>
+        <button class="btn btn-outline" onclick="copyTournamentSummary()">Copy Summary</button>
+        <button class="btn btn-outline" onclick="resetTournamentRSVPs()">Reset Tournament RSVPs</button>
+      </div>
+    </div>
+
     <!-- Announcements & Notifications Card (admin only) -->
     <div class="card editor-only-card">
       <div class="card-title">Announcements & Notifications</div>
@@ -2369,6 +2485,14 @@ let editingWeek = null;       // week number currently being edited, or null
 let editingPairings = null;   // working copy during edit
 let rsvpOverrideLocked = false;    // admin manual RSVP lock override
 let rsvpForceOpen = false;         // admin override that reopens RSVPs for everyone (beats deadline + manual lock)
+
+/* End of Year Tournament - a standing RSVP that lives outside the weekly
+   week-number keying, so it stays up all season next to the weekly RSVP. */
+let tournamentData     = {};   // { enabled, name, date, time, course, fee, notes, deadline, locked }
+let tournamentRsvps    = {};   // { playerId: 'yes' | 'no' | 'pending' }
+let tournamentGuests   = {};   // { guestId: { id, name, isGuest, addedAt } }
+let tournamentPayments = {};   // { playerId: true }
+let tournamentListeners = [];
 let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
 let groupScorersData = {};         // { groupIndex: playerId }
@@ -2565,6 +2689,9 @@ auth.onAuthStateChanged(async (user) => {
       if (snap.val() === true) {
         isEditor = true;
         applyMode();
+        // The rollover reset needs admin rights; re-check now that we have them
+        // in case this session came up (or rolled over) as a viewer.
+        try { applyAutoCurrentWeek(); } catch (e) {}
         if (authReady) toast('Editor mode unlocked!');
       } else {
         await auth.signOut();
@@ -2652,6 +2779,7 @@ function applyMode() {
   renderScoreEntry();
   updateRoundStatusUI();
   renderCourseSetup();
+  renderTournament();
 }
 
 /* ─── Navigation ─── */
@@ -2660,7 +2788,7 @@ function showPanel(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) { btn.classList.add('active'); btn.setAttribute('aria-selected', 'true'); }
-  if (name === 'home')           renderThisWeek();
+  if (name === 'home')           { renderThisWeek(); renderTournament(); }
   if (name === 'live-scoring')   renderLiveScoring();
   if (name === 'pairings')      renderPairingsTab();
   if (name === 'scores')        { populateWeekSelect(); renderScoreEntry(); }
@@ -2937,6 +3065,332 @@ async function toggleRSVP(playerId) {
   }
 }
 
+/* ─── End of Year Tournament (standing RSVP) ─── */
+function listenToTournament() {
+  tournamentListeners.forEach(ref => { try { ref.off(); } catch (_) {} });
+  tournamentListeners = [];
+  const bind = (path, apply) => {
+    const ref = db.ref(path);
+    ref.on('value', snap => {
+      apply(snap.val());
+      renderTournament();
+    });
+    tournamentListeners.push(ref);
+  };
+  bind('tournament',         v => { tournamentData     = v || {}; });
+  bind('tournamentRsvps',    v => { tournamentRsvps    = v || {}; });
+  bind('tournamentGuests',   v => { tournamentGuests   = v || {}; });
+  bind('tournamentPayments', v => { tournamentPayments = v || {}; });
+}
+
+// Roster + tournament-only guests. Tournament guests are kept separate from
+// weekly guests so a week rollover never wipes them.
+function getTournamentPlayers() {
+  const guests = Object.values(tournamentGuests || {}).map(g => ({ ...g, isGuest: true }));
+  return [...state.players, ...guests];
+}
+
+function isTournamentLocked() {
+  if (tournamentData.locked === true) return true;
+  const dl = tournamentData.deadline;
+  if (!dl) return false;
+  const end = new Date(dl + 'T23:59:59');
+  if (isNaN(end.getTime())) return false;
+  return Date.now() > end.getTime();
+}
+
+function renderTournament() {
+  const card = document.getElementById('tournament-card');
+  if (!card) return;
+
+  // Hidden until an admin turns it on in Manage Week.
+  if (!tournamentData || tournamentData.enabled !== true) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+
+  document.getElementById('tourney-title').textContent = tournamentData.name || 'End of Year Tournament';
+
+  // Header pills: date, tee time, course, fee, sign-up count, lock state
+  const pills = [];
+  if (tournamentData.date) {
+    const d = new Date(tournamentData.date + 'T00:00:00');
+    if (!isNaN(d.getTime())) {
+      pills.push('<span class="tourney-pill">&#128197; <strong>' +
+        escHtml(d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</strong></span>');
+    }
+  }
+  if (tournamentData.time) {
+    const t = formatTeeTime(tournamentData.time);
+    if (t) pills.push('<span class="tourney-pill">&#9971; <strong>' + escHtml(t) + '</strong></span>');
+  }
+  if (tournamentData.course) {
+    pills.push('<span class="tourney-pill">&#128205; <strong>' + escHtml(tournamentData.course) + '</strong></span>');
+  }
+  if (tournamentData.fee > 0) {
+    pills.push('<span class="tourney-pill">&#128176; <strong>$' + tournamentData.fee + '</strong> entry</span>');
+  }
+
+  const players = getTournamentPlayers();
+  const yesCount = players.filter(p => tournamentRsvps[p.id] === 'yes').length;
+  pills.push('<span class="tourney-pill"><strong>' + yesCount + '</strong> signed up</span>');
+
+  const locked = isTournamentLocked();
+  if (locked) {
+    pills.push('<span class="tourney-pill tourney-closed"><strong>RSVPS CLOSED</strong></span>');
+  } else if (tournamentData.deadline) {
+    const d = new Date(tournamentData.deadline + 'T00:00:00');
+    if (!isNaN(d.getTime())) {
+      pills.push('<span class="tourney-pill">RSVP by <strong>' +
+        escHtml(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</strong></span>');
+    }
+  }
+  document.getElementById('tourney-meta').innerHTML = pills.join('');
+
+  const notesEl = document.getElementById('tourney-notes');
+  if (tournamentData.notes) {
+    notesEl.textContent = tournamentData.notes;
+    notesEl.style.display = 'block';
+  } else {
+    notesEl.style.display = 'none';
+  }
+
+  // Guests can only be added while RSVPs are open (admins always).
+  const guestRow = document.getElementById('tourney-guest-row');
+  if (guestRow) guestRow.style.display = (locked && !isEditor) ? 'none' : 'flex';
+
+  renderTournamentList();
+  renderTournamentSummary();
+}
+
+function renderTournamentList() {
+  const list = document.getElementById('tourney-rsvp-list');
+  if (!list) return;
+  const players = getTournamentPlayers();
+  if (!players.length) {
+    list.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No players yet.</div>';
+    return;
+  }
+  const locked = isTournamentLocked() && !isEditor;
+
+  list.innerHTML = players.map(p => {
+    const status = tournamentRsvps[p.id] || 'pending';
+    const paid = tournamentPayments[p.id] === true;
+    const chipClass = status === 'yes' ? 'rsvp-yes' : status === 'no' ? 'rsvp-no' : '';
+    const btnClass = status === 'yes' ? 'rsvp-in' : status === 'no' ? 'rsvp-out' : 'rsvp-pending';
+    const btnText = status === 'yes' ? "I'm In" : status === 'no' ? 'Out' : 'Pending';
+
+    let payHtml = '';
+    if (isEditor) {
+      payHtml = '<button class="rsvp-status ' + (paid ? 'rsvp-paid' : 'rsvp-unpaid') +
+        '" onclick="toggleTournamentPayment(&quot;' + p.id + '&quot;)">' + (paid ? 'PAID' : 'UNPAID') + '</button>';
+    } else if (paid) {
+      payHtml = '<span class="paid-badge">PAID</span>';
+    }
+
+    const guestBadge = p.isGuest ? ' <span class="guest-badge">GUEST</span>' : '';
+    const guestRemoveBtn = p.isGuest && isEditor
+      ? ' <button class="guest-remove-btn" onclick="removeTournamentGuest(&quot;' + p.id + '&quot;)" title="Remove guest">&#10005;</button>'
+      : '';
+    const disabledAttr = locked ? 'disabled style="opacity:0.5;cursor:not-allowed"' : '';
+
+    return '<div class="rsvp-chip ' + chipClass + '">' +
+      '<span style="font-weight:600">' + escHtml(p.name) + guestBadge + guestRemoveBtn + '</span>' +
+      '<span class="chip-actions">' + payHtml +
+      '<button class="rsvp-status ' + btnClass + '" onclick="toggleTournamentRSVP(&quot;' + p.id + '&quot;)" ' +
+      disabledAttr + '>' + btnText + '</button></span></div>';
+  }).join('');
+}
+
+function renderTournamentSummary() {
+  const el = document.getElementById('tourney-summary-content');
+  if (!el || !isEditor) return;
+  const inList = [], outList = [], pendingList = [];
+  getTournamentPlayers().forEach(p => {
+    const status = tournamentRsvps[p.id] || 'pending';
+    const entry = { name: p.name + (p.isGuest ? ' (Guest)' : ''), paid: tournamentPayments[p.id] === true };
+    if (status === 'yes') inList.push(entry);
+    else if (status === 'no') outList.push(entry);
+    else if (!p.isGuest) pendingList.push(entry);
+  });
+
+  const renderList = (items, showPay) => {
+    if (!items.length) return '<div style="color:var(--gray);font-size:0.8rem;padding:4px 0">None</div>';
+    return items.map(item =>
+      '<div class="summary-player"><span>' + escHtml(item.name) + '</span>' +
+      (showPay ? (item.paid
+        ? '<span class="summary-badge summary-badge-paid">PAID</span>'
+        : '<span class="summary-badge summary-badge-unpaid">UNPAID</span>') : '') +
+      '</div>').join('');
+  };
+
+  const fee = tournamentData.fee > 0 ? tournamentData.fee : 0;
+  const paidCount = inList.filter(i => i.paid).length;
+  const potLine = fee > 0
+    ? ' &middot; Collected: $' + (paidCount * fee) + ' of $' + (inList.length * fee)
+    : '';
+
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:10px">' +
+      '<div><div class="summary-col-header" style="color:var(--green-good)">IN (' + inList.length + ')</div>' + renderList(inList, fee > 0) + '</div>' +
+      '<div><div class="summary-col-header" style="color:var(--red-bad)">OUT (' + outList.length + ')</div>' + renderList(outList, false) + '</div>' +
+      '<div><div class="summary-col-header" style="color:var(--gray)">NO RESPONSE (' + pendingList.length + ')</div>' + renderList(pendingList, false) + '</div>' +
+    '</div>' +
+    '<div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,215,0,0.2);font-size:0.8rem;color:var(--gray)">' +
+      'Signed up: ' + inList.length + potLine +
+    '</div>';
+}
+
+async function toggleTournamentRSVP(playerId) {
+  if (isTournamentLocked() && !isEditor) {
+    toast('Tournament RSVPs are closed.');
+    return;
+  }
+  const cur = tournamentRsvps[playerId] || 'pending';
+  const next = cur === 'pending' ? 'yes' : cur === 'yes' ? 'no' : 'pending';
+  try {
+    await db.ref('tournamentRsvps/' + playerId).set(next);
+  } catch (e) {
+    toast('Tournament RSVP failed - try again.');
+    console.warn(e);
+  }
+}
+
+async function toggleTournamentPayment(playerId) {
+  if (!isEditor) return;
+  const cur = tournamentPayments[playerId] === true;
+  try {
+    await db.ref('tournamentPayments/' + playerId).set(!cur);
+    toast(cur ? 'Marked as unpaid' : 'Marked as paid');
+  } catch (e) {
+    toast('Payment update failed');
+    console.warn(e);
+  }
+}
+
+async function addTournamentGuest() {
+  const nameEl = document.getElementById('tourney-guest-input');
+  if (!nameEl) return;
+  const name = nameEl.value.trim();
+  if (!name) return toast('Enter a guest name.');
+  if (isTournamentLocked() && !isEditor) return toast('Tournament RSVPs are closed.');
+  if (getTournamentPlayers().find(p => p.name.toLowerCase() === name.toLowerCase())) {
+    return toast('A player with that name is already on the list.');
+  }
+  const guestId = 'tguest_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try {
+    await db.ref('tournamentGuests/' + guestId).set({ id: guestId, name, isGuest: true, addedAt: Date.now() });
+    await db.ref('tournamentRsvps/' + guestId).set('yes');
+    nameEl.value = '';
+    toast(name + ' added to the tournament!');
+  } catch (e) { toast('Failed to add guest.'); console.warn(e); }
+}
+
+async function removeTournamentGuest(guestId) {
+  if (!isEditor) return;
+  const guest = (tournamentGuests || {})[guestId];
+  if (!guest || !confirm('Remove guest ' + guest.name + ' from the tournament?')) return;
+  const updates = {};
+  updates['tournamentGuests/' + guestId] = null;
+  updates['tournamentRsvps/' + guestId] = null;
+  updates['tournamentPayments/' + guestId] = null;
+  try {
+    await db.ref().update(updates);
+    toast('Guest removed.');
+  } catch (e) { toast('Failed to remove guest.'); console.warn(e); }
+}
+
+// Fill the Manage Week form from the saved tournament. Only called when the
+// admin opens the tab, so it never clobbers what they are typing.
+function renderTournamentSetup() {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  set('tourney-enabled-input',  tournamentData.enabled === true ? 'yes' : 'no');
+  set('tourney-locked-input',   tournamentData.locked === true ? 'locked' : 'open');
+  set('tourney-name-input',     tournamentData.name || '');
+  set('tourney-date-input',     tournamentData.date || '');
+  set('tourney-time-input',     tournamentData.time || '');
+  set('tourney-deadline-input', tournamentData.deadline || '');
+  set('tourney-course-input',   tournamentData.course || '');
+  set('tourney-notes-input',    tournamentData.notes || '');
+  set('tourney-fee-input',      tournamentData.fee != null ? tournamentData.fee : '');
+}
+
+async function saveTournament() {
+  if (!isEditor) return;
+  const feeRaw = document.getElementById('tourney-fee-input').value;
+  const data = {
+    enabled:  document.getElementById('tourney-enabled-input').value === 'yes',
+    locked:   document.getElementById('tourney-locked-input').value === 'locked',
+    name:     document.getElementById('tourney-name-input').value.trim() || 'End of Year Tournament',
+    date:     document.getElementById('tourney-date-input').value,
+    time:     document.getElementById('tourney-time-input').value,
+    deadline: document.getElementById('tourney-deadline-input').value,
+    course:   document.getElementById('tourney-course-input').value.trim(),
+    notes:    document.getElementById('tourney-notes-input').value.trim(),
+    fee:      feeRaw === '' ? 0 : Math.max(0, parseInt(feeRaw) || 0)
+  };
+  try {
+    await db.ref('tournament').set(data);
+    toast(data.enabled ? 'Tournament saved and visible on the home page.' : 'Tournament saved (hidden).');
+  } catch (e) { toast('Failed to save tournament.'); console.warn(e); }
+}
+
+async function resetTournamentRSVPs() {
+  if (!isEditor) return;
+  if (!confirm('Reset the tournament RSVP list? Every player goes back to Pending, and tournament guests and payments are cleared. The tournament details are kept.')) return;
+  const updates = { 'tournamentRsvps': null, 'tournamentGuests': null, 'tournamentPayments': null };
+  try {
+    await db.ref().update(updates);
+    toast('Tournament RSVPs reset - all players Pending');
+  } catch (e) { toast('Reset failed.'); console.warn(e); }
+}
+
+async function markAllTournamentPaid() {
+  if (!isEditor) return;
+  const updates = {};
+  getTournamentPlayers().forEach(p => {
+    if (tournamentRsvps[p.id] === 'yes') updates[p.id] = true;
+  });
+  if (!Object.keys(updates).length) return toast('Nobody is signed up yet.');
+  try {
+    await db.ref('tournamentPayments').update(updates);
+    toast('All signed-up players marked as paid.');
+  } catch (e) { toast('Update failed.'); console.warn(e); }
+}
+
+function buildTournamentSummaryText() {
+  const inList = [], outList = [], pendingList = [];
+  const fee = tournamentData.fee > 0 ? tournamentData.fee : 0;
+  getTournamentPlayers().forEach(p => {
+    const status = tournamentRsvps[p.id] || 'pending';
+    const paid = tournamentPayments[p.id] === true;
+    if (status === 'yes') inList.push(p.name + (fee > 0 ? (paid ? ' (Paid)' : ' (UNPAID)') : '') + (p.isGuest ? ' [GUEST]' : ''));
+    else if (status === 'no') outList.push(p.name);
+    else if (!p.isGuest) pendingList.push(p.name);
+  });
+  const lines = [tournamentData.name || 'End of Year Tournament'];
+  if (tournamentData.date) lines.push('Date: ' + tournamentData.date);
+  if (tournamentData.course) lines.push('Course: ' + tournamentData.course);
+  if (fee > 0) lines.push('Entry: $' + fee);
+  lines.push('');
+  lines.push('IN (' + inList.length + '): ' + (inList.join(', ') || 'None'));
+  lines.push('OUT (' + outList.length + '): ' + (outList.join(', ') || 'None'));
+  lines.push('NO RESPONSE (' + pendingList.length + '): ' + (pendingList.join(', ') || 'None'));
+  return lines.join('\n');
+}
+
+async function copyTournamentSummary() {
+  if (!isEditor) return;
+  const text = buildTournamentSummaryText();
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Tournament summary copied.');
+  } catch (e) {
+    prompt('Copy the tournament summary:', text);
+  }
+}
+
 /* ─── Payment Tracking ─── */
 async function togglePayment(playerId) {
   if (!isEditor) return;
@@ -3007,7 +3461,12 @@ async function resetSeason() {
       'schedule': null,
       'rsvpOverride': null,
       'rsvpForceOpen': null,
+      'rsvpResetWeek': null,
       'announcement': null,
+      'tournament': null,
+      'tournamentRsvps': null,
+      'tournamentGuests': null,
+      'tournamentPayments': null,
     };
     await db.ref().update(updates);
     // Reset thisWeek to week 1
@@ -3484,6 +3943,7 @@ function renderManageWeek() {
   renderCourseSetup();
   updateRoundStatusUI();
   renderAdminTotalScores();
+  renderTournamentSetup();
   // Wire up course input change to auto-fill pars
   const courseInput = document.getElementById('tw-course-input');
   if (courseInput) {
@@ -5252,9 +5712,47 @@ function computeCurrentWeekNum() {
   return nextPlay ? nextPlay.weekNum : (lastPlayed ? lastPlayed.weekNum : null);
 }
 
+/* Auto-reset RSVPs when the homepage rolls over to a new week.
+
+   Keyed to a persisted marker (/rsvpResetWeek) rather than to a client-local
+   week transition. The previous version only fired if an admin's browser
+   happened to be open AND already in editor mode at the exact moment the new
+   week was first noticed - any viewer load, or an admin load before logging
+   in, advanced localStorage and consumed the transition, so the reset was
+   then skipped forever. The marker makes it a one-time action per week that
+   any admin session can complete, whenever it happens to open. */
+async function autoResetRsvpsForWeek(target) {
+  if (!isEditor || target == null) return;
+  try {
+    const last = (await db.ref('rsvpResetWeek').once('value')).val();
+
+    // First run against this database: record where we are without wiping
+    // anything, so deploying this never costs anyone a live RSVP.
+    if (last == null) { await db.ref('rsvpResetWeek').set(Number(target)); return; }
+
+    if (Number(target) <= Number(last)) return;  // already reset for this week
+
+    // Never wipe a week that has already been played. Guards the case where a
+    // completed week's schedule entry gets re-pointed at a future date, which
+    // would otherwise destroy that round's RSVPs, guests and pairings.
+    const played = await db.ref('weekResults/' + target + '/scores').once('value');
+    if (played.exists()) { await db.ref('rsvpResetWeek').set(Number(target)); return; }
+
+    const updates = {};
+    updates['rsvps/' + target] = null;
+    updates['guests/' + target] = null;
+    updates['pairings/' + target] = null;
+    updates['rsvpResetWeek'] = Number(target);
+    await db.ref().update(updates);
+  } catch (e) { console.warn('Auto-reset RSVPs on rollover:', e); }
+}
+
 async function applyAutoCurrentWeek() {
   const target = computeCurrentWeekNum();
   if (target == null) return;
+  // Fire-and-forget: idempotent, and must run even when the early return below
+  // trips because this client already rolled its local state over.
+  autoResetRsvpsForWeek(target);
   // Prefer scheduleData; fall back to existing state.thisWeek (legacy data
   // saved before saveThisWeek wrote into /schedule)
   const sd = scheduleData[target] || {};
@@ -5286,18 +5784,6 @@ async function applyAutoCurrentWeek() {
   }
 
   if (oldWn !== target) {
-    // Auto-reset RSVPs on rollover: when the homepage advances to a LATER
-    // week, clear that week's RSVPs/guests so everyone starts as Pending
-    // (restores the old "reset on new week" behavior). Admin-only and
-    // forward-only (target > oldWn) so viewing past weeks or reloading the
-    // current week never wipes anyone's responses.
-    if (isEditor && oldWn != null && Number(target) > Number(oldWn)) {
-      try {
-        await db.ref('rsvps/' + target).remove();
-        await db.ref('guests/' + target).remove();
-        await db.ref('pairings/' + target).remove();
-      } catch (e) { console.warn('Auto-reset RSVPs on rollover:', e); }
-    }
     try {
       listenToRSVPs();
       listenToGuests();
@@ -8080,6 +8566,7 @@ function renderAll() {
   renderLiveScoring();
   renderWinnerBanner();
   renderSeasonChampBanner();
+  renderTournament();
 }
 
 /* ─── Past Seasons Data ─── */
@@ -8470,6 +8957,7 @@ async function preloadDataIfEmpty() {
     listenToWeekResults();
     listenToHandicaps();
     listenToAnnouncement();
+    listenToTournament();
     loadEmailSentFlags();
     initFCM();
     initCapacitorNative();
