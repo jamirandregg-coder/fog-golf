@@ -1765,6 +1765,7 @@
         <input type="text" id="tourney-guest-input" placeholder="Guest name..." aria-label="Tournament guest name" style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,215,0,0.3);background:rgba(255,255,255,0.05);color:var(--white);font-family:'Space Grotesk',sans-serif;font-size:0.85rem" onkeydown="if(event.key==='Enter')addTournamentGuest()">
         <button class="btn btn-outline" style="font-size:0.78rem;padding:8px 16px" onclick="addTournamentGuest()">+ Add Guest</button>
       </div>
+      <div id="tourney-pairings" style="display:none;margin-bottom:16px"></div>
       <div class="rsvp-grid" id="tourney-rsvp-list"></div>
       <div class="editor-only-card" style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,215,0,0.2)">
         <div class="summary-col-header" style="color:#ffd700">Tournament RSVP Summary</div>
@@ -2214,6 +2215,7 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-pink" onclick="saveTournament()">Save Tournament</button>
         <button class="btn btn-outline" onclick="markAllTournamentPaid()">Mark All In as Paid</button>
+        <button class="btn btn-outline" onclick="generateTournamentPairings()">Pair Tee Times</button>
         <button class="btn btn-outline" onclick="copyTournamentSummary()">Copy Summary</button>
         <button class="btn btn-outline" onclick="resetTournamentRSVPs()">Reset Tournament RSVPs</button>
       </div>
@@ -2505,6 +2507,7 @@ let tournamentData     = {};   // { enabled, name, date, time, course, fee, note
 let tournamentRsvps    = {};   // { playerId: 'yes' | 'no' | 'pending' }
 let tournamentGuests   = {};   // { guestId: { id, name, isGuest, addedAt } }
 let tournamentPayments = {};   // { playerId: true }
+let tournamentPairings = [];   // [{ teeTime, players: [playerId] }]
 let tournamentListeners = [];
 let scoringMode = 'individual';    // 'individual' | 'group'
 let scoringModeListener = null;
@@ -3094,6 +3097,7 @@ function listenToTournament() {
   bind('tournamentRsvps',    v => { tournamentRsvps    = v || {}; });
   bind('tournamentGuests',   v => { tournamentGuests   = v || {}; });
   bind('tournamentPayments', v => { tournamentPayments = v || {}; });
+  bind('tournamentPairings', v => { tournamentPairings = v || []; });
 }
 
 // Roster + tournament-only guests. Tournament guests are kept separate from
@@ -3205,8 +3209,73 @@ function renderTournament() {
   const guestRow = document.getElementById('tourney-guest-row');
   if (guestRow) guestRow.style.display = (locked && !isEditor) ? 'none' : 'flex';
 
+  renderTournamentPairings();
   renderTournamentList();
   renderTournamentSummary();
+}
+
+function renderTournamentPairings() {
+  const el = document.getElementById('tourney-pairings');
+  if (!el) return;
+  const byId = {};
+  getTournamentPlayers().forEach(p => { byId[p.id] = p; });
+  // Only show players who are still signed up, so a late drop doesn't linger.
+  const groups = (tournamentPairings || [])
+    .map(g => ({ teeTime: g.teeTime, players: (g.players || []).filter(id => byId[id] && tournamentRsvps[id] === 'yes') }))
+    .filter(g => g.players.length);
+  if (!groups.length) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  let html = '<div class="summary-col-header" style="color:#ffd700;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">' +
+    '<span>Tee Times &amp; Pairings</span>' +
+    '<button class="btn btn-outline editor-only-card" style="font-size:0.7rem;padding:6px 14px" onclick="generateTournamentPairings()">Regenerate</button></div>';
+  groups.forEach((g, gi) => {
+    html += '<div class="pairing-group" style="border-color:rgba(255,215,0,0.3);background:rgba(255,215,0,0.05)">' +
+      '<div class="pairing-header"><span class="pairing-tee-time" style="color:#ffd700">' + escHtml(formatTeeTime(g.teeTime) || 'TBD') + '</span>' +
+      '<span class="pairing-group-label">Group ' + (gi + 1) + '</span></div><div class="pairing-players">';
+    g.players.forEach((id, pi) => {
+      const p = byId[id];
+      html += '<span class="pairing-player" style="border-color:rgba(255,215,0,0.3)"><span class="pairing-num" style="color:#ffd700">' + (pi + 1) + '</span>' +
+        escHtml(p.name) + (p.isGuest ? ' <span class="guest-badge">G</span>' : '') + '</span>';
+    });
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+// Random foursomes (threesomes when the count doesn't divide by 4), one group
+// per tee time in order. Extra groups share the last tee time.
+async function generateTournamentPairings() {
+  if (!isEditor) return;
+  const players = getTournamentPlayers().filter(p => tournamentRsvps[p.id] === 'yes');
+  if (!players.length) return toast('Nobody is signed up yet.');
+  if ((tournamentPairings || []).length && !confirm('Replace the current tournament pairings with a new random draw?')) return;
+  const teeTimes = getTournamentTeeTimes();
+  const shuffled = [...players];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const numGroups = Math.ceil(shuffled.length / 4);
+  const baseSize = Math.floor(shuffled.length / numGroups);
+  const remainder = shuffled.length % numGroups;
+  const pairings = [];
+  let idx = 0;
+  for (let g = 0; g < numGroups; g++) {
+    const size = baseSize + (g < remainder ? 1 : 0);
+    pairings.push({
+      teeTime: teeTimes[g] || teeTimes[teeTimes.length - 1] || '',
+      players: shuffled.slice(idx, idx + size).map(p => p.id)
+    });
+    idx += size;
+  }
+  try {
+    await db.ref('tournamentPairings').set(pairings);
+    toast('Tournament pairings set: ' + numGroups + ' groups.');
+  } catch (e) { toast('Failed to save pairings.'); console.warn(e); }
 }
 
 function renderTournamentList() {
@@ -3386,8 +3455,8 @@ async function saveTournament() {
 
 async function resetTournamentRSVPs() {
   if (!isEditor) return;
-  if (!confirm('Reset the tournament RSVP list? Every player goes back to Pending, and tournament guests and payments are cleared. The tournament details are kept.')) return;
-  const updates = { 'tournamentRsvps': null, 'tournamentGuests': null, 'tournamentPayments': null };
+  if (!confirm('Reset the tournament RSVP list? Every player goes back to Pending, and tournament guests, payments and pairings are cleared. The tournament details are kept.')) return;
+  const updates = { 'tournamentRsvps': null, 'tournamentGuests': null, 'tournamentPayments': null, 'tournamentPairings': null };
   try {
     await db.ref().update(updates);
     toast('Tournament RSVPs reset - all players Pending');
