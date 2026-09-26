@@ -3219,9 +3219,12 @@ function renderTournamentPairings() {
   if (!el) return;
   const byId = {};
   getTournamentPlayers().forEach(p => { byId[p.id] = p; });
+  // Tee times come from the current tournament settings (group N -> tee time N,
+  // extras share the last), so editing tee times after the draw updates the card.
+  const teeTimes = getTournamentTeeTimes();
   // Only show players who are still signed up, so a late drop doesn't linger.
-  const groups = (tournamentPairings || [])
-    .map(g => ({ teeTime: g.teeTime, players: (g.players || []).filter(id => byId[id] && tournamentRsvps[id] === 'yes') }))
+  const groups = Object.values(tournamentPairings || {})
+    .map((g, gi) => ({ teeTime: teeTimes[gi] || teeTimes[teeTimes.length - 1] || g.teeTime, players:(g.players || []).filter(id => byId[id] && tournamentRsvps[id] === 'yes') }))
     .filter(g => g.players.length);
   if (!groups.length) {
     el.style.display = 'none';
