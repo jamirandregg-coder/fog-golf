@@ -3450,8 +3450,14 @@ async function saveTournament() {
     notes:    document.getElementById('tourney-notes-input').value.trim(),
     fee:      feeRaw === '' ? 0 : Math.max(0, parseInt(feeRaw) || 0)
   };
+  // Keep drawn pairings' stored tee times in step with the new tee times
+  // (group N -> tee time N, extras share the last).
+  const updates = { 'tournament': data };
+  Object.values(tournamentPairings || {}).forEach((g, gi) => {
+    updates['tournamentPairings/' + gi + '/teeTime'] = teeTimes[gi] || teeTimes[teeTimes.length - 1] || '';
+  });
   try {
-    await db.ref('tournament').set(data);
+    await db.ref().update(updates);
     toast(data.enabled ? 'Tournament saved and visible on the home page.' : 'Tournament saved (hidden).');
   } catch (e) { toast('Failed to save tournament.'); console.warn(e); }
 }
